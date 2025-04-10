@@ -49,59 +49,80 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       try {
         // First, create Firebase authentication
-        await _firebaseService.signUpWithEmailAndPassword(
+        final userCredential =
+            await _firebaseService.signUpWithEmailAndPassword(
           _emailController.text.trim(),
           _passwordController.text,
         );
 
-        // Then, register user in MongoDB
-        await _apiService.registerUser(_selectedType!);
+        try {
+          // Then, register user in MongoDB
+          await _apiService.registerUser(_selectedType!);
 
-        // Finally, register the specific profile (donor or recipient)
-        if (_selectedType == 'Donor') {
-          await _apiService.registerDonor(
-            name: _nameController.text,
-            orgName: _orgNameController.text,
-            identificationId: _idController.text,
-            address: _addressController.text,
-            contact: _contactController.text,
-            type: _selectedType!,
-            about: _aboutController.text,
-          );
-        } else {
-          await _apiService.registerRecipient(
-            name: _nameController.text,
-            ngoName: _orgNameController.text,
-            ngoId: _idController.text,
-            address: _addressController.text,
-            contact: _contactController.text,
-            type: _selectedType!,
-            about: _aboutController.text,
-          );
-        }
+          try {
+            // Finally, register the specific profile (donor or recipient)
+            if (_selectedType == 'Donor') {
+              await _apiService.registerDonor(
+                name: _nameController.text,
+                orgName: _orgNameController.text,
+                identificationId: _idController.text,
+                address: _addressController.text,
+                contact: _contactController.text,
+                type: _selectedType!,
+                about: _aboutController.text,
+              );
+            } else {
+              await _apiService.registerRecipient(
+                name: _nameController.text,
+                ngoName: _orgNameController.text,
+                ngoId: _idController.text,
+                address: _addressController.text,
+                contact: _contactController.text,
+                type: _selectedType!,
+                about: _aboutController.text,
+              );
+            }
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Registration successful!'),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
-              behavior: SnackBarBehavior.floating,
-              margin: EdgeInsets.all(16),
-            ),
-          );
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Registration successful!'),
+                  backgroundColor: Colors.green,
+                  duration: Duration(seconds: 2),
+                  behavior: SnackBarBehavior.floating,
+                  margin: EdgeInsets.all(16),
+                ),
+              );
 
-          Navigator.pushNamedAndRemoveUntil(
-            context,
-            '/dashboard',
-            (route) => false,
-          );
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/dashboard',
+                (route) => false,
+              );
+            }
+          } catch (e) {
+            // If profile registration fails, attempt to delete the user from MongoDB
+            try {
+              await _apiService.deleteUser();
+            } catch (_) {
+              // Ignore cleanup errors
+            }
+            // Only delete Firebase user if we're sure the MongoDB cleanup succeeded
+            if (await _apiService.isUserDeleted()) {
+              await userCredential.user?.delete();
+            }
+            rethrow;
+          }
+        } catch (e) {
+          // If MongoDB registration fails, delete the Firebase user
+          await userCredential.user?.delete();
+          rethrow;
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(e.toString().replaceAll('Exception: ', '')),
+              content: Text('Registration failed: ${e.toString()}'),
               backgroundColor: Colors.red,
               duration: const Duration(seconds: 3),
               behavior: SnackBarBehavior.floating,

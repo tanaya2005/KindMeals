@@ -11,7 +11,11 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Configure Multer for file uploads
@@ -198,9 +202,17 @@ app.post('/api/register', async (req, res) => {
   try {
     const { firebaseUid, email, role } = req.body;
     
+    console.log('Registration attempt:', { firebaseUid, email, role });
+    
+    if (!firebaseUid || !email || !role) {
+      console.log('Missing required fields');
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
     // Check if user already exists
     const existingUser = await User.findOne({ firebaseUid });
     if (existingUser) {
+      console.log('User already exists:', existingUser);
       return res.status(400).json({ error: 'User already exists' });
     }
 
@@ -212,12 +224,54 @@ app.post('/api/register', async (req, res) => {
     });
 
     await user.save();
+    console.log('User created successfully:', user);
 
     res.status(201).json({ 
       message: 'User created successfully',
       user: { _id: user._id, email: user.email, role: user.role }
     });
   } catch (err) {
+    console.error('Error in registration:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Delete user (for registration rollback)
+app.delete('/api/user', authMiddleware, async (req, res) => {
+  try {
+    const user = req.user;
+    
+    // Delete user's profile based on role
+    if (user.role === 'donor') {
+      await Donor.findOneAndDelete({ userId: user._id });
+    } else if (user.role === 'recipient') {
+      await Recipient.findOneAndDelete({ userId: user._id });
+    } else if (user.role === 'volunteer') {
+      await Volunteer.findOneAndDelete({ userId: user._id });
+    }
+    
+    // Delete user from Users collection
+    await User.findByIdAndDelete(user._id);
+    
+    res.status(200).json({ message: 'User deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting user:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Check if user exists
+app.get('/api/user/check', authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.status(200).json({ exists: true });
+  } catch (err) {
+    console.error('Error checking user:', err);
     res.status(400).json({ error: err.message });
   }
 });
@@ -241,22 +295,25 @@ app.get('/api/user/profile', authMiddleware, async (req, res) => {
 // Complete donor registration (after signup)
 app.post('/api/donor/register', authMiddleware, upload, async (req, res) => {
   try {
+    console.log('Donor registration attempt for user:', req.user._id);
+    
     if (req.user.role !== 'donor') {
+      console.log('User role mismatch. Expected: donor, Got:', req.user.role);
       return res.status(403).json({ error: 'Only users with donor role can register as donors' });
     }
 
     // Check if donor already registered
     const existingDonor = await Donor.findOne({ userId: req.user._id });
     if (existingDonor) {
+      console.log('Donor already registered:', existingDonor);
       return res.status(400).json({ error: 'Donor already registered' });
     }
 
-    // Handle profile image upload
-    const profileImage = req.files['profileImage'] ? 
-      `/uploads/${req.files['profileImage'][0].filename}` : '';
-
-    // Update user with profile image if uploaded
-    if (profileImage) {
+    // Handle profile image upload - safely check if files exist
+    let profileImage = '';
+    if (req.files && req.files['profileImage'] && req.files['profileImage'][0]) {
+      profileImage = `/uploads/${req.files['profileImage'][0].filename}`;
+      // Update user with profile image
       await User.findByIdAndUpdate(req.user._id, { profileImage });
     }
 
@@ -277,8 +334,10 @@ app.post('/api/donor/register', authMiddleware, upload, async (req, res) => {
     });
 
     const savedDonor = await donor.save();
+    console.log('Donor registered successfully:', savedDonor);
     res.status(201).json(savedDonor);
   } catch (err) {
+    console.error('Error in donor registration:', err);
     res.status(400).json({ error: err.message });
   }
 });
@@ -286,22 +345,25 @@ app.post('/api/donor/register', authMiddleware, upload, async (req, res) => {
 // Complete recipient registration (after signup)
 app.post('/api/recipient/register', authMiddleware, upload, async (req, res) => {
   try {
+    console.log('Recipient registration attempt for user:', req.user._id);
+    
     if (req.user.role !== 'recipient') {
+      console.log('User role mismatch. Expected: recipient, Got:', req.user.role);
       return res.status(403).json({ error: 'Only users with recipient role can register as recipients' });
     }
 
     // Check if recipient already registered
     const existingRecipient = await Recipient.findOne({ userId: req.user._id });
     if (existingRecipient) {
+      console.log('Recipient already registered:', existingRecipient);
       return res.status(400).json({ error: 'Recipient already registered' });
     }
 
-    // Handle profile image upload
-    const profileImage = req.files['profileImage'] ? 
-      `/uploads/${req.files['profileImage'][0].filename}` : '';
-
-    // Update user with profile image if uploaded
-    if (profileImage) {
+    // Handle profile image upload - safely check if files exist
+    let profileImage = '';
+    if (req.files && req.files['profileImage'] && req.files['profileImage'][0]) {
+      profileImage = `/uploads/${req.files['profileImage'][0].filename}`;
+      // Update user with profile image
       await User.findByIdAndUpdate(req.user._id, { profileImage });
     }
 
@@ -322,8 +384,10 @@ app.post('/api/recipient/register', authMiddleware, upload, async (req, res) => 
     });
 
     const savedRecipient = await recipient.save();
+    console.log('Recipient registered successfully:', savedRecipient);
     res.status(201).json(savedRecipient);
   } catch (err) {
+    console.error('Error in recipient registration:', err);
     res.status(400).json({ error: err.message });
   }
 });
@@ -684,8 +748,8 @@ app.get('/api/volunteer/opportunities', authMiddleware, async (req, res) => {
   }
 });
 
-// Server health check endpoint
-app.get('/health', (req, res) => {
+// Health check endpoint
+app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'OK', message: 'Server is running properly' });
 });
 

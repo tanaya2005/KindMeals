@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:kindmeals/services/api_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -11,7 +12,41 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   File? _profileImage;
-  bool _isLoading = false;
+  bool _isLoading = true;
+  bool _hasError = false;
+  String _errorMessage = '';
+  Map<String, dynamic>? _userData;
+  Map<String, dynamic>? _profileData;
+  final ApiService _apiService = ApiService();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserProfile();
+  }
+
+  Future<void> _loadUserProfile() async {
+    setState(() {
+      _isLoading = true;
+      _hasError = false;
+    });
+
+    try {
+      final profileData = await _apiService.getUserProfile();
+      setState(() {
+        _userData = profileData['user'];
+        _profileData = profileData['profile'];
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _hasError = true;
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+      print('Error loading profile: $e');
+    }
+  }
 
   Future<void> _pickImage() async {
     final ImagePicker picker = ImagePicker();
@@ -20,7 +55,66 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         _profileImage = File(image.path);
       });
+      // TODO: Upload image to server
     }
+  }
+
+  Widget _buildProfileSection(String title, List<Widget> children) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Card(
+          elevation: 2,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: children,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProfileItem(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.grey),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -36,156 +130,151 @@ class _ProfileScreenState extends State<ProfileScreen> {
               // TODO: Navigate to edit profile screen
             },
           ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadUserProfile,
+          ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              GestureDetector(
-                onTap: _pickImage,
-                child: CircleAvatar(
-                  radius: 60,
-                  backgroundImage:
-                      _profileImage != null ? FileImage(_profileImage!) : null,
-                  child:
-                      _profileImage == null
-                          ? const Icon(
-                            Icons.add_a_photo,
-                            size: 40,
-                            color: Colors.grey,
-                          )
-                          : null,
-                ),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'John Doe',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 5),
-              const Text(
-                'Hotel Green Valley',
-                style: TextStyle(fontSize: 16, color: Colors.grey),
-              ),
-              const SizedBox(height: 30),
-              _buildProfileSection('Personal Information', [
-                _buildProfileItem(Icons.person, 'Name', 'John Doe'),
-                _buildProfileItem(Icons.email, 'Email', 'john.doe@example.com'),
-                _buildProfileItem(Icons.phone, 'Contact', '+91 9876543210'),
-                _buildProfileItem(
-                  Icons.location_on,
-                  'Address',
-                  '123 Main Street, City Center',
-                ),
-              ]),
-              const SizedBox(height: 30),
-              _buildProfileSection('Organization Information', [
-                _buildProfileItem(
-                  Icons.business,
-                  'Organization Name',
-                  'Hotel Green Valley',
-                ),
-                _buildProfileItem(Icons.badge, 'Restaurant ID', 'RST123456'),
-                _buildProfileItem(Icons.category, 'Type', 'Donor'),
-              ]),
-              const SizedBox(height: 30),
-              _buildProfileSection('About', [
-                _buildProfileItem(
-                  Icons.info,
-                  'Description',
-                  'We are a 5-star hotel committed to reducing food waste and helping those in need. We regularly donate surplus food to local shelters and NGOs.',
-                ),
-              ]),
-              const SizedBox(height: 30),
-              ElevatedButton(
-                onPressed:
-                    _isLoading
-                        ? null
-                        : () {
-                          setState(() {
-                            _isLoading = true;
-                          });
-                          // TODO: Implement logout logic
-                        },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 40,
-                    vertical: 15,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _hasError
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.error_outline,
+                        color: Colors.red,
+                        size: 60,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Error loading profile',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _errorMessage,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _loadUserProfile,
+                        child: const Text('Try Again'),
+                      ),
+                    ],
                   ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                child:
-                    _isLoading
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text(
-                          'Logout',
-                          style: TextStyle(fontSize: 16, color: Colors.white),
+                )
+              : SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        GestureDetector(
+                          onTap: _pickImage,
+                          child: CircleAvatar(
+                            radius: 60,
+                            backgroundImage: _profileImage != null
+                                ? FileImage(_profileImage!)
+                                : (_userData?['profileImage'] != null &&
+                                        _userData!['profileImage']
+                                            .toString()
+                                            .isNotEmpty)
+                                    ? NetworkImage(
+                                            'http://192.168.109.46:5000${_userData!['profileImage']}')
+                                        as ImageProvider
+                                    : null,
+                            child: _profileImage == null &&
+                                    (_userData?['profileImage'] == null ||
+                                        _userData!['profileImage']
+                                            .toString()
+                                            .isEmpty)
+                                ? const Icon(
+                                    Icons.add_a_photo,
+                                    size: 40,
+                                    color: Colors.grey,
+                                  )
+                                : null,
+                          ),
                         ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProfileSection(String title, List<Widget> children) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 16),
-        Card(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(children: children),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildProfileItem(IconData icon, String title, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: Colors.grey, size: 24),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                        const SizedBox(height: 20),
+                        Text(
+                          _profileData?['donorname'] ??
+                              _profileData?['reciname'] ??
+                              'User',
+                          style: const TextStyle(
+                              fontSize: 24, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          _profileData?['orgName'] ??
+                              _profileData?['ngoName'] ??
+                              '',
+                          style:
+                              const TextStyle(fontSize: 16, color: Colors.grey),
+                        ),
+                        const SizedBox(height: 30),
+                        _buildProfileSection('Personal Information', [
+                          _buildProfileItem(
+                              Icons.person,
+                              'Name',
+                              _profileData?['donorname'] ??
+                                  _profileData?['reciname'] ??
+                                  'N/A'),
+                          _buildProfileItem(Icons.email, 'Email',
+                              _userData?['email'] ?? 'N/A'),
+                          _buildProfileItem(
+                              Icons.phone,
+                              'Contact',
+                              _profileData?['donorcontact'] ??
+                                  _profileData?['recicontact'] ??
+                                  'N/A'),
+                          _buildProfileItem(
+                            Icons.location_on,
+                            'Address',
+                            _profileData?['donoraddress'] ??
+                                _profileData?['reciaddress'] ??
+                                'N/A',
+                          ),
+                        ]),
+                        const SizedBox(height: 30),
+                        _buildProfileSection('Organization Information', [
+                          _buildProfileItem(
+                            Icons.business,
+                            'Organization Name',
+                            _profileData?['orgName'] ??
+                                _profileData?['ngoName'] ??
+                                'N/A',
+                          ),
+                          _buildProfileItem(
+                              Icons.badge,
+                              'ID',
+                              _profileData?['identificationId'] ??
+                                  _profileData?['ngoId'] ??
+                                  'N/A'),
+                          _buildProfileItem(
+                              Icons.category,
+                              'Type',
+                              _userData?['role']?.toString().toUpperCase() ??
+                                  'N/A'),
+                        ]),
+                        const SizedBox(height: 30),
+                        _buildProfileSection('About', [
+                          _buildProfileItem(
+                            Icons.info,
+                            'Description',
+                            _profileData?['donorabout'] ??
+                                _profileData?['reciabout'] ??
+                                'No description available',
+                          ),
+                        ]),
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

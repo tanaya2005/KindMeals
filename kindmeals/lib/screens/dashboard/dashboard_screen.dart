@@ -542,12 +542,15 @@
 
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
+import 'package:kindmeals/screens/profile/profile_screen.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../services/firebase_service.dart';
 import 'post_donation_screen.dart';
 import 'view_donations_screen.dart';
 import 'volunteers_screen.dart';
+
+
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -571,7 +574,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     const _HomeScreen(),
     const PostDonationScreen(),
     const ViewDonationsScreen(),
-    const VolunteersScreen(),
+    const ProfileScreen(),
   ];
 
   @override
