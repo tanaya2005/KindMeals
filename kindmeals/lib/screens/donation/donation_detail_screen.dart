@@ -1,203 +1,227 @@
 import 'package:flutter/material.dart';
+import '../../services/api_service.dart';
 
 class DonationDetailScreen extends StatefulWidget {
-  const DonationDetailScreen({super.key});
+  final Map<String, dynamic> donation;
+
+  const DonationDetailScreen({
+    super.key,
+    required this.donation,
+  });
 
   @override
   State<DonationDetailScreen> createState() => _DonationDetailScreenState();
 }
 
 class _DonationDetailScreenState extends State<DonationDetailScreen> {
+  final _apiService = ApiService();
   bool _isLoading = false;
+  String? _error;
+
+  Future<void> _acceptDonation() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+
+      await _apiService.acceptDonation(widget.donation['_id']);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Donation accepted successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context, true); // Return true to indicate success
+      }
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error accepting donation: $_error'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 300,
-            pinned: true,
-            flexibleSpace: FlexibleSpaceBar(
-              background: Image.network(
-                'https://picsum.photos/400/300',
-                fit: BoxFit.cover,
-              ),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
+      appBar: AppBar(
+        title: const Text('Donation Details'),
+        centerTitle: true,
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Freshly Cooked Meals',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
+                  if (widget.donation['foodImage'] != null)
+                    Image.network(
+                      widget.donation['foodImage'],
+                      height: 200,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                widget.donation['foodName'],
+                                style: const TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _getFoodTypeColor(
+                                    widget.donation['foodType']),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                widget.donation['foodType'].toUpperCase(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
+                        const SizedBox(height: 16),
+                        _buildInfoRow(
+                          Icons.restaurant,
+                          'Quantity',
+                          '${widget.donation['quantity']} meals',
                         ),
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade100,
-                          borderRadius: BorderRadius.circular(20),
+                        const SizedBox(height: 8),
+                        _buildInfoRow(
+                          Icons.access_time,
+                          'Expires',
+                          _formatDateTime(widget.donation['expiryDateTime']),
                         ),
-                        child: const Text(
-                          'Vegetarian',
+                        const SizedBox(height: 8),
+                        _buildInfoRow(
+                          Icons.location_on,
+                          'Pickup Location',
+                          widget.donation['location']['address'],
+                        ),
+                        if (widget.donation['needsVolunteer']) ...[
+                          const SizedBox(height: 8),
+                          _buildInfoRow(
+                            Icons.volunteer_activism,
+                            'Volunteer Needed',
+                            'Yes - for delivery assistance',
+                            iconColor: Colors.orange,
+                          ),
+                        ],
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Description',
                           style: TextStyle(
-                            color: Colors.green,
+                            fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Donated by: Hotel Green Valley',
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 24),
-                  const Text(
-                    'Details',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildDetailItem(Icons.scale, 'Quantity', '5 meals'),
-                  _buildDetailItem(
-                    Icons.description,
-                    'Description',
-                    'Freshly cooked vegetarian meals including rice, dal, vegetables, and chapati. Prepared with hygiene and care.',
-                  ),
-                  _buildDetailItem(
-                    Icons.calendar_today,
-                    'Expiry Date & Time',
-                    'Today, 8:00 PM',
-                  ),
-                  _buildDetailItem(
-                    Icons.location_on,
-                    'Location',
-                    '123 Main Street, City Center',
-                  ),
-                  const SizedBox(height: 24),
-                  const Text(
-                    'Volunteer Information',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildDetailItem(
-                    Icons.volunteer_activism,
-                    'Volunteer Needed',
-                    'Yes',
-                  ),
-                  _buildDetailItem(
-                    Icons.person,
-                    'Accepted by',
-                    'Not accepted yet',
-                  ),
-                  const SizedBox(height: 32),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed:
-                              _isLoading
-                                  ? null
-                                  : () {
-                                    setState(() {
-                                      _isLoading = true;
-                                    });
-                                    // TODO: Implement accept donation logic
-                                  },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            padding: const EdgeInsets.symmetric(vertical: 15),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
+                        const SizedBox(height: 8),
+                        Text(
+                          widget.donation['description'],
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                        const SizedBox(height: 24),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: _acceptDonation,
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              backgroundColor: Colors.green,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text(
+                              'Accept Donation',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
-                          icon: const Icon(Icons.check),
-                          label:
-                              _isLoading
-                                  ? const CircularProgressIndicator(
-                                    color: Colors.white,
-                                  )
-                                  : const Text(
-                                    'Accept Donation',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      color: Colors.white,
-                                    ),
-                                  ),
                         ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            // TODO: Implement share functionality
-                          },
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 15),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          icon: const Icon(Icons.share),
-                          label: const Text(
-                            'Share',
-                            style: TextStyle(fontSize: 16),
-                          ),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
-          ),
-        ],
-      ),
     );
   }
 
-  Widget _buildDetailItem(IconData icon, String title, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: Colors.grey, size: 24),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-                ),
-              ],
-            ),
+  Widget _buildInfoRow(IconData icon, String label, String value,
+      {Color? iconColor}) {
+    return Row(
+      children: [
+        Icon(icon, color: iconColor ?? Colors.green),
+        const SizedBox(width: 8),
+        Text(
+          '$label: ',
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
           ),
-        ],
-      ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(fontSize: 16),
+          ),
+        ),
+      ],
     );
+  }
+
+  Color _getFoodTypeColor(String type) {
+    switch (type.toLowerCase()) {
+      case 'veg':
+        return Colors.green;
+      case 'nonveg':
+        return Colors.red;
+      case 'jain':
+        return Colors.purple;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _formatDateTime(String dateTimeStr) {
+    final dateTime = DateTime.parse(dateTimeStr);
+    return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour}:${dateTime.minute}';
   }
 }

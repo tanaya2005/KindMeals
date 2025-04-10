@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../services/api_service.dart';
 import 'donation_detail_screen.dart';
 
 class ViewDonationsScreen extends StatefulWidget {
@@ -9,15 +10,36 @@ class ViewDonationsScreen extends StatefulWidget {
 }
 
 class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
-  String? _selectedFilter;
-  final List<String> _filters = [
-    'All',
-    'Vegetarian',
-    'Non-Vegetarian',
-    'Jain',
-    'Near Me',
-    'Volunteer Needed',
-  ];
+  final _apiService = ApiService();
+  List<Map<String, dynamic>> _donations = [];
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDonations();
+  }
+
+  Future<void> _loadDonations() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+
+      final donations = await _apiService.getLiveDonations();
+      setState(() {
+        _donations = donations;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,75 +49,71 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.filter_list),
-            onPressed: () {
-              showModalBottomSheet(
-                context: context,
-                builder: (context) {
-                  return Container(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text(
-                          'Filter Donations',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children:
-                              _filters.map((filter) {
-                                return FilterChip(
-                                  label: Text(filter),
-                                  selected: _selectedFilter == filter,
-                                  onSelected: (bool selected) {
-                                    setState(() {
-                                      _selectedFilter =
-                                          selected ? filter : null;
-                                    });
-                                    Navigator.pop(context);
-                                  },
-                                );
-                              }).toList(),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              );
-            },
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadDonations,
           ),
         ],
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: 10, // Replace with actual donation count
-        itemBuilder: (context, index) {
-          return DonationCard(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const DonationDetailScreen(),
-                ),
-              );
-            },
-          );
-        },
-      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Error: $_error',
+                        style: const TextStyle(color: Colors.red),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _loadDonations,
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                )
+              : _donations.isEmpty
+                  ? const Center(
+                      child: Text('No donations available'),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _loadDonations,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _donations.length,
+                        itemBuilder: (context, index) {
+                          final donation = _donations[index];
+                          return DonationCard(
+                            donation: donation,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => DonationDetailScreen(
+                                    donation: donation,
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
     );
   }
 }
 
 class DonationCard extends StatelessWidget {
+  final Map<String, dynamic> donation;
   final VoidCallback onTap;
 
-  const DonationCard({super.key, required this.onTap});
+  const DonationCard({
+    super.key,
+    required this.donation,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -105,116 +123,115 @@ class DonationCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(15),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(15),
-              ),
-              child: Image.network(
-                'https://picsum.photos/400/200',
-                height: 200,
-                width: double.infinity,
-                fit: BoxFit.cover,
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Freshly Cooked Meals',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                  Expanded(
+                    child: Text(
+                      donation['foodName'],
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade100,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Text(
-                          'Vegetarian',
-                          style: TextStyle(
-                            color: Colors.green,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Quantity: 5 meals',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Expires in: 2 hours',
-                    style: TextStyle(
-                      color: Colors.orange,
-                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.location_on,
-                        color: Colors.grey,
-                        size: 20,
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _getFoodTypeColor(donation['foodType']),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      donation['foodType'].toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
                       ),
-                      const SizedBox(width: 8),
-                      const Text(
-                        '1.2 km away',
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                      const Spacer(),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade100,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Row(
-                          children: [
-                            Icon(
-                              Icons.volunteer_activism,
-                              color: Colors.blue,
-                              size: 16,
-                            ),
-                            SizedBox(width: 4),
-                            Text(
-                              'Volunteer Needed',
-                              style: TextStyle(
-                                color: Colors.blue,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ],
               ),
-            ),
-          ],
+              const SizedBox(height: 8),
+              Text(
+                'Quantity: ${donation['quantity']}',
+                style: const TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                donation['description'],
+                style: const TextStyle(fontSize: 14),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  const Icon(Icons.location_on, color: Colors.green),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      donation['location']['address'],
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.access_time, color: Colors.green),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Expires: ${_formatDateTime(donation['expiryDateTime'])}',
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ],
+              ),
+              if (donation['needsVolunteer']) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: const [
+                    Icon(Icons.volunteer_activism, color: Colors.orange),
+                    SizedBox(width: 8),
+                    Text(
+                      'Volunteer needed for delivery',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.orange,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  Color _getFoodTypeColor(String type) {
+    switch (type.toLowerCase()) {
+      case 'veg':
+        return Colors.green;
+      case 'nonveg':
+        return Colors.red;
+      case 'jain':
+        return Colors.purple;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _formatDateTime(String dateTimeStr) {
+    final dateTime = DateTime.parse(dateTimeStr);
+    return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour}:${dateTime.minute}';
   }
 }
