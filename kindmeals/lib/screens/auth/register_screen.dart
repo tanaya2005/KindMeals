@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../../services/firebase_service.dart';
+import '../../services/api_service.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -21,6 +22,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _aboutController = TextEditingController();
   final _orgNameController = TextEditingController();
   final _firebaseService = FirebaseService();
+  final _apiService = ApiService();
 
   String? _selectedType;
   File? _profileImage;
@@ -46,10 +48,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
       });
 
       try {
+        // First, create Firebase authentication
         await _firebaseService.signUpWithEmailAndPassword(
           _emailController.text.trim(),
           _passwordController.text,
         );
+
+        // Then, register user in MongoDB
+        await _apiService.registerUser(_selectedType!);
+
+        // Finally, register the specific profile (donor or recipient)
+        if (_selectedType == 'Donor') {
+          await _apiService.registerDonor(
+            name: _nameController.text,
+            orgName: _orgNameController.text,
+            identificationId: _idController.text,
+            address: _addressController.text,
+            contact: _contactController.text,
+            type: _selectedType!,
+            about: _aboutController.text,
+          );
+        } else {
+          await _apiService.registerRecipient(
+            name: _nameController.text,
+            ngoName: _orgNameController.text,
+            ngoId: _idController.text,
+            address: _addressController.text,
+            contact: _contactController.text,
+            type: _selectedType!,
+            about: _aboutController.text,
+          );
+        }
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
