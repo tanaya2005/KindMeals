@@ -7,7 +7,6 @@ import '../../services/firebase_service.dart';
 import '../../services/api_service.dart';
 import 'post_donation_screen.dart';
 import 'view_donations_screen.dart';
-import 'volunteers_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -52,7 +51,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     const _HomeScreen(),
     const PostDonationScreen(),
     const ViewDonationsScreen(),
-    const VolunteersScreen(),
     const ProfileScreen(),
   ];
 
@@ -598,11 +596,7 @@ class _HomeScreenState extends State<_HomeScreen> {
               ),
               TextButton(
                 onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => const VolunteersScreen()),
-                  );
+                  // Navigate to all volunteers
                 },
                 child: Row(
                   children: [
@@ -886,7 +880,7 @@ class _HomeScreenState extends State<_HomeScreen> {
           ),
           const SizedBox(height: 10),
           Text(
-            '© 2025 KindMeals. All rights reserved.',
+            ' 2025 KindMeals. All rights reserved.',
             style: TextStyle(
               color: Colors.white.withOpacity(0.6),
               fontSize: 12,
