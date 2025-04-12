@@ -3,6 +3,7 @@ import '../../services/firebase_service.dart';
 import '../dashboard/dashboard_screen.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
+import '../../services/api_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -16,6 +17,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _firebaseService = FirebaseService();
+  final _apiService = ApiService();
   bool _isLoading = false;
   bool _obscurePassword = true;
 
@@ -26,10 +28,25 @@ class _LoginScreenState extends State<LoginScreen> {
       });
 
       try {
-        await _firebaseService.signInWithEmailAndPassword(
+        // Authenticate with Firebase
+        final userCredential =
+            await _firebaseService.signInWithEmailAndPassword(
           _emailController.text.trim(),
           _passwordController.text,
         );
+
+        // Force token refresh to ensure we have a valid token
+        await userCredential.user?.getIdToken(true);
+
+        // Verify if the user exists in our direct database collections
+        try {
+          // Check profile without waiting
+          _apiService.getDirectUserProfile();
+        } catch (profileError) {
+          print(
+              'Note: Profile check error (expected on first login): $profileError');
+          // Not throwing error here as this is just a check
+        }
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -50,9 +67,22 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       } catch (e) {
         if (mounted) {
+          String errorMessage = 'Login failed';
+
+          if (e.toString().contains('user-not-found')) {
+            errorMessage =
+                'No user found with this email. Please register first.';
+          } else if (e.toString().contains('wrong-password')) {
+            errorMessage = 'Incorrect password. Please try again.';
+          } else if (e.toString().contains('too-many-requests')) {
+            errorMessage = 'Too many login attempts. Please try again later.';
+          } else {
+            errorMessage = e.toString().replaceAll('Exception: ', '');
+          }
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(e.toString().replaceAll('Exception: ', '')),
+              content: Text(errorMessage),
               backgroundColor: Colors.red,
               duration: const Duration(seconds: 3),
               behavior: SnackBarBehavior.floating,

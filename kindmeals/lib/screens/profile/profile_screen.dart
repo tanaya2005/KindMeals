@@ -32,6 +32,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
 
     try {
+      // Try the new direct API first
+      try {
+        final directProfileData = await _apiService.getDirectUserProfile();
+        print('Loaded profile using direct API: $directProfileData');
+        setState(() {
+          _userData = {
+            'email': directProfileData['profile']['email'],
+            'profileImage': directProfileData['profile']['profileImage'],
+          };
+          _profileData = directProfileData['profile'];
+          _isLoading = false;
+        });
+        return;
+      } catch (directError) {
+        print(
+            'Error loading profile with direct API, falling back: $directError');
+        // Fall back to the old API
+      }
+
+      // Legacy API as fallback
       final profileData = await _apiService.getUserProfile();
       setState(() {
         _userData = profileData['user'];
@@ -184,7 +204,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                             .toString()
                                             .isNotEmpty)
                                     ? NetworkImage(
-                                            'http://192.168.109.46:5000${_userData!['profileImage']}')
+                                            'http://192.168.0.100:5000${_userData!['profileImage']}')
                                         as ImageProvider
                                     : null,
                             child: _profileImage == null &&

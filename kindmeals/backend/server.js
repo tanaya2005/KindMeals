@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
+const { admin, verifyToken } = require('./firebase-admin'); // Update Firebase Admin import
 require('dotenv').config();
 
 // Initialize Express app
@@ -52,6 +53,47 @@ mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('Connected to MongoDB Atlas'))
   .catch(err => console.error('MongoDB connection error:', err));
 
+// Define updated schemas with Firebase UID
+const updatedDonorSchema = new mongoose.Schema({
+  firebaseUid: { type: String, required: true, unique: true },
+  email: { type: String, required: true, unique: true },
+  profileImage: { type: String },
+  donorname: { type: String, required: true },
+  orgName: { type: String, required: true },
+  identificationId: { type: String, required: true },
+  donoraddress: { type: String, required: true },
+  donorcontact: { type: String, required: true },
+  type: { type: String, required: true },
+  donorabout: { type: String },
+  donorlocation: {
+    latitude: { type: Number },
+    longitude: { type: Number }
+  },
+  createdAt: { type: Date, default: Date.now }
+}, { timestamps: true });
+
+const updatedRecipientSchema = new mongoose.Schema({
+  firebaseUid: { type: String, required: true, unique: true },
+  email: { type: String, required: true, unique: true },
+  profileImage: { type: String },
+  reciname: { type: String, required: true },
+  ngoName: { type: String, required: true },
+  ngoId: { type: String, required: true },
+  reciaddress: { type: String, required: true },
+  recicontact: { type: String, required: true },
+  type: { type: String, required: true },
+  reciabout: { type: String },
+  recilocation: {
+    latitude: { type: Number },
+    longitude: { type: Number }
+  },
+  createdAt: { type: Date, default: Date.now }
+});
+
+// Create new models with direct Firebase UID
+const DirectDonor = mongoose.model('DirectDonor', updatedDonorSchema);
+const DirectRecipient = mongoose.model('DirectRecipient', updatedRecipientSchema);
+
 // Define models
 const userSchema = new mongoose.Schema({
   firebaseUid: { type: String, required: true, unique: true },
@@ -74,7 +116,7 @@ const donorSchema = new mongoose.Schema({
     latitude: { type: Number },
     longitude: { type: Number }
   }
-});
+}, { timestamps: true });
 
 const recipientSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -155,25 +197,95 @@ const Volunteer = mongoose.model('Volunteer', volunteerSchema);
 const LiveDonation = mongoose.model('LiveDonation', liveDonationSchema);
 const AcceptedDonation = mongoose.model('AcceptedDonation', acceptedDonationSchema);
 
-// Auth Middleware - Verify Firebase UID
+// New Firebase middleware that doesn't rely on User collection
+const firebaseAuthMiddleware = async (req, res, next) => {
+  try {
+    const idToken = req.header('Authorization')?.replace('Bearer ', '');
+    if (!idToken) {
+      console.log('No authorization token provided');
+      return res.status(401).json({ error: 'No authentication token provided' });
+    }
+
+    try {
+      // Verify the ID token using our helper function
+      const decodedToken = await verifyToken(idToken);
+      const firebaseUid = decodedToken.uid;
+
+      console.log('Firebase token verified for UID:', firebaseUid);
+
+      // Add the Firebase UID to the request
+      req.firebaseUid = firebaseUid;
+      next();
+    } catch (error) {
+      console.error('Error verifying token:', error);
+      return res.status(401).json({ 
+        error: 'Authentication failed',
+        message: 'Failed to verify your authentication token. Please try logging in again.'
+      });
+    }
+  } catch (error) {
+    console.error('Error in auth middleware:', error);
+    res.status(401).json({ 
+      error: 'Not authorized',
+      message: 'You are not authorized to access this resource.'
+    });
+  }
+};
+
+// Auth Middleware - Verify Firebase token
 const authMiddleware = async (req, res, next) => {
   try {
-    const firebaseUid = req.header('Authorization')?.replace('Bearer ', '');
-    if (!firebaseUid) {
-      return res.status(401).json({ error: 'No Firebase UID provided' });
+    const idToken = req.header('Authorization')?.replace('Bearer ', '');
+    if (!idToken) {
+      console.log('No authorization token provided');
+      return res.status(401).json({ error: 'No authentication token provided' });
     }
 
-    const user = await User.findOne({ firebaseUid });
-    
-    if (!user) {
-      return res.status(401).json({ error: 'User not found' });
-    }
+    try {
+      // Verify the ID token using our helper function
+      const decodedToken = await verifyToken(idToken);
+      const firebaseUid = decodedToken.uid;
 
-    req.user = user;
-    next();
+      console.log('Firebase token verified for UID:', firebaseUid);
+
+      // Find the user in our database
+      const user = await User.findOne({ firebaseUid });
+      
+      if (!user) {
+        console.log('User not found in database for UID:', firebaseUid);
+        
+        // Check if the user exists in Firebase but not in MongoDB (for debugging)
+        console.log('Checking all users in MongoDB...');
+        const allUsers = await User.find({});
+        console.log('Available users in MongoDB:', allUsers.map(u => ({ 
+          _id: u._id, 
+          firebaseUid: u.firebaseUid,
+          email: u.email
+        })));
+        
+        return res.status(401).json({ 
+          error: 'User not found in database',
+          message: 'Your user account was not found in our database. Please try registering again.'
+        });
+      }
+
+      // Set the user on the request object
+      req.user = user;
+      console.log('User authenticated:', { id: user._id, role: user.role });
+      next();
+    } catch (error) {
+      console.error('Error verifying token:', error);
+      return res.status(401).json({ 
+        error: 'Authentication failed',
+        message: 'Failed to verify your authentication token. Please try logging in again.'
+      });
+    }
   } catch (error) {
-    console.error('Error verifying Firebase UID:', error);
-    res.status(401).json({ error: 'Not authorized' });
+    console.error('Error in auth middleware:', error);
+    res.status(401).json({ 
+      error: 'Not authorized',
+      message: 'You are not authorized to access this resource.'
+    });
   }
 };
 
@@ -205,7 +317,11 @@ app.post('/api/register', async (req, res) => {
     console.log('Registration attempt:', { firebaseUid, email, role });
     
     if (!firebaseUid || !email || !role) {
-      console.log('Missing required fields');
+      console.log('Missing required fields:', { 
+        hasFirebaseUid: !!firebaseUid, 
+        hasEmail: !!email, 
+        hasRole: !!role 
+      });
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
@@ -223,12 +339,12 @@ app.post('/api/register', async (req, res) => {
       role
     });
 
-    await user.save();
-    console.log('User created successfully:', user);
+    const savedUser = await user.save();
+    console.log('User created successfully:', savedUser);
 
     res.status(201).json({ 
       message: 'User created successfully',
-      user: { _id: user._id, email: user.email, role: user.role }
+      user: { _id: savedUser._id, email: savedUser.email, role: savedUser.role }
     });
   } catch (err) {
     console.error('Error in registration:', err);
@@ -296,6 +412,12 @@ app.get('/api/user/profile', authMiddleware, async (req, res) => {
 app.post('/api/donor/register', authMiddleware, upload, async (req, res) => {
   try {
     console.log('Donor registration attempt for user:', req.user._id);
+    console.log('User details:', { 
+      id: req.user._id, 
+      email: req.user.email,
+      role: req.user.role,
+      firebaseUid: req.user.firebaseUid 
+    });
     
     if (req.user.role !== 'donor') {
       console.log('User role mismatch. Expected: donor, Got:', req.user.role);
@@ -308,6 +430,25 @@ app.post('/api/donor/register', authMiddleware, upload, async (req, res) => {
       console.log('Donor already registered:', existingDonor);
       return res.status(400).json({ error: 'Donor already registered' });
     }
+
+    // Validate required fields
+    const requiredFields = ['donorname', 'orgName', 'identificationId', 'donoraddress', 'donorcontact', 'type'];
+    const missingFields = [];
+    
+    for (const field of requiredFields) {
+      if (!req.body[field]) {
+        missingFields.push(field);
+      }
+    }
+    
+    if (missingFields.length > 0) {
+      console.log('Missing required fields:', missingFields);
+      return res.status(400).json({ 
+        error: `Missing required fields: ${missingFields.join(', ')}` 
+      });
+    }
+    
+    console.log('All required fields present:', Object.keys(req.body));
 
     // Handle profile image upload - safely check if files exist
     let profileImage = '';
@@ -338,6 +479,12 @@ app.post('/api/donor/register', authMiddleware, upload, async (req, res) => {
     res.status(201).json(savedDonor);
   } catch (err) {
     console.error('Error in donor registration:', err);
+    if (err.code === 11000) {
+      // Handle duplicate key error
+      return res.status(400).json({ 
+        error: 'A donor with this information already exists. Please check your details and try again.' 
+      });
+    }
     res.status(400).json({ error: err.message });
   }
 });
@@ -751,6 +898,281 @@ app.get('/api/volunteer/opportunities', authMiddleware, async (req, res) => {
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'OK', message: 'Server is running properly' });
+});
+
+// Direct Donor Registration Route (no User record)
+app.post('/api/direct/donor/register', firebaseAuthMiddleware, upload, async (req, res) => {
+  try {
+    console.log('Direct donor registration attempt for Firebase UID:', req.firebaseUid);
+    
+    // Check if donor with this Firebase UID already exists
+    const existingDonor = await DirectDonor.findOne({ firebaseUid: req.firebaseUid });
+    if (existingDonor) {
+      console.log('Donor already registered with this Firebase UID:', req.firebaseUid);
+      return res.status(400).json({ error: 'Donor already registered with this account' });
+    }
+    
+    // Validate required fields
+    const requiredFields = ['donorname', 'orgName', 'identificationId', 'donoraddress', 'donorcontact', 'type', 'email'];
+    const missingFields = [];
+    
+    for (const field of requiredFields) {
+      if (!req.body[field]) {
+        missingFields.push(field);
+      }
+    }
+    
+    if (missingFields.length > 0) {
+      console.log('Missing required fields:', missingFields);
+      return res.status(400).json({ 
+        error: `Missing required fields: ${missingFields.join(', ')}` 
+      });
+    }
+    
+    console.log('All required fields present:', Object.keys(req.body));
+
+    // Handle profile image upload - safely check if files exist
+    let profileImage = '';
+    if (req.files && req.files['profileImage'] && req.files['profileImage'][0]) {
+      profileImage = `/uploads/${req.files['profileImage'][0].filename}`;
+    }
+
+    // Create donor profile directly with Firebase UID
+    const donor = new DirectDonor({
+      firebaseUid: req.firebaseUid,
+      email: req.body.email,
+      profileImage: profileImage,
+      donorname: req.body.donorname,
+      orgName: req.body.orgName,
+      identificationId: req.body.identificationId,
+      donoraddress: req.body.donoraddress,
+      donorcontact: req.body.donorcontact,
+      type: req.body.type,
+      donorabout: req.body.donorabout || '',
+      donorlocation: {
+        latitude: req.body.latitude || 0,
+        longitude: req.body.longitude || 0
+      }
+    });
+
+    const savedDonor = await donor.save();
+    console.log('Donor registered directly with Firebase UID:', savedDonor);
+    res.status(201).json(savedDonor);
+  } catch (err) {
+    console.error('Error in direct donor registration:', err);
+    if (err.code === 11000) {
+      // Handle duplicate key error
+      return res.status(400).json({ 
+        error: 'A donor with this email or ID already exists. Please check your details and try again.' 
+      });
+    }
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Direct Recipient Registration Route (no User record)
+app.post('/api/direct/recipient/register', firebaseAuthMiddleware, upload, async (req, res) => {
+  try {
+    console.log('Direct recipient registration attempt for Firebase UID:', req.firebaseUid);
+    
+    // Check if recipient with this Firebase UID already exists
+    const existingRecipient = await DirectRecipient.findOne({ firebaseUid: req.firebaseUid });
+    if (existingRecipient) {
+      console.log('Recipient already registered with this Firebase UID:', req.firebaseUid);
+      return res.status(400).json({ error: 'Recipient already registered with this account' });
+    }
+    
+    // Validate required fields
+    const requiredFields = ['reciname', 'ngoName', 'ngoId', 'reciaddress', 'recicontact', 'type', 'email'];
+    const missingFields = [];
+    
+    for (const field of requiredFields) {
+      if (!req.body[field]) {
+        missingFields.push(field);
+      }
+    }
+    
+    if (missingFields.length > 0) {
+      console.log('Missing required fields:', missingFields);
+      return res.status(400).json({ 
+        error: `Missing required fields: ${missingFields.join(', ')}` 
+      });
+    }
+    
+    console.log('All required fields present:', Object.keys(req.body));
+
+    // Handle profile image upload - safely check if files exist
+    let profileImage = '';
+    if (req.files && req.files['profileImage'] && req.files['profileImage'][0]) {
+      profileImage = `/uploads/${req.files['profileImage'][0].filename}`;
+    }
+
+    // Create recipient profile directly with Firebase UID
+    const recipient = new DirectRecipient({
+      firebaseUid: req.firebaseUid,
+      email: req.body.email,
+      profileImage: profileImage,
+      reciname: req.body.reciname,
+      ngoName: req.body.ngoName,
+      ngoId: req.body.ngoId,
+      reciaddress: req.body.reciaddress,
+      recicontact: req.body.recicontact,
+      type: req.body.type,
+      reciabout: req.body.reciabout || '',
+      recilocation: {
+        latitude: req.body.latitude || 0,
+        longitude: req.body.longitude || 0
+      }
+    });
+
+    const savedRecipient = await recipient.save();
+    console.log('Recipient registered directly with Firebase UID:', savedRecipient);
+    res.status(201).json(savedRecipient);
+  } catch (err) {
+    console.error('Error in direct recipient registration:', err);
+    if (err.code === 11000) {
+      // Handle duplicate key error
+      return res.status(400).json({ 
+        error: 'A recipient with this email or ID already exists. Please check your details and try again.' 
+      });
+    }
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Update Firebase verification to work with direct collections
+const directFirebaseAuthMiddleware = async (req, res, next) => {
+  try {
+    const idToken = req.header('Authorization')?.replace('Bearer ', '');
+    if (!idToken) {
+      console.log('No authorization token provided');
+      return res.status(401).json({ error: 'No authentication token provided' });
+    }
+
+    try {
+      // Verify the ID token using our helper function
+      const decodedToken = await verifyToken(idToken);
+      const firebaseUid = decodedToken.uid;
+
+      console.log('Firebase token verified for UID:', firebaseUid);
+
+      // Find user in DirectDonor or DirectRecipient collections
+      const donor = await DirectDonor.findOne({ firebaseUid });
+      const recipient = await DirectRecipient.findOne({ firebaseUid });
+      
+      if (!donor && !recipient) {
+        console.log('No user found with Firebase UID:', firebaseUid);
+        return res.status(401).json({ 
+          error: 'User not found',
+          message: 'Your user account was not found. Please register first.'
+        });
+      }
+      
+      // Set the user type and data
+      req.user = donor || recipient;
+      req.userType = donor ? 'donor' : 'recipient';
+      req.firebaseUid = firebaseUid;
+      
+      console.log(`User authenticated as ${req.userType}:`, req.user._id);
+      next();
+    } catch (error) {
+      console.error('Error verifying token:', error);
+      return res.status(401).json({ 
+        error: 'Authentication failed',
+        message: 'Failed to verify your authentication token. Please try logging in again.'
+      });
+    }
+  } catch (error) {
+    console.error('Error in auth middleware:', error);
+    res.status(401).json({ 
+      error: 'Not authorized',
+      message: 'You are not authorized to access this resource.'
+    });
+  }
+};
+
+// Get user profile from direct collections
+app.get('/api/direct/profile', directFirebaseAuthMiddleware, async (req, res) => {
+  try {
+    res.status(200).json({
+      userType: req.userType,
+      profile: req.user
+    });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Direct donor profile update
+app.put('/api/direct/donor/profile', directFirebaseAuthMiddleware, upload, async (req, res) => {
+  try {
+    if (req.userType !== 'donor') {
+      return res.status(403).json({ error: 'Only donors can update donor profiles' });
+    }
+    
+    // Handle profile image upload if provided
+    let profileImage = req.user.profileImage;
+    if (req.files && req.files['profileImage'] && req.files['profileImage'][0]) {
+      profileImage = `/uploads/${req.files['profileImage'][0].filename}`;
+    }
+
+    const updatedDonor = await DirectDonor.findByIdAndUpdate(
+      req.user._id,
+      {
+        donorname: req.body.donorname || req.user.donorname,
+        orgName: req.body.orgName || req.user.orgName,
+        donoraddress: req.body.donoraddress || req.user.donoraddress,
+        donorcontact: req.body.donorcontact || req.user.donorcontact,
+        donorabout: req.body.donorabout || req.user.donorabout,
+        profileImage: profileImage,
+        donorlocation: {
+          latitude: req.body.latitude || req.user.donorlocation.latitude,
+          longitude: req.body.longitude || req.user.donorlocation.longitude
+        }
+      },
+      { new: true }
+    );
+    
+    res.status(200).json(updatedDonor);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Direct recipient profile update
+app.put('/api/direct/recipient/profile', directFirebaseAuthMiddleware, upload, async (req, res) => {
+  try {
+    if (req.userType !== 'recipient') {
+      return res.status(403).json({ error: 'Only recipients can update recipient profiles' });
+    }
+    
+    // Handle profile image upload if provided
+    let profileImage = req.user.profileImage;
+    if (req.files && req.files['profileImage'] && req.files['profileImage'][0]) {
+      profileImage = `/uploads/${req.files['profileImage'][0].filename}`;
+    }
+
+    const updatedRecipient = await DirectRecipient.findByIdAndUpdate(
+      req.user._id,
+      {
+        reciname: req.body.reciname || req.user.reciname,
+        ngoName: req.body.ngoName || req.user.ngoName,
+        reciaddress: req.body.reciaddress || req.user.reciaddress,
+        recicontact: req.body.recicontact || req.user.recicontact,
+        reciabout: req.body.reciabout || req.user.reciabout,
+        profileImage: profileImage,
+        recilocation: {
+          latitude: req.body.latitude || req.user.recilocation.latitude,
+          longitude: req.body.longitude || req.user.recilocation.longitude
+        }
+      },
+      { new: true }
+    );
+    
+    res.status(200).json(updatedRecipient);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
 // Start the server

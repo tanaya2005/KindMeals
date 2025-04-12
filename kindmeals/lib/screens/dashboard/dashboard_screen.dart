@@ -1,556 +1,13 @@
-// import 'package:flutter/material.dart';
-// import 'package:lottie/lottie.dart';
-// import '../../services/firebase_service.dart';
-// import 'post_donation_screen.dart';
-// import 'view_donations_screen.dart';
-// import 'volunteers_screen.dart';
-
-// class DashboardScreen extends StatefulWidget {
-//   const DashboardScreen({super.key});
-
-//   @override
-//   State<DashboardScreen> createState() => _DashboardScreenState();
-// }
-
-// class _DashboardScreenState extends State<DashboardScreen> {
-//   final _firebaseService = FirebaseService();
-//   int _selectedIndex = 0;
-
-//   final List<Widget> _screens = [
-//     const _HomeScreen(),
-//     const PostDonationScreen(),
-//     const ViewDonationsScreen(),
-//     const VolunteersScreen(),
-//   ];
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return WillPopScope(
-//       onWillPop: () async {
-//         // Show logout dialog
-//         final shouldLogout = await showDialog<bool>(
-//           context: context,
-//           builder: (context) => AlertDialog(
-//             title: const Text('Logout'),
-//             content: const Text('Are you sure you want to logout?'),
-//             actions: [
-//               TextButton(
-//                 onPressed: () => Navigator.pop(context, false),
-//                 child: const Text('Cancel'),
-//               ),
-//               TextButton(
-//                 onPressed: () => Navigator.pop(context, true),
-//                 child: const Text('Logout'),
-//               ),
-//             ],
-//           ),
-//         );
-
-//         if (shouldLogout == true) {
-//           await _firebaseService.signOut();
-//           if (mounted) {
-//             Navigator.pushNamedAndRemoveUntil(
-//               context,
-//               '/',
-//               (route) => false,
-//             );
-//           }
-//         }
-//         return false;
-//       },
-//       child: Scaffold(
-//         body: _screens[_selectedIndex],
-//         bottomNavigationBar: BottomNavigationBar(
-//           currentIndex: _selectedIndex,
-//           onTap: (index) {
-//             setState(() {
-//               _selectedIndex = index;
-//             });
-//           },
-//           type: BottomNavigationBarType.fixed,
-//           items: const [
-//             BottomNavigationBarItem(
-//               icon: Icon(Icons.home),
-//               label: 'Home',
-//             ),
-//             BottomNavigationBarItem(
-//               icon: Icon(Icons.add_circle),
-//               label: 'Post Donation',
-//             ),
-//             BottomNavigationBarItem(
-//               icon: Icon(Icons.visibility),
-//               label: 'View Donations',
-//             ),
-//             BottomNavigationBarItem(
-//               icon: Icon(Icons.people),
-//               label: 'Volunteers',
-//             ),
-//           ],
-//         ),
-//       ),
-//     );
-//   }
-// }
-
-// class _HomeScreen extends StatelessWidget {
-//   const _HomeScreen();
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return SingleChildScrollView(
-//       child: Column(
-//         crossAxisAlignment: CrossAxisAlignment.start,
-//         children: [
-//           // Header Section with Gradient
-//           Container(
-//             width: double.infinity,
-//             padding: const EdgeInsets.fromLTRB(16, 50, 16, 20),
-//             decoration: BoxDecoration(
-//               gradient: LinearGradient(
-//                 begin: Alignment.topLeft,
-//                 end: Alignment.bottomRight,
-//                 colors: [
-//                   Colors.green.shade700,
-//                   Colors.green.shade500,
-//                 ],
-//               ),
-//               borderRadius: const BorderRadius.only(
-//                 bottomLeft: Radius.circular(30),
-//                 bottomRight: Radius.circular(30),
-//               ),
-//             ),
-//             child: Column(
-//               crossAxisAlignment: CrossAxisAlignment.start,
-//               children: [
-//                 Row(
-//                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-//                   children: [
-//                     const Column(
-//                       crossAxisAlignment: CrossAxisAlignment.start,
-//                       children: [
-//                         Text(
-//                           'Welcome to',
-//                           style: TextStyle(
-//                             fontSize: 18,
-//                             color: Colors.white70,
-//                           ),
-//                         ),
-//                         Text(
-//                           'KindMeals',
-//                           style: TextStyle(
-//                             fontSize: 28,
-//                             fontWeight: FontWeight.bold,
-//                             color: Colors.white,
-//                           ),
-//                         ),
-//                       ],
-//                     ),
-//                     Container(
-//                       padding: const EdgeInsets.all(8),
-//                       decoration: BoxDecoration(
-//                         color: Colors.white.withOpacity(0.2),
-//                         borderRadius: BorderRadius.circular(12),
-//                       ),
-//                       child: const Icon(
-//                         Icons.notifications,
-//                         color: Colors.white,
-//                         size: 28,
-//                       ),
-//                     ),
-//                   ],
-//                 ),
-//                 const SizedBox(height: 20),
-//                 Container(
-//                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-//                   decoration: BoxDecoration(
-//                     color: Colors.white,
-//                     borderRadius: BorderRadius.circular(12),
-//                   ),
-//                   child: Row(
-//                     children: [
-//                       const Icon(Icons.search, color: Colors.grey),
-//                       const SizedBox(width: 8),
-//                       const Text(
-//                         'Search for donations...',
-//                         style: TextStyle(color: Colors.grey),
-//                       ),
-//                       const Spacer(),
-//                       Container(
-//                         padding: const EdgeInsets.all(8),
-//                         decoration: BoxDecoration(
-//                           color: Colors.green.shade100,
-//                           borderRadius: BorderRadius.circular(8),
-//                         ),
-//                         child: const Icon(
-//                           Icons.filter_list,
-//                           color: Colors.green,
-//                           size: 20,
-//                         ),
-//                       ),
-//                     ],
-//                   ),
-//                 ),
-//               ],
-//             ),
-//           ),
-
-//           // Quick Actions Section
-//           Padding(
-//             padding: const EdgeInsets.all(16),
-//             child: Column(
-//               crossAxisAlignment: CrossAxisAlignment.start,
-//               children: [
-//                 const Text(
-//                   'Quick Actions',
-//                   style: TextStyle(
-//                     fontSize: 20,
-//                     fontWeight: FontWeight.bold,
-//                   ),
-//                 ),
-//                 const SizedBox(height: 16),
-//                 Row(
-//                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-//                   children: [
-//                     _buildQuickAction(
-//                       Icons.add_circle,
-//                       'Post Donation',
-//                       Colors.green,
-//                       () => Navigator.push(
-//                         context,
-//                         MaterialPageRoute(builder: (context) => const PostDonationScreen()),
-//                       ),
-//                     ),
-//                     _buildQuickAction(
-//                       Icons.visibility,
-//                       'View Donations',
-//                       Colors.blue,
-//                       () => Navigator.push(
-//                         context,
-//                         MaterialPageRoute(builder: (context) => const ViewDonationsScreen()),
-//                       ),
-//                     ),
-//                     _buildQuickAction(
-//                       Icons.people,
-//                       'Volunteers',
-//                       Colors.orange,
-//                       () => Navigator.push(
-//                         context,
-//                         MaterialPageRoute(builder: (context) => const VolunteersScreen()),
-//                       ),
-//                     ),
-//                     _buildQuickAction(
-//                       Icons.person,
-//                       'Profile',
-//                       Colors.purple,
-//                       () {
-//                         // TODO: Implement profile navigation
-//                       },
-//                     ),
-//                   ],
-//                 ),
-//               ],
-//             ),
-//           ),
-
-//           // Statistics Carousel
-//           Padding(
-//             padding: const EdgeInsets.symmetric(horizontal: 16),
-//             child: Column(
-//               crossAxisAlignment: CrossAxisAlignment.start,
-//               children: [
-//                 const Text(
-//                   'Impact Statistics',
-//                   style: TextStyle(
-//                     fontSize: 20,
-//                     fontWeight: FontWeight.bold,
-//                   ),
-//                 ),
-//                 const SizedBox(height: 16),
-//                 SizedBox(
-//                   height: 180,
-//                   child: PageView.builder(
-//                     controller: PageController(viewportFraction: 0.9),
-//                     itemCount: 3,
-//                     itemBuilder: (context, index) {
-//                       return _buildStatCard(index);
-//                     },
-//                   ),
-//                 ),
-//               ],
-//             ),
-//           ),
-
-//           // Recent Reviews Section
-//           Padding(
-//             padding: const EdgeInsets.all(16),
-//             child: Column(
-//               crossAxisAlignment: CrossAxisAlignment.start,
-//               children: [
-//                 Row(
-//                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-//                   children: [
-//                     const Text(
-//                       'Recent Reviews',
-//                       style: TextStyle(
-//                         fontSize: 20,
-//                         fontWeight: FontWeight.bold,
-//                       ),
-//                     ),
-//                     TextButton(
-//                       onPressed: () {
-//                         // TODO: Implement view all reviews
-//                       },
-//                       child: const Text(
-//                         'View All',
-//                         style: TextStyle(color: Colors.green),
-//                       ),
-//                     ),
-//                   ],
-//                 ),
-//                 const SizedBox(height: 16),
-//                 ListView.builder(
-//                   shrinkWrap: true,
-//                   physics: const NeverScrollableScrollPhysics(),
-//                   itemCount: 3,
-//                   itemBuilder: (context, index) {
-//                     return _buildReviewCard(index);
-//                   },
-//                 ),
-//               ],
-//             ),
-//           ),
-//         ],
-//       ),
-//     );
-//   }
-
-//   Widget _buildQuickAction(
-//     IconData icon,
-//     String label,
-//     Color color,
-//     VoidCallback onTap,
-//   ) {
-//     return GestureDetector(
-//       onTap: onTap,
-//       child: Column(
-//         children: [
-//           Container(
-//             padding: const EdgeInsets.all(12),
-//             decoration: BoxDecoration(
-//               color: color.withOpacity(0.1),
-//               borderRadius: BorderRadius.circular(15),
-//             ),
-//             child: Icon(
-//               icon,
-//               color: color,
-//               size: 30,
-//             ),
-//           ),
-//           const SizedBox(height: 8),
-//           Text(
-//             label,
-//             style: const TextStyle(
-//               fontSize: 12,
-//               fontWeight: FontWeight.w500,
-//             ),
-//           ),
-//         ],
-//       ),
-//     );
-//   }
-
-//   Widget _buildStatCard(int index) {
-//     final stats = [
-//       {
-//         'title': 'Total Donations',
-//         'value': '1,234',
-//         'icon': Icons.food_bank,
-//         'color': Colors.green,
-//         'gradient': [Colors.green.shade400, Colors.green.shade600],
-//       },
-//       {
-//         'title': 'People Fed',
-//         'value': '5,678',
-//         'icon': Icons.people,
-//         'color': Colors.blue,
-//         'gradient': [Colors.blue.shade400, Colors.blue.shade600],
-//       },
-//       {
-//         'title': 'Active Volunteers',
-//         'value': '89',
-//         'icon': Icons.volunteer_activism,
-//         'color': Colors.orange,
-//         'gradient': [Colors.orange.shade400, Colors.orange.shade600],
-//       },
-//     ];
-
-//     final stat = stats[index];
-//     return Container(
-//       margin: const EdgeInsets.only(right: 16),
-//       decoration: BoxDecoration(
-//         gradient: LinearGradient(
-//           begin: Alignment.topLeft,
-//           end: Alignment.bottomRight,
-//           colors: stat['gradient'] as List<Color>,
-//         ),
-//         borderRadius: BorderRadius.circular(20),
-//         boxShadow: [
-//           BoxShadow(
-//             color: (stat['color'] as Color).withOpacity(0.3),
-//             blurRadius: 8,
-//             offset: const Offset(0, 4),
-//           ),
-//         ],
-//       ),
-//       child: Padding(
-//         padding: const EdgeInsets.all(20),
-//         child: Column(
-//           mainAxisAlignment: MainAxisAlignment.center,
-//           crossAxisAlignment: CrossAxisAlignment.start,
-//           children: [
-//             Container(
-//               padding: const EdgeInsets.all(8),
-//               decoration: BoxDecoration(
-//                 color: Colors.white.withOpacity(0.2),
-//                 borderRadius: BorderRadius.circular(12),
-//               ),
-//               child: Icon(
-//                 stat['icon'] as IconData,
-//                 color: Colors.white,
-//                 size: 30,
-//               ),
-//             ),
-//             const SizedBox(height: 16),
-//             Text(
-//               stat['value'] as String,
-//               style: const TextStyle(
-//                 fontSize: 32,
-//                 fontWeight: FontWeight.bold,
-//                 color: Colors.white,
-//               ),
-//             ),
-//             const SizedBox(height: 8),
-//             Text(
-//               stat['title'] as String,
-//               style: const TextStyle(
-//                 fontSize: 16,
-//                 color: Colors.white70,
-//               ),
-//             ),
-//           ],
-//         ),
-//       ),
-//     );
-//   }
-
-//   Widget _buildReviewCard(int index) {
-//     final reviews = [
-//       {
-//         'name': 'John Doe',
-//         'rating': 5,
-//         'comment': 'Great platform! Easy to use and very helpful for donating food.',
-//         'date': '2 days ago',
-//         'avatar': 'https://randomuser.me/api/portraits/men/1.jpg',
-//       },
-//       {
-//         'name': 'Jane Smith',
-//         'rating': 4,
-//         'comment': 'The app made it simple to find nearby food donations. Keep up the good work!',
-//         'date': '1 week ago',
-//         'avatar': 'https://randomuser.me/api/portraits/women/1.jpg',
-//       },
-//       {
-//         'name': 'Mike Johnson',
-//         'rating': 5,
-//         'comment': 'Amazing initiative. The volunteers are very helpful and responsive.',
-//         'date': '2 weeks ago',
-//         'avatar': 'https://randomuser.me/api/portraits/men/2.jpg',
-//       },
-//     ];
-
-//     final review = reviews[index];
-//     return Container(
-//       margin: const EdgeInsets.only(bottom: 16),
-//       padding: const EdgeInsets.all(16),
-//       decoration: BoxDecoration(
-//         color: Colors.white,
-//         borderRadius: BorderRadius.circular(15),
-//         boxShadow: [
-//           BoxShadow(
-//             color: Colors.grey.withOpacity(0.1),
-//             blurRadius: 10,
-//             offset: const Offset(0, 4),
-//           ),
-//         ],
-//       ),
-//       child: Column(
-//         crossAxisAlignment: CrossAxisAlignment.start,
-//         children: [
-//           Row(
-//             children: [
-//               CircleAvatar(
-//                 radius: 20,
-//                 backgroundImage: NetworkImage(review['avatar'] as String),
-//               ),
-//               const SizedBox(width: 12),
-//               Expanded(
-//                 child: Column(
-//                   crossAxisAlignment: CrossAxisAlignment.start,
-//                   children: [
-//                     Text(
-//                       review['name'] as String,
-//                       style: const TextStyle(
-//                         fontSize: 16,
-//                         fontWeight: FontWeight.bold,
-//                       ),
-//                     ),
-//                     Text(
-//                       review['date'] as String,
-//                       style: const TextStyle(
-//                         fontSize: 12,
-//                         color: Colors.grey,
-//                       ),
-//                     ),
-//                   ],
-//                 ),
-//               ),
-//               Row(
-//                 children: List.generate(
-//                   review['rating'] as int,
-//                   (i) => const Icon(
-//                     Icons.star,
-//                     color: Colors.amber,
-//                     size: 16,
-//                   ),
-//                 ),
-//               ),
-//             ],
-//           ),
-//           const SizedBox(height: 12),
-//           Text(
-//             review['comment'] as String,
-//             style: const TextStyle(
-//               fontSize: 14,
-//               color: Colors.grey,
-//             ),
-//           ),
-//         ],
-//       ),
-//     );
-//   }
-// }
-
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:kindmeals/screens/profile/profile_screen.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../services/firebase_service.dart';
+import '../../services/api_service.dart';
 import 'post_donation_screen.dart';
 import 'view_donations_screen.dart';
 import 'volunteers_screen.dart';
-
-
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -561,26 +18,57 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final _firebaseService = FirebaseService();
+  final _apiService = ApiService();
   int _selectedIndex = 0;
-  int _currentCarouselIndex = 0;
-  final List<String> _carouselItems = [
-    'assets/images/banner1.jpg',
-    'assets/images/banner2.jpg',
-    'assets/images/banner3.jpg',
-    'assets/images/banner4.jpg',
-  ];
+  bool _isInitialized = false;
+  String _userType = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserProfile();
+  }
+
+  Future<void> _fetchUserProfile() async {
+    try {
+      final directProfile = await _apiService.getDirectUserProfile();
+
+      setState(() {
+        _isInitialized = true;
+        _userType = directProfile['userType'] ?? '';
+      });
+
+      print('User type detected: $_userType');
+    } catch (e) {
+      print('Error fetching user profile: $e');
+      setState(() {
+        _isInitialized =
+            true; // Still mark as initialized to avoid perpetual loading
+      });
+    }
+  }
 
   final List<Widget> _screens = [
     const _HomeScreen(),
     const PostDonationScreen(),
     const ViewDonationsScreen(),
+    const VolunteersScreen(),
     const ProfileScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
+    if (!_isInitialized) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return WillPopScope(
       onWillPop: () async {
+        // Show logout dialog
         final shouldLogout = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
@@ -705,21 +193,24 @@ class _HomeScreenState extends State<_HomeScreen> {
     {
       'name': 'John Doe',
       'rating': 5,
-      'comment': 'This app made donating leftover food from our restaurant so easy! The volunteers picked up everything within 30 minutes.',
+      'comment':
+          'This app made donating leftover food from our restaurant so easy! The volunteers picked up everything within 30 minutes.',
       'date': '2 days ago',
       'avatar': 'assets/images/user1.jpg',
     },
     {
       'name': 'Emily Roberts',
       'rating': 5,
-      'comment': 'As a recipient, I am so grateful for this platform. The food donations have helped my family during tough times.',
+      'comment':
+          'As a recipient, I am so grateful for this platform. The food donations have helped my family during tough times.',
       'date': '1 week ago',
       'avatar': 'assets/images/user2.jpg',
     },
     {
       'name': 'Raj Sharma',
       'rating': 4,
-      'comment': 'Great initiative! I volunteer weekly and the app makes coordination seamless. Just wish there was a chat feature.',
+      'comment':
+          'Great initiative! I volunteer weekly and the app makes coordination seamless. Just wish there was a chat feature.',
       'date': '2 weeks ago',
       'avatar': 'assets/images/user3.jpg',
     },
@@ -810,7 +301,8 @@ class _HomeScreenState extends State<_HomeScreen> {
                       ),
                       const SizedBox(width: 10),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: Colors.amber,
                           borderRadius: BorderRadius.circular(12),
@@ -1007,7 +499,8 @@ class _HomeScreenState extends State<_HomeScreen> {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const PostDonationScreen()),
+                  MaterialPageRoute(
+                      builder: (context) => const PostDonationScreen()),
                 );
               },
             ),
@@ -1021,7 +514,8 @@ class _HomeScreenState extends State<_HomeScreen> {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const ViewDonationsScreen()),
+                  MaterialPageRoute(
+                      builder: (context) => const ViewDonationsScreen()),
                 );
               },
             ),
@@ -1106,7 +600,8 @@ class _HomeScreenState extends State<_HomeScreen> {
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const VolunteersScreen()),
+                    MaterialPageRoute(
+                        builder: (context) => const VolunteersScreen()),
                   );
                 },
                 child: Row(
@@ -1164,7 +659,8 @@ class _HomeScreenState extends State<_HomeScreen> {
                             right: 0,
                             bottom: 0,
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
                                 color: _getBadgeColor(volunteer['badge']),
                                 borderRadius: BorderRadius.circular(10),
