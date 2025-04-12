@@ -121,12 +121,12 @@ class ApiService {
     if (user == null) throw Exception('No authenticated user found');
 
     try {
-      print('Attempting to register donor with Firebase UID: ${user.uid}');
-      print('API URL: $baseUrl/direct/donor/register');
-      print('Donor name: $name');
-      print('Organization name: $orgName');
+      print('=== DEBUG: Registering Donor ===');
+      print('Firebase UID: ${user.uid}');
+      print('Firebase Email: ${user.email}');
 
       final idToken = await user.getIdToken();
+      print('ID Token: $idToken');
 
       final response = await http.post(
         Uri.parse('$baseUrl/direct/donor/register'),
@@ -135,7 +135,8 @@ class ApiService {
           'Authorization': 'Bearer $idToken',
         },
         body: jsonEncode({
-          'firebaseUid': user.uid,
+          'firebaseUid':
+              user.uid, // Using the actual Firebase UID, not the token
           'email': user.email,
           'donorname': name,
           'orgName': orgName,
@@ -473,6 +474,13 @@ class ApiService {
     if (user == null) throw Exception('No authenticated user found');
 
     try {
+      print('=== DEBUG: Getting Direct User Profile ===');
+      print('Current Firebase UID: ${user.uid}');
+      print('Current User Email: ${user.email}');
+
+      final idToken = await user.getIdToken();
+      print('Current ID Token: $idToken');
+
       print('Fetching direct user profile for: ${user.uid}');
       final response = await http.get(
         Uri.parse('$baseUrl/direct/profile'),

@@ -36,7 +36,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       // Try the new direct API first
       try {
         final directProfileData = await _apiService.getDirectUserProfile();
-        print('Loaded profile using direct API: $directProfileData');
+        print('=== DEBUG: Direct Profile Data ===');
+        print('Full direct profile data: $directProfileData');
+        print('Profile section: ${directProfileData['profile']}');
+        print('Email: ${directProfileData['profile']['email']}');
+        print('Profile Image: ${directProfileData['profile']['profileImage']}');
+
         setState(() {
           _userData = {
             'email': directProfileData['profile']['email'],
@@ -45,6 +50,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _profileData = directProfileData['profile'];
           _isLoading = false;
         });
+
+        print('=== DEBUG: State After Direct API ===');
+        print('_userData: $_userData');
+        print('_profileData: $_profileData');
         return;
       } catch (directError) {
         print(
@@ -54,11 +63,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       // Legacy API as fallback
       final profileData = await _apiService.getUserProfile();
+      print('=== DEBUG: Legacy Profile Data ===');
+      print('Full legacy profile data: $profileData');
+      print('User section: ${profileData['user']}');
+      print('Profile section: ${profileData['profile']}');
+
       setState(() {
         _userData = profileData['user'];
         _profileData = profileData['profile'];
         _isLoading = false;
       });
+
+      print('=== DEBUG: State After Legacy API ===');
+      print('_userData: $_userData');
+      print('_profileData: $_profileData');
     } catch (e) {
       setState(() {
         _hasError = true;

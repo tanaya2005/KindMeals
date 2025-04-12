@@ -28,9 +28,27 @@ if (!admin.apps.length) {
 // Special module for token verification in fallback mode
 const verifyToken = async (token) => {
   if (process.env.FIREBASE_ENABLE_FALLBACK === 'true') {
-    // In fallback mode, assume the token is the UID directly
-    // This is for development only!
-    return { uid: token };
+    // In fallback mode, we need to extract the UID from the token
+    try {
+      // The token is a JWT, we need to decode it to get the UID
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+
+      const payload = JSON.parse(jsonPayload);
+      console.log('Decoded token payload:', payload);
+      
+      if (!payload.user_id) {
+        throw new Error('No user_id found in token');
+      }
+      
+      return { uid: payload.user_id };
+    } catch (error) {
+      console.error('Error decoding token in fallback mode:', error);
+      throw new Error('Invalid token format');
+    }
   } else {
     // In normal mode, verify the token properly
     return await admin.auth().verifyIdToken(token);

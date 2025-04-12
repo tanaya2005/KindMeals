@@ -28,23 +28,33 @@ class _LoginScreenState extends State<LoginScreen> {
       });
 
       try {
+        print('=== DEBUG: Starting Login Process ===');
+        print('Email: ${_emailController.text.trim()}');
+
         // Authenticate with Firebase
         final userCredential =
             await _firebaseService.signInWithEmailAndPassword(
           _emailController.text.trim(),
           _passwordController.text,
         );
+        print('=== DEBUG: Firebase Auth Successful ===');
+        print('User UID: ${userCredential.user?.uid}');
+        print('User Email: ${userCredential.user?.email}');
 
         // Force token refresh to ensure we have a valid token
-        await userCredential.user?.getIdToken(true);
+        final token = await userCredential.user?.getIdToken(true);
+        print('=== DEBUG: Token Refresh ===');
+        print('New token obtained: ${token != null}');
 
         // Verify if the user exists in our direct database collections
         try {
+          print('=== DEBUG: Checking Direct Profile ===');
           // Check profile without waiting
-          _apiService.getDirectUserProfile();
+          final profile = await _apiService.getDirectUserProfile();
+          print('Direct profile check successful: $profile');
         } catch (profileError) {
-          print(
-              'Note: Profile check error (expected on first login): $profileError');
+          print('=== DEBUG: Direct Profile Check Failed ===');
+          print('Profile check error: $profileError');
           // Not throwing error here as this is just a check
         }
 
