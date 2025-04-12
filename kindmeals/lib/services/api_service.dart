@@ -3,9 +3,10 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../config/api_config.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://192.168.0.100:5000/api';
+  static const String baseUrl = ApiConfig.apiBaseUrl;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   // Helper method to get auth headers

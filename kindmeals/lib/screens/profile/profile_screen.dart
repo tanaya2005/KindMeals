@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:kindmeals/services/api_service.dart';
+import 'package:kindmeals/config/api_config.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -203,8 +204,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         _userData!['profileImage']
                                             .toString()
                                             .isNotEmpty)
-                                    ? NetworkImage(
-                                            'http://192.168.0.100:5000${_userData!['profileImage']}')
+                                    ? NetworkImage(ApiConfig.getImageUrl(
+                                            _userData!['profileImage']))
                                         as ImageProvider
                                     : null,
                             child: _profileImage == null &&

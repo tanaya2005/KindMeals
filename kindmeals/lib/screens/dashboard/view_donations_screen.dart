@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import '../../config/api_config.dart';
 
 class ViewDonationsScreen extends StatefulWidget {
   const ViewDonationsScreen({super.key});
@@ -179,7 +180,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                 top: Radius.circular(10),
               ),
               child: Image.network(
-                'http://192.168.0.100:5000$imageUrl',
+                ApiConfig.getImageUrl(imageUrl),
                 height: 200,
                 width: double.infinity,
                 fit: BoxFit.cover,
