@@ -4,12 +4,13 @@ import 'dart:developer' as developer;
 
 class FirebaseService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    scopes: [
-      'email',
-      'profile',
-    ],
-  );
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
+
+  // Get current user
+  User? get currentUser => _auth.currentUser;
+
+  // Check if user is signed in
+  bool get isSignedIn => _auth.currentUser != null;
 
   // Authentication methods
   Future<UserCredential> signInWithEmailAndPassword(
@@ -17,32 +18,48 @@ class FirebaseService {
     String password,
   ) async {
     try {
-      developer.log('Attempting to sign in with email: $email');
+      developer.log('Starting Firebase sign in with email: $email');
+
+      // Check if user is already signed in
+      if (_auth.currentUser != null) {
+        developer.log('User already signed in, signing out first');
+        await _auth.signOut();
+      }
+
       final userCredential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-      developer.log('Successfully signed in user: ${userCredential.user?.uid}');
+
+      developer.log('Firebase sign in successful: ${userCredential.user?.uid}');
+
+      // Force a token refresh to ensure the user is properly authenticated
+      await userCredential.user?.getIdToken(true);
+
       return userCredential;
     } on FirebaseAuthException catch (e) {
-      developer.log('Firebase Auth Error: ${e.code} - ${e.message}');
+      developer.log('Firebase Auth Exception: ${e.code} - ${e.message}');
+      String errorMessage;
       switch (e.code) {
         case 'user-not-found':
-          throw Exception('No user found with this email.');
+          errorMessage = 'No user found with this email.';
+          break;
         case 'wrong-password':
-          throw Exception('Wrong password provided.');
+          errorMessage = 'Wrong password provided.';
+          break;
         case 'invalid-email':
-          throw Exception('The email address is not valid.');
+          errorMessage = 'The email address is invalid.';
+          break;
         case 'user-disabled':
-          throw Exception('This user has been disabled.');
-        case 'too-many-requests':
-          throw Exception('Too many attempts. Please try again later.');
+          errorMessage = 'This user has been disabled.';
+          break;
         default:
-          throw Exception('Login failed: ${e.message}');
+          errorMessage = 'An error occurred during sign in: ${e.message}';
       }
+      throw Exception(errorMessage);
     } catch (e) {
-      developer.log('Unexpected error during sign in: $e');
-      throw Exception('An unexpected error occurred. Please try again.');
+      developer.log('Error during sign in: $e');
+      throw Exception('Failed to sign in: $e');
     }
   }
 
@@ -51,75 +68,98 @@ class FirebaseService {
     String password,
   ) async {
     try {
-      developer.log('Attempting to sign up with email: $email');
+      developer.log('Starting Firebase sign up with email: $email');
+
+      // Check if user is already signed in
+      if (_auth.currentUser != null) {
+        developer.log('User already signed in, signing out first');
+        await _auth.signOut();
+      }
+
       final userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
-      developer.log('Successfully created user: ${userCredential.user?.uid}');
+
+      developer.log('Firebase sign up successful: ${userCredential.user?.uid}');
+
+      // Verify the user is properly authenticated
+      if (userCredential.user == null) {
+        throw Exception(
+            'Failed to create user: No user returned from Firebase');
+      }
+
+      // Force a token refresh to ensure the user is properly authenticated
+      await userCredential.user?.getIdToken(true);
+
       return userCredential;
+    } on FirebaseAuthException catch (e) {
+      developer.log('Firebase Auth Exception: ${e.code} - ${e.message}');
+      String errorMessage;
+      switch (e.code) {
+        case 'email-already-in-use':
+          errorMessage =
+              'This email is already in use. Please use a different email or login.';
+          break;
+        case 'invalid-email':
+          errorMessage = 'The email address is invalid.';
+          break;
+        case 'operation-not-allowed':
+          errorMessage = 'Email/password accounts are not enabled.';
+          break;
+        case 'weak-password':
+          errorMessage = 'The password is too weak.';
+          break;
+        default:
+          errorMessage = 'An error occurred during sign up: ${e.message}';
+      }
+      throw Exception(errorMessage);
     } catch (e) {
       developer.log('Error during sign up: $e');
-      throw Exception('Failed to sign up: $e');
+      throw Exception('Failed to create user: $e');
     }
   }
 
   Future<UserCredential> signInWithGoogle() async {
     try {
-      developer.log('Starting Google Sign In flow');
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      developer.log('Starting Google sign in');
 
-      if (googleUser == null) {
-        developer.log('Google sign in was cancelled by user');
-        throw Exception('Google sign in was cancelled');
+      // Check if user is already signed in
+      if (_auth.currentUser != null) {
+        developer.log('User already signed in, signing out first');
+        await _auth.signOut();
       }
 
-      developer.log('Google user signed in: ${googleUser.email}');
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) throw Exception('Google sign in was aborted');
+
       final GoogleSignInAuthentication googleAuth =
           await googleUser.authentication;
-      developer.log('Obtained Google auth tokens');
-
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      developer.log('Signing in to Firebase with Google credential');
       final userCredential = await _auth.signInWithCredential(credential);
-      developer.log(
-          'Successfully signed in to Firebase with Google: ${userCredential.user?.uid}');
+      developer.log('Google sign in successful: ${userCredential.user?.uid}');
+
+      // Force a token refresh to ensure the user is properly authenticated
+      await userCredential.user?.getIdToken(true);
+
       return userCredential;
-    } on FirebaseAuthException catch (e) {
-      developer.log(
-          'Firebase Auth Error during Google sign in: ${e.code} - ${e.message}');
-      switch (e.code) {
-        case 'account-exists-with-different-credential':
-          throw Exception(
-              'An account already exists with the same email but different sign-in credentials.');
-        case 'invalid-credential':
-          throw Exception('The credential is invalid or has expired.');
-        case 'operation-not-allowed':
-          throw Exception('Google sign-in is not enabled.');
-        case 'user-disabled':
-          throw Exception('This user has been disabled.');
-        case 'user-not-found':
-          throw Exception('No user found with this email.');
-        default:
-          throw Exception('Google sign in failed: ${e.message}');
-      }
     } catch (e) {
-      developer.log('Unexpected error during Google sign in: $e');
-      throw Exception('An unexpected error occurred during Google sign in.');
+      developer.log('Error during Google sign in: $e');
+      throw Exception('Failed to sign in with Google: $e');
     }
   }
 
   Future<void> signOut() async {
     try {
-      await Future.wait([
-        _auth.signOut(),
-        _googleSignIn.signOut(),
-      ]);
+      developer.log('Starting Firebase sign out');
+      await _auth.signOut();
+      developer.log('Firebase sign out successful');
     } catch (e) {
+      developer.log('Error during sign out: $e');
       throw Exception('Failed to sign out: $e');
     }
   }
@@ -141,9 +181,6 @@ class FirebaseService {
           'An unexpected error occurred while sending password reset email.');
     }
   }
-
-  // Get current user
-  User? get currentUser => _auth.currentUser;
 
   // Stream of auth state changes
   Stream<User?> get authStateChanges => _auth.authStateChanges();

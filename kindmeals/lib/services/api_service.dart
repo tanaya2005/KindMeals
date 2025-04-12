@@ -1,65 +1,44 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://192.168.109.46:5000/api';
+  static const String baseUrl = 'http://192.168.0.100:5000/api';
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   // Helper method to get auth headers
   Map<String, String> get _headers {
     final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception('No authenticated user found');
+    }
     return {
       'Content-Type': 'application/json',
-      if (user != null) 'Authorization': 'Bearer ${user.uid}',
+      'Authorization': 'Bearer ${user.uid}',
+    };
+  }
+
+  // Helper method to get auth headers with token
+  Future<Map<String, String>> get _authHeaders async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception('No authenticated user found');
+    }
+    final idToken = await user.getIdToken();
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $idToken',
     };
   }
 
   // Auth Methods
   Future<void> registerUser(String role) async {
-    final user = _auth.currentUser;
-    if (user == null) throw Exception('No authenticated user found');
-
-    try {
-      print('Attempting to register user with Firebase UID: ${user.uid}');
-      print('API URL: $baseUrl/register');
-
-      final response = await http
-          .post(
-        Uri.parse('$baseUrl/register'),
-        headers: _headers,
-        body: jsonEncode({
-          'firebaseUid': user.uid,
-          'email': user.email,
-          'role': role.toLowerCase(),
-        }),
-      )
-          .timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {
-          throw Exception(
-              'Connection timeout. Please check your internet connection and try again.');
-        },
-      );
-
-      print('Response status code: ${response.statusCode}');
-      print('Response body: ${response.body}');
-
-      if (response.statusCode != 201) {
-        throw Exception('Failed to register user: ${response.body}');
-      }
-    } on http.ClientException catch (e) {
-      print('Client Exception during registration: $e');
-      if (e.toString().contains('Connection refused')) {
-        throw Exception(
-            'Cannot connect to server. Please make sure the server is running and try again.');
-      }
-      rethrow;
-    } catch (e) {
-      print('Error during registration: $e');
-      rethrow;
-    }
+    // This method is now just a placeholder for backward compatibility
+    // We'll directly register the user in their respective collection
+    print(
+        'Skipping generic user registration, will directly register in specific role collection');
   }
 
   Future<void> deleteUser() async {
@@ -69,7 +48,7 @@ class ApiService {
     try {
       final response = await http.delete(
         Uri.parse('$baseUrl/user'),
-        headers: _headers,
+        headers: await _authHeaders,
       );
 
       if (response.statusCode != 200) {
@@ -88,7 +67,7 @@ class ApiService {
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/user/check'),
-        headers: _headers,
+        headers: await _authHeaders,
       );
 
       // If we get a 404, the user is deleted
@@ -108,7 +87,7 @@ class ApiService {
       print('Fetching user profile for: ${user.uid}');
       final response = await http.get(
         Uri.parse('$baseUrl/user/profile'),
-        headers: _headers,
+        headers: await _authHeaders,
       );
 
       print('Profile response status: ${response.statusCode}');
@@ -125,7 +104,7 @@ class ApiService {
     }
   }
 
-  // Donor Methods
+  // Register directly to donor collection
   Future<void> registerDonor({
     required String name,
     required String orgName,
@@ -142,12 +121,21 @@ class ApiService {
 
     try {
       print('Attempting to register donor with Firebase UID: ${user.uid}');
-      print('API URL: $baseUrl/donor/register');
+      print('API URL: $baseUrl/direct/donor/register');
+      print('Donor name: $name');
+      print('Organization name: $orgName');
+
+      final idToken = await user.getIdToken();
 
       final response = await http.post(
-        Uri.parse('$baseUrl/donor/register'),
-        headers: _headers,
+        Uri.parse('$baseUrl/direct/donor/register'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $idToken',
+        },
         body: jsonEncode({
+          'firebaseUid': user.uid,
+          'email': user.email,
           'donorname': name,
           'orgName': orgName,
           'identificationId': identificationId,
@@ -175,7 +163,7 @@ class ApiService {
   Future<Map<String, dynamic>> getDonorProfile() async {
     final response = await http.get(
       Uri.parse('$baseUrl/donor/profile'),
-      headers: _headers,
+      headers: await _authHeaders,
     );
 
     if (response.statusCode != 200) {
@@ -196,7 +184,7 @@ class ApiService {
   }) async {
     final response = await http.put(
       Uri.parse('$baseUrl/donor/profile'),
-      headers: _headers,
+      headers: await _authHeaders,
       body: jsonEncode({
         if (name != null) 'donorname': name,
         if (orgName != null) 'orgName': orgName,
@@ -213,7 +201,7 @@ class ApiService {
     }
   }
 
-  // Recipient Methods
+  // Register directly to recipient collection
   Future<void> registerRecipient({
     required String name,
     required String ngoName,
@@ -230,12 +218,21 @@ class ApiService {
 
     try {
       print('Attempting to register recipient with Firebase UID: ${user.uid}');
-      print('API URL: $baseUrl/recipient/register');
+      print('API URL: $baseUrl/direct/recipient/register');
+      print('Recipient name: $name');
+      print('NGO name: $ngoName');
+
+      final idToken = await user.getIdToken();
 
       final response = await http.post(
-        Uri.parse('$baseUrl/recipient/register'),
-        headers: _headers,
+        Uri.parse('$baseUrl/direct/recipient/register'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $idToken',
+        },
         body: jsonEncode({
+          'firebaseUid': user.uid,
+          'email': user.email,
           'reciname': name,
           'ngoName': ngoName,
           'ngoId': ngoId,
@@ -263,7 +260,7 @@ class ApiService {
   Future<Map<String, dynamic>> getRecipientProfile() async {
     final response = await http.get(
       Uri.parse('$baseUrl/recipient/profile'),
-      headers: _headers,
+      headers: await _authHeaders,
     );
 
     if (response.statusCode != 200) {
@@ -284,7 +281,7 @@ class ApiService {
   }) async {
     final response = await http.put(
       Uri.parse('$baseUrl/recipient/profile'),
-      headers: _headers,
+      headers: await _authHeaders,
       body: jsonEncode({
         if (name != null) 'reciname': name,
         if (ngoName != null) 'ngoName': ngoName,
@@ -302,60 +299,88 @@ class ApiService {
   }
 
   // Donation Methods
-  Future<Map<String, dynamic>> createDonation({
+  Future<void> createDonation({
     required String foodName,
     required int quantity,
     required String description,
     required DateTime expiryDateTime,
     required String foodType,
     required String address,
-    double? latitude,
-    double? longitude,
-    bool needsVolunteer = false,
+    required bool needsVolunteer,
     File? foodImage,
   }) async {
-    var request = http.MultipartRequest(
-      'POST',
-      Uri.parse('$baseUrl/donations/create'),
-    );
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        throw Exception('No authenticated user found');
+      }
 
-    request.headers.addAll(_headers);
+      final String url = '$baseUrl/donations/create';
+      final request = http.MultipartRequest('POST', Uri.parse(url));
 
-    request.fields.addAll({
-      'foodName': foodName,
-      'quantity': quantity.toString(),
-      'description': description,
-      'expiryDateTime': expiryDateTime.toIso8601String(),
-      'foodType': foodType,
-      'address': address,
-      if (latitude != null) 'latitude': latitude.toString(),
-      if (longitude != null) 'longitude': longitude.toString(),
-      'needsVolunteer': needsVolunteer.toString(),
-    });
+      // Add auth token to headers
+      final String? token = await currentUser.getIdToken();
+      request.headers['Authorization'] = 'Bearer $token';
 
-    if (foodImage != null) {
-      request.files.add(
-        await http.MultipartFile.fromPath(
-          'foodImage',
-          foodImage.path,
-        ),
-      );
+      // Add form fields
+      request.fields['foodName'] = foodName;
+      request.fields['quantity'] = quantity.toString();
+      request.fields['description'] = description;
+      request.fields['expiryDateTime'] = expiryDateTime.toIso8601String();
+      request.fields['foodType'] = foodType;
+      request.fields['address'] = address;
+      request.fields['needsVolunteer'] = needsVolunteer.toString();
+
+      // Add image if provided
+      if (foodImage != null) {
+        final String fileName = foodImage.path.split('/').last;
+        final String extension = fileName.split('.').last.toLowerCase();
+
+        // Validate file extension
+        if (!['jpg', 'jpeg', 'png'].contains(extension)) {
+          throw Exception('Only JPG, JPEG and PNG images are supported');
+        }
+
+        // Determine content type based on extension
+        String contentType;
+        if (extension == 'png') {
+          contentType = 'image/png';
+        } else {
+          contentType = 'image/jpeg';
+        }
+
+        // Add file to request with correct content type
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'foodImage',
+            foodImage.path,
+            contentType: MediaType.parse(contentType),
+          ),
+        );
+
+        print('Adding image: ${foodImage.path}');
+        print('Image content type: $contentType');
+      }
+
+      final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+      print('Donation creation response: $responseBody');
+
+      if (response.statusCode != 201) {
+        final responseData = json.decode(responseBody);
+        throw Exception(
+            responseData['error']?.toString() ?? 'Failed to create donation');
+      }
+    } catch (e) {
+      print('Error in createDonation: $e');
+      rethrow;
     }
-
-    final response = await request.send();
-    final responseBody = await response.stream.bytesToString();
-
-    if (response.statusCode != 201) {
-      throw Exception('Failed to create donation: $responseBody');
-    }
-
-    return jsonDecode(responseBody);
   }
 
   Future<List<Map<String, dynamic>>> getLiveDonations() async {
     final response = await http.get(
       Uri.parse('$baseUrl/donations/live'),
-      headers: _headers,
+      headers: await _authHeaders,
     );
 
     if (response.statusCode != 200) {
@@ -370,7 +395,7 @@ class ApiService {
       {String? volunteerName}) async {
     final response = await http.post(
       Uri.parse('$baseUrl/donations/accept/$donationId'),
-      headers: _headers,
+      headers: await _authHeaders,
       body: jsonEncode({
         if (volunteerName != null) 'volunteerName': volunteerName,
       }),
@@ -386,7 +411,7 @@ class ApiService {
   Future<void> addFeedback(String acceptedDonationId, String feedback) async {
     final response = await http.post(
       Uri.parse('$baseUrl/donations/feedback/$acceptedDonationId'),
-      headers: _headers,
+      headers: await _authHeaders,
       body: jsonEncode({
         'feedback': feedback,
       }),
@@ -409,7 +434,7 @@ class ApiService {
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/volunteer/register'),
-      headers: _headers,
+      headers: await _authHeaders,
       body: jsonEncode({
         'volunteerName': name,
         'aadharID': aadharId,
@@ -429,7 +454,7 @@ class ApiService {
   Future<List<Map<String, dynamic>>> getVolunteerOpportunities() async {
     final response = await http.get(
       Uri.parse('$baseUrl/volunteer/opportunities'),
-      headers: _headers,
+      headers: await _authHeaders,
     );
 
     if (response.statusCode != 200) {
@@ -439,5 +464,89 @@ class ApiService {
 
     final List<dynamic> data = jsonDecode(response.body);
     return data.cast<Map<String, dynamic>>();
+  }
+
+  // Get user profile data from direct collections
+  Future<Map<String, dynamic>> getDirectUserProfile() async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('No authenticated user found');
+
+    try {
+      print('Fetching direct user profile for: ${user.uid}');
+      final response = await http.get(
+        Uri.parse('$baseUrl/direct/profile'),
+        headers: await _authHeaders,
+      );
+
+      print('Profile response status: ${response.statusCode}');
+      print('Profile response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        throw Exception('Failed to fetch user profile: ${response.body}');
+      }
+    } catch (e) {
+      print('Error fetching direct user profile: $e');
+      rethrow;
+    }
+  }
+
+  // Update direct donor profile
+  Future<void> updateDirectDonorProfile({
+    String? name,
+    String? orgName,
+    String? address,
+    String? contact,
+    String? about,
+    double? latitude,
+    double? longitude,
+  }) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/direct/donor/profile'),
+      headers: await _authHeaders,
+      body: jsonEncode({
+        if (name != null) 'donorname': name,
+        if (orgName != null) 'orgName': orgName,
+        if (address != null) 'donoraddress': address,
+        if (contact != null) 'donorcontact': contact,
+        if (about != null) 'donorabout': about,
+        if (latitude != null) 'latitude': latitude,
+        if (longitude != null) 'longitude': longitude,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to update donor profile: ${response.body}');
+    }
+  }
+
+  // Update direct recipient profile
+  Future<void> updateDirectRecipientProfile({
+    String? name,
+    String? ngoName,
+    String? address,
+    String? contact,
+    String? about,
+    double? latitude,
+    double? longitude,
+  }) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/direct/recipient/profile'),
+      headers: await _authHeaders,
+      body: jsonEncode({
+        if (name != null) 'reciname': name,
+        if (ngoName != null) 'ngoName': ngoName,
+        if (address != null) 'reciaddress': address,
+        if (contact != null) 'recicontact': contact,
+        if (about != null) 'reciabout': about,
+        if (latitude != null) 'latitude': latitude,
+        if (longitude != null) 'longitude': longitude,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to update recipient profile: ${response.body}');
+    }
   }
 }

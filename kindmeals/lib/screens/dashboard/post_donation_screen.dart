@@ -27,12 +27,29 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
   final List<String> _foodTypes = ['veg', 'nonveg', 'jain'];
 
   Future<void> _pickImage() async {
-    final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-    if (image != null) {
-      setState(() {
-        _foodImage = File(image.path);
-      });
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 70, // Reduced quality to prevent large file sizes
+        maxWidth: 800,
+        maxHeight: 800,
+      );
+      if (image != null) {
+        setState(() {
+          _foodImage = File(image.path);
+        });
+        print('Image selected: ${image.path}');
+        print('Image size: ${await _foodImage!.length()} bytes');
+      }
+    } catch (e) {
+      print('Error picking image: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error selecting image: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -76,11 +93,37 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
         return;
       }
 
+      if (_selectedFoodType == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select a food type'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
       setState(() {
         _isLoading = true;
       });
 
       try {
+        // Validate image if provided
+        if (_foodImage != null) {
+          final String extension =
+              _foodImage!.path.split('.').last.toLowerCase();
+          if (!['jpg', 'jpeg', 'png'].contains(extension)) {
+            throw Exception('Only JPG, JPEG and PNG images are supported');
+          }
+        }
+
+        print('Creating donation with:');
+        print('Food name: ${_foodNameController.text}');
+        print('Quantity: ${_quantityController.text}');
+        print('Food type: $_selectedFoodType');
+        print('Expiry date: $_expiryDateTime');
+        print('Image: ${_foodImage?.path}');
+
         await _apiService.createDonation(
           foodName: _foodNameController.text,
           quantity: int.parse(_quantityController.text),
@@ -105,10 +148,12 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
           Navigator.pop(context);
         }
       } catch (e) {
+        print('Error posting donation: $e');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(e.toString()),
+              content:
+                  Text('Error: ${e.toString().replaceAll('Exception: ', '')}'),
               backgroundColor: Colors.red,
               duration: const Duration(seconds: 3),
               behavior: SnackBarBehavior.floating,

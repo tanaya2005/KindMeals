@@ -43,86 +43,160 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _handleRegister() async {
     if (_formKey.currentState!.validate()) {
+      if (_selectedType == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select a user type'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+
       setState(() {
         _isLoading = true;
       });
 
       try {
         // First, create Firebase authentication
+        print('Starting Firebase registration...');
         final userCredential =
             await _firebaseService.signUpWithEmailAndPassword(
           _emailController.text.trim(),
           _passwordController.text,
         );
 
+        print('Firebase registration successful: ${userCredential.user?.uid}');
+
+        // Verify the user is properly authenticated
+        if (userCredential.user == null) {
+          throw Exception(
+              'Failed to create user: No user returned from Firebase');
+        }
+
+        // Force a token refresh to ensure the user is properly authenticated
+        await userCredential.user?.getIdToken(true);
+
         try {
-          // Then, register user in MongoDB
-          await _apiService.registerUser(_selectedType!);
+          // Register directly to the appropriate collection based on selected type
+          print('Starting direct registration for type: $_selectedType');
 
-          try {
-            // Finally, register the specific profile (donor or recipient)
-            if (_selectedType == 'Donor') {
-              await _apiService.registerDonor(
-                name: _nameController.text,
-                orgName: _orgNameController.text,
-                identificationId: _idController.text,
-                address: _addressController.text,
-                contact: _contactController.text,
-                type: _selectedType!,
-                about: _aboutController.text,
-              );
-            } else {
-              await _apiService.registerRecipient(
-                name: _nameController.text,
-                ngoName: _orgNameController.text,
-                ngoId: _idController.text,
-                address: _addressController.text,
-                contact: _contactController.text,
-                type: _selectedType!,
-                about: _aboutController.text,
-              );
-            }
+          // Try up to 3 times with exponentially increasing delays
+          int retryCount = 0;
+          bool success = false;
+          Exception? lastError;
 
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Registration successful!'),
-                  backgroundColor: Colors.green,
-                  duration: Duration(seconds: 2),
-                  behavior: SnackBarBehavior.floating,
-                  margin: EdgeInsets.all(16),
-                ),
-              );
-
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                '/dashboard',
-                (route) => false,
-              );
-            }
-          } catch (e) {
-            // If profile registration fails, attempt to delete the user from MongoDB
+          while (retryCount < 3 && !success) {
             try {
-              await _apiService.deleteUser();
-            } catch (_) {
-              // Ignore cleanup errors
+              if (retryCount > 0) {
+                print(
+                    'Retrying direct registration (attempt ${retryCount + 1})...');
+                // Exponential backoff
+                await Future.delayed(
+                    Duration(milliseconds: 500 * (1 << retryCount)));
+              }
+
+              if (_selectedType == 'Donor') {
+                await _apiService.registerDonor(
+                  name: _nameController.text,
+                  orgName: _orgNameController.text,
+                  identificationId: _idController.text,
+                  address: _addressController.text,
+                  contact: _contactController.text,
+                  type: _selectedType!,
+                  about: _aboutController.text,
+                );
+              } else {
+                await _apiService.registerRecipient(
+                  name: _nameController.text,
+                  ngoName: _orgNameController.text,
+                  ngoId: _idController.text,
+                  address: _addressController.text,
+                  contact: _contactController.text,
+                  type: _selectedType!,
+                  about: _aboutController.text,
+                );
+              }
+
+              success = true;
+              print('Direct registration successful');
+              break;
+            } catch (e) {
+              lastError = e as Exception;
+              print('Error on attempt ${retryCount + 1}: $e');
+              retryCount++;
             }
-            // Only delete Firebase user if we're sure the MongoDB cleanup succeeded
-            if (await _apiService.isUserDeleted()) {
-              await userCredential.user?.delete();
-            }
-            rethrow;
+          }
+
+          if (!success && lastError != null) {
+            throw lastError;
+          }
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Registration successful!'),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 2),
+                behavior: SnackBarBehavior.floating,
+                margin: EdgeInsets.all(16),
+              ),
+            );
+
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              '/dashboard',
+              (route) => false,
+            );
           }
         } catch (e) {
-          // If MongoDB registration fails, delete the Firebase user
-          await userCredential.user?.delete();
+          print('Error during registration: $e');
+          // If profile registration fails, delete the Firebase user
+          try {
+            await userCredential.user?.delete();
+            print('Firebase user deleted after registration failure');
+          } catch (deleteError) {
+            print('Could not delete Firebase user: $deleteError');
+          }
           rethrow;
         }
       } catch (e) {
+        print('Error during registration: $e');
         if (mounted) {
+          String errorMessage = 'Registration failed';
+          if (e.toString().contains('E11000')) {
+            errorMessage =
+                'This email is already registered. Please use a different email or login.';
+          } else if (e.toString().contains('email-already-in-use')) {
+            errorMessage =
+                'This email is already in use. Please use a different email or login.';
+          } else if (e.toString().contains('No user returned from Firebase')) {
+            errorMessage = 'Failed to create user account. Please try again.';
+          } else if (e.toString().contains('No authenticated user found')) {
+            errorMessage = 'Authentication failed. Please try again.';
+          } else if (e.toString().contains('Failed to register donor: ')) {
+            print('Donor registration error: ${e.toString()}');
+            errorMessage = e
+                .toString()
+                .replaceAll('Exception: Failed to register donor: ', '');
+          } else if (e.toString().contains('Failed to register recipient: ')) {
+            print('Recipient registration error: ${e.toString()}');
+            errorMessage = e
+                .toString()
+                .replaceAll('Exception: Failed to register recipient: ', '');
+          } else if (e.toString().contains('Cannot connect to server')) {
+            print('Server connection error: ${e.toString()}');
+            errorMessage =
+                'Cannot connect to server. Please check your internet connection and try again.';
+          } else {
+            print('Unhandled error: ${e.toString()}');
+            errorMessage = e.toString().replaceAll('Exception: ', '');
+          }
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Registration failed: ${e.toString()}'),
+              content: Text(errorMessage),
               backgroundColor: Colors.red,
               duration: const Duration(seconds: 3),
               behavior: SnackBarBehavior.floating,
