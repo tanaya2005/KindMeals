@@ -901,40 +901,19 @@ app.get('/api/health', (req, res) => {
 });
 
 // Direct Donor Registration Route (no User record)
-app.post('/api/direct/donor/register', firebaseAuthMiddleware, upload, async (req, res) => {
+app.post('/api/direct/donor/register', directFirebaseAuthMiddleware, upload, async (req, res) => {
   try {
-    console.log('Direct donor registration attempt for Firebase UID:', req.firebaseUid);
-    
-    // Check if donor with this Firebase UID already exists
+    // Check if donor already registered
     const existingDonor = await DirectDonor.findOne({ firebaseUid: req.firebaseUid });
     if (existingDonor) {
-      console.log('Donor already registered with this Firebase UID:', req.firebaseUid);
-      return res.status(400).json({ error: 'Donor already registered with this account' });
+      return res.status(400).json({ error: 'Donor already registered' });
     }
-    
-    // Validate required fields
-    const requiredFields = ['donorname', 'orgName', 'identificationId', 'donoraddress', 'donorcontact', 'type', 'email'];
-    const missingFields = [];
-    
-    for (const field of requiredFields) {
-      if (!req.body[field]) {
-        missingFields.push(field);
-      }
-    }
-    
-    if (missingFields.length > 0) {
-      console.log('Missing required fields:', missingFields);
-      return res.status(400).json({ 
-        error: `Missing required fields: ${missingFields.join(', ')}` 
-      });
-    }
-    
-    console.log('All required fields present:', Object.keys(req.body));
 
     // Handle profile image upload - safely check if files exist
     let profileImage = '';
     if (req.files && req.files['profileImage'] && req.files['profileImage'][0]) {
       profileImage = `/uploads/${req.files['profileImage'][0].filename}`;
+      console.log('Profile image uploaded:', profileImage);
     }
 
     // Create donor profile directly with Firebase UID
@@ -961,7 +940,6 @@ app.post('/api/direct/donor/register', firebaseAuthMiddleware, upload, async (re
   } catch (err) {
     console.error('Error in direct donor registration:', err);
     if (err.code === 11000) {
-      // Handle duplicate key error
       return res.status(400).json({ 
         error: 'A donor with this email or ID already exists. Please check your details and try again.' 
       });

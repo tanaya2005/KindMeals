@@ -503,6 +503,7 @@ class ApiService {
 
   // Update direct donor profile
   Future<void> updateDirectDonorProfile({
+    File? profileImage,
     String? name,
     String? orgName,
     String? address,
@@ -511,22 +512,71 @@ class ApiService {
     double? latitude,
     double? longitude,
   }) async {
-    final response = await http.put(
-      Uri.parse('$baseUrl/direct/donor/profile'),
-      headers: await _authHeaders,
-      body: jsonEncode({
-        if (name != null) 'donorname': name,
-        if (orgName != null) 'orgName': orgName,
-        if (address != null) 'donoraddress': address,
-        if (contact != null) 'donorcontact': contact,
-        if (about != null) 'donorabout': about,
-        if (latitude != null) 'latitude': latitude,
-        if (longitude != null) 'longitude': longitude,
-      }),
-    );
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        throw Exception('No authenticated user found');
+      }
 
-    if (response.statusCode != 200) {
-      throw Exception('Failed to update donor profile: ${response.body}');
+      final String url = '$baseUrl/direct/donor/profile';
+      final request = http.MultipartRequest('PUT', Uri.parse(url));
+
+      // Add auth token to headers
+      final String? token = await currentUser.getIdToken();
+      request.headers['Authorization'] = 'Bearer $token';
+
+      // Add form fields
+      if (name != null) request.fields['donorname'] = name;
+      if (orgName != null) request.fields['orgName'] = orgName;
+      if (address != null) request.fields['donoraddress'] = address;
+      if (contact != null) request.fields['donorcontact'] = contact;
+      if (about != null) request.fields['donorabout'] = about;
+      if (latitude != null) request.fields['latitude'] = latitude.toString();
+      if (longitude != null) request.fields['longitude'] = longitude.toString();
+
+      // Add image if provided
+      if (profileImage != null) {
+        final String fileName = profileImage.path.split('/').last;
+        final String extension = fileName.split('.').last.toLowerCase();
+
+        // Validate file extension
+        if (!['jpg', 'jpeg', 'png'].contains(extension)) {
+          throw Exception('Only JPG, JPEG and PNG images are supported');
+        }
+
+        // Determine content type based on extension
+        String contentType;
+        if (extension == 'png') {
+          contentType = 'image/png';
+        } else {
+          contentType = 'image/jpeg';
+        }
+
+        // Add file to request with correct content type
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'profileImage',
+            profileImage.path,
+            contentType: MediaType.parse(contentType),
+          ),
+        );
+
+        print('Adding profile image: ${profileImage.path}');
+        print('Image content type: $contentType');
+      }
+
+      final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+      print('Profile update response: $responseBody');
+
+      if (response.statusCode != 200) {
+        final responseData = json.decode(responseBody);
+        throw Exception(
+            responseData['error']?.toString() ?? 'Failed to update profile');
+      }
+    } catch (e) {
+      print('Error in updateDirectDonorProfile: $e');
+      rethrow;
     }
   }
 

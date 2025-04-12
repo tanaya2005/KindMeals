@@ -38,22 +38,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final directProfileData = await _apiService.getDirectUserProfile();
         print('=== DEBUG: Direct Profile Data ===');
         print('Full direct profile data: $directProfileData');
+        print('User Type: ${directProfileData['userType']}');
         print('Profile section: ${directProfileData['profile']}');
-        print('Email: ${directProfileData['profile']['email']}');
-        print('Profile Image: ${directProfileData['profile']['profileImage']}');
 
         setState(() {
           _userData = {
             'email': directProfileData['profile']['email'],
             'profileImage': directProfileData['profile']['profileImage'],
+            'type': directProfileData['userType'],
           };
           _profileData = directProfileData['profile'];
           _isLoading = false;
         });
-
-        print('=== DEBUG: State After Direct API ===');
-        print('_userData: $_userData');
-        print('_profileData: $_profileData');
         return;
       } catch (directError) {
         print(
@@ -63,20 +59,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       // Legacy API as fallback
       final profileData = await _apiService.getUserProfile();
-      print('=== DEBUG: Legacy Profile Data ===');
-      print('Full legacy profile data: $profileData');
-      print('User section: ${profileData['user']}');
-      print('Profile section: ${profileData['profile']}');
-
       setState(() {
         _userData = profileData['user'];
         _profileData = profileData['profile'];
         _isLoading = false;
       });
-
-      print('=== DEBUG: State After Legacy API ===');
-      print('_userData: $_userData');
-      print('_profileData: $_profileData');
     } catch (e) {
       setState(() {
         _hasError = true;
@@ -94,7 +81,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         _profileImage = File(image.path);
       });
-      // TODO: Upload image to server
+      // Upload image to server
+      try {
+        await _apiService.updateDirectDonorProfile(profileImage: _profileImage);
+        _loadUserProfile(); // Reload profile to get updated image URL
+      } catch (e) {
+        print('Error uploading profile image: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to upload profile image: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -255,6 +254,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           style:
                               const TextStyle(fontSize: 16, color: Colors.grey),
                         ),
+                        const SizedBox(height: 5),
+                        Text(
+                          _userData?['type']?.toString().toUpperCase() ??
+                              'USER',
+                          style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.green,
+                              fontWeight: FontWeight.bold),
+                        ),
                         const SizedBox(height: 30),
                         _buildProfileSection('Personal Information', [
                           _buildProfileItem(
@@ -294,11 +302,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               _profileData?['identificationId'] ??
                                   _profileData?['ngoId'] ??
                                   'N/A'),
-                          _buildProfileItem(
-                              Icons.category,
-                              'Type',
-                              _userData?['role']?.toString().toUpperCase() ??
-                                  'N/A'),
+                          // _buildProfileItem(
+                          //     Icons.category,
+                          //     'Type',
+                          //     _userData?['role']?.toString().toUpperCase() ??
+                          //         'N/A'),
                         ]),
                         const SizedBox(height: 30),
                         _buildProfileSection('About', [
