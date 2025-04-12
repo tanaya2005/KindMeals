@@ -7,6 +7,7 @@ import '../../services/firebase_service.dart';
 import '../../services/api_service.dart';
 import 'post_donation_screen.dart';
 import 'view_donations_screen.dart';
+import 'volunteers_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -51,6 +52,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     const _HomeScreen(),
     const PostDonationScreen(),
     const ViewDonationsScreen(),
+    const VolunteersScreen(),
     const ProfileScreen(),
   ];
 
@@ -122,6 +124,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
             BottomNavigationBarItem(
               icon: Icon(Icons.visibility_rounded),
               label: 'View Donations',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.volunteer_activism_rounded),
+              label: 'Volunteers',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.person_rounded),

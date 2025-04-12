@@ -1,5 +1,5 @@
 class ApiConfig {
-  static const String baseUrl = 'http://192.168.221.180:5000';
+  static const String baseUrl = 'http://192.168.109.46:5000';
   static const String apiBaseUrl = '$baseUrl/api';
 
   // Image URL helper
