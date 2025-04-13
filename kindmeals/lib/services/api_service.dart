@@ -409,10 +409,15 @@ class ApiService {
 
       // Add auth token to headers
       print('DEBUG API: Getting user ID token...');
-      await FirebaseAuth.instance.currentUser?.reload();
-      final String? token = await currentUser.getIdToken(true);
-      print('DEBUG API: Token received with length: ${token?.length}');
-      request.headers['Authorization'] = 'Bearer $token';
+      await currentUser.reload();
+      final String? idTokenRaw = await currentUser.getIdToken(true);
+      if (idTokenRaw == null) {
+        print('DEBUG ERROR: Failed to get ID token');
+        throw Exception('Authentication error: Failed to get ID token');
+      }
+      final String idToken = idTokenRaw;
+      print('DEBUG: ID token received with length: ${idToken.length}');
+      request.headers['Authorization'] = 'Bearer $idToken';
 
       // Add form fields with MongoDB IDs
       print('DEBUG API: Adding form fields to request...');
@@ -516,47 +521,117 @@ class ApiService {
   }
 
   Future<List<Map<String, dynamic>>> getLiveDonations() async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/donations/live'),
-      headers: await _authHeaders,
-    );
+    try {
+      print('DEBUG: Fetching live donations...');
+      // Use the correct route as defined in server.js
+      final response = await http.get(
+        Uri.parse('$baseUrl/donations/live'),
+        headers: await _authHeaders,
+      );
 
-    if (response.statusCode != 200) {
-      throw Exception('Failed to get live donations: ${response.body}');
+      print('DEBUG: Live donations response status: ${response.statusCode}');
+      if (response.statusCode != 200) {
+        print(
+            'DEBUG ERROR: Failed to get live donations. Status: ${response.statusCode}, Body: ${response.body}');
+        throw Exception('Failed to get live donations: ${response.body}');
+      }
+
+      final List<dynamic> data = jsonDecode(response.body);
+      print('DEBUG: Fetched ${data.length} live donations');
+      return data.cast<Map<String, dynamic>>();
+    } catch (e) {
+      print('DEBUG ERROR: Exception in getLiveDonations: $e');
+      rethrow;
     }
-
-    final List<dynamic> data = jsonDecode(response.body);
-    return data.cast<Map<String, dynamic>>();
   }
 
   Future<Map<String, dynamic>> acceptDonation(String donationId,
       {String? volunteerName}) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/donations/accept/$donationId'),
-      headers: await _authHeaders,
-      body: jsonEncode({
-        if (volunteerName != null) 'volunteerName': volunteerName,
-      }),
-    );
+    try {
+      print('DEBUG: Starting acceptDonation process for ID: $donationId');
 
-    if (response.statusCode != 200) {
-      throw Exception('Failed to accept donation: ${response.body}');
+      // Get current user
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        print('DEBUG: No authenticated user found');
+        throw Exception('No authenticated user found');
+      }
+
+      // Get fresh token
+      print('DEBUG: Getting fresh ID token...');
+      await currentUser.reload();
+      final String? idTokenRaw = await currentUser.getIdToken(true);
+      if (idTokenRaw == null) {
+        print('DEBUG ERROR: Failed to get ID token');
+        throw Exception('Authentication error: Failed to get ID token');
+      }
+      final String idToken = idTokenRaw;
+      print('DEBUG: ID token received with length: ${idToken.length}');
+
+      final Map<String, String> headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $idToken',
+      };
+      print('DEBUG: Request headers prepared');
+
+      // Prepare request body
+      final Map<String, dynamic> requestBody = {};
+      if (volunteerName != null) {
+        requestBody['volunteerName'] = volunteerName;
+      }
+      print('DEBUG: Request body: $requestBody');
+
+      // Make the API call - use the direct endpoint that works with DirectRecipient
+      final String url = '$baseUrl/direct/donations/accept/$donationId';
+      print('DEBUG: Making POST request to: $url');
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: headers,
+        body: jsonEncode(requestBody),
+      );
+
+      print('DEBUG: Response status code: ${response.statusCode}');
+      print('DEBUG: Response body: ${response.body}');
+
+      if (response.statusCode != 200) {
+        print(
+            'DEBUG ERROR: Failed to accept donation. Status: ${response.statusCode}, Body: ${response.body}');
+        throw Exception('Failed to accept donation: ${response.body}');
+      }
+
+      print('DEBUG: Donation accepted successfully!');
+      return jsonDecode(response.body);
+    } catch (e) {
+      print('DEBUG ERROR: Exception in acceptDonation: $e');
+      rethrow;
     }
-
-    return jsonDecode(response.body);
   }
 
   Future<void> addFeedback(String acceptedDonationId, String feedback) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/donations/feedback/$acceptedDonationId'),
-      headers: await _authHeaders,
-      body: jsonEncode({
-        'feedback': feedback,
-      }),
-    );
+    try {
+      print('DEBUG: Adding feedback for donation: $acceptedDonationId');
 
-    if (response.statusCode != 200) {
-      throw Exception('Failed to add feedback: ${response.body}');
+      // Use direct API endpoint that works with DirectRecipient
+      final response = await http.post(
+        Uri.parse('$baseUrl/direct/donations/feedback/$acceptedDonationId'),
+        headers: await _authHeaders,
+        body: jsonEncode({
+          'feedback': feedback,
+        }),
+      );
+
+      print('DEBUG: Feedback response status: ${response.statusCode}');
+      if (response.statusCode != 200) {
+        print(
+            'DEBUG ERROR: Failed to add feedback. Status: ${response.statusCode}, Body: ${response.body}');
+        throw Exception('Failed to add feedback: ${response.body}');
+      }
+
+      print('DEBUG: Feedback added successfully');
+    } catch (e) {
+      print('DEBUG ERROR: Exception in addFeedback: $e');
+      rethrow;
     }
   }
 
@@ -603,6 +678,64 @@ class ApiService {
 
     final List<dynamic> data = jsonDecode(response.body);
     return data.cast<Map<String, dynamic>>();
+  }
+
+  // Get recipient donation history
+  Future<List<Map<String, dynamic>>> getRecipientDonations() async {
+    try {
+      print('DEBUG: Fetching recipient donations...');
+      // Use direct API endpoint that works with DirectRecipient
+      final response = await http.get(
+        Uri.parse('$baseUrl/direct/recipient/donations'),
+        headers: await _authHeaders,
+      );
+
+      print(
+          'DEBUG: Recipient donations response status: ${response.statusCode}');
+      if (response.statusCode != 200) {
+        print(
+            'DEBUG ERROR: Failed to get recipient donations. Status: ${response.statusCode}, Body: ${response.body}');
+        throw Exception('Failed to get recipient donations: ${response.body}');
+      }
+
+      final List<dynamic> data = jsonDecode(response.body);
+      print('DEBUG: Fetched ${data.length} accepted donations');
+      return data.cast<Map<String, dynamic>>();
+    } catch (e) {
+      print('DEBUG ERROR: Exception in getRecipientDonations: $e');
+      rethrow;
+    }
+  }
+
+  // Get donor donation history
+  Future<Map<String, dynamic>> getDonorDonations() async {
+    try {
+      print('DEBUG: Fetching donor donations history...');
+      // Use direct API endpoint that works with DirectDonor
+      final response = await http.get(
+        Uri.parse('$baseUrl/direct/donor/donations'),
+        headers: await _authHeaders,
+      );
+
+      print('DEBUG: Donor donations response status: ${response.statusCode}');
+      if (response.statusCode != 200) {
+        print(
+            'DEBUG ERROR: Failed to get donor donations. Status: ${response.statusCode}, Body: ${response.body}');
+        throw Exception('Failed to get donor donations: ${response.body}');
+      }
+
+      final Map<String, dynamic> data = jsonDecode(response.body);
+      print('DEBUG: Fetched donor donation history:');
+      print('  - Active: ${data['active']?.length ?? 0}');
+      print('  - Accepted: ${data['accepted']?.length ?? 0}');
+      print('  - Expired: ${data['expired']?.length ?? 0}');
+      print('  - Combined: ${data['combined']?.length ?? 0}');
+
+      return data;
+    } catch (e) {
+      print('DEBUG ERROR: Exception in getDonorDonations: $e');
+      rethrow;
+    }
   }
 
   // Get user profile data from direct collections
