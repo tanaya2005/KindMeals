@@ -106,6 +106,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   contact: _contactController.text,
                   type: _selectedType!,
                   about: _aboutController.text,
+                  profileImage: _profileImage,
                 );
               } else {
                 await _apiService.registerRecipient(
@@ -116,6 +117,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   contact: _contactController.text,
                   type: _selectedType!,
                   about: _aboutController.text,
+                  profileImage: _profileImage,
                 );
               }
 
@@ -272,17 +274,55 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                GestureDetector(
-                  onTap: _pickImage,
-                  child: Center(
-                    child: CircleAvatar(
-                      radius: 50,
-                      backgroundImage: _profileImage != null
-                          ? FileImage(_profileImage!)
-                          : null,
-                      child: _profileImage == null
-                          ? const Icon(Icons.add_a_photo, size: 40)
-                          : null,
+                // Profile Image Selection
+                Center(
+                  child: Stack(
+                    children: [
+                      CircleAvatar(
+                        radius: 60,
+                        backgroundColor: Colors.grey[200],
+                        backgroundImage: _profileImage != null
+                            ? FileImage(_profileImage!)
+                            : null,
+                        child: _profileImage == null
+                            ? const Icon(
+                                Icons.person,
+                                size: 60,
+                                color: Colors.grey,
+                              )
+                            : null,
+                      ),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: GestureDetector(
+                          onTap: _pickImage,
+                          child: Container(
+                            height: 40,
+                            width: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.green,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.camera_alt,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Center(
+                  child: TextButton(
+                    onPressed: _pickImage,
+                    child: Text(
+                      _profileImage == null
+                          ? "Add Profile Picture"
+                          : "Change Profile Picture",
+                      style: TextStyle(color: Colors.green),
                     ),
                   ),
                 ),
