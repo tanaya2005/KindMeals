@@ -1193,6 +1193,63 @@ app.put('/api/direct/recipient/profile', directFirebaseAuthMiddleware, upload, a
   }
 });
 
+// Direct donation create endpoint - for directdonors collection
+app.post('/api/direct/donations/create', directFirebaseAuthMiddleware, upload, async (req, res) => {
+  try {
+    console.log('Direct donation creation request received');
+    
+    // Ensure the user is a donor
+    if (req.userType !== 'donor') {
+      console.log('User is not a donor:', req.userType);
+      return res.status(403).json({ error: 'Only registered donors can create donations' });
+    }
+
+    // Extract the donor data from req.user
+    const donor = req.user;
+    console.log('User authenticated as donor:', donor._id);
+    console.log('Donor data:', { name: donor.donorname, email: donor.email });
+
+    // Handle food image upload
+    const foodImage = req.files['foodImage'] ? 
+      `/uploads/${req.files['foodImage'][0].filename}` : '';
+    
+    console.log('Food image path:', foodImage);
+
+    // Create the new donation
+    const newDonation = new LiveDonation({
+      donorId: donor._id,
+      donorName: donor.donorname,
+      foodName: req.body.foodName,
+      quantity: req.body.quantity,
+      description: req.body.description,
+      expiryDateTime: new Date(req.body.expiryDateTime),
+      timeOfUpload: new Date(),
+      foodType: req.body.foodType,
+      imageUrl: foodImage,
+      location: {
+        address: req.body.address || donor.donoraddress,
+        latitude: req.body.latitude || (donor.donorlocation ? donor.donorlocation.latitude : 0),
+        longitude: req.body.longitude || (donor.donorlocation ? donor.donorlocation.longitude : 0)
+      },
+      needsVolunteer: req.body.needsVolunteer === 'true'
+    });
+
+    console.log('Creating donation with data:', {
+      foodName: req.body.foodName,
+      quantity: req.body.quantity,
+      expiryDateTime: req.body.expiryDateTime,
+      foodType: req.body.foodType,
+    });
+
+    const savedDonation = await newDonation.save();
+    console.log('Donation saved successfully with ID:', savedDonation._id);
+    res.status(201).json(savedDonation);
+  } catch (err) {
+    console.error('Error creating donation:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // Start the server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

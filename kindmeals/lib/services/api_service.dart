@@ -1,9 +1,9 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import '../config/api_config.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import '../config/api_config.dart';
 
 class ApiService {
   static const String baseUrl = ApiConfig.apiBaseUrl;
@@ -381,18 +381,53 @@ class ApiService {
       }
       print('DEBUG API: Current user UID: ${currentUser.uid}');
 
-      final String url = '$baseUrl/donations/create';
+      // Get user profile first to find the MongoDB ID
+      Map<String, dynamic> userProfile;
+      try {
+        print('DEBUG API: Fetching direct user profile before donation...');
+        userProfile = await getDirectUserProfile();
+        print(
+            'DEBUG API: User profile found with type: ${userProfile['userType']}');
+
+        if (userProfile['userType'].toString().toLowerCase() != 'donor') {
+          print('DEBUG API ERROR: User is not a donor');
+          throw Exception('Only donors can post donations');
+        }
+
+        // Extract MongoDB ID if available
+        print('DEBUG API: User profile ID: ${userProfile['profile']['_id']}');
+      } catch (e) {
+        print('DEBUG API ERROR: Failed to verify donor profile: $e');
+        rethrow;
+      }
+
+      // Create the request
+      // Use the direct donations create endpoint for direct donors
+      final String url = '$baseUrl/direct/donations/create';
       print('DEBUG API: API endpoint: $url');
       final request = http.MultipartRequest('POST', Uri.parse(url));
 
       // Add auth token to headers
       print('DEBUG API: Getting user ID token...');
-      final String? token = await currentUser.getIdToken();
+      await FirebaseAuth.instance.currentUser?.reload();
+      final String? token = await currentUser.getIdToken(true);
       print('DEBUG API: Token received with length: ${token?.length}');
       request.headers['Authorization'] = 'Bearer $token';
 
-      // Add form fields
+      // Add form fields with MongoDB IDs
       print('DEBUG API: Adding form fields to request...');
+      request.fields['firebaseUid'] = currentUser.uid;
+      request.fields['email'] = currentUser.email ?? '';
+
+      // Add MongoDB ID if available
+      if (userProfile.containsKey('profile') &&
+          userProfile['profile'] != null &&
+          userProfile['profile'].containsKey('_id')) {
+        request.fields['donorId'] = userProfile['profile']['_id'].toString();
+        print(
+            'DEBUG API: Including donor MongoDB ID: ${userProfile['profile']['_id']}');
+      }
+
       request.fields['foodName'] = foodName;
       request.fields['quantity'] = quantity.toString();
       request.fields['description'] = description;
@@ -400,13 +435,15 @@ class ApiService {
       request.fields['foodType'] = foodType;
       request.fields['address'] = address;
       request.fields['needsVolunteer'] = needsVolunteer.toString();
-      print('DEBUG API: Form fields added');
 
-      // Add image if provided
+      // Add food image if provided
       if (foodImage != null) {
-        print('DEBUG API: Processing food image...');
-        final String fileName = foodImage.path.split('/').last;
-        final String extension = fileName.split('.').last.toLowerCase();
+        print('DEBUG API: Processing food image: ${foodImage.path}');
+        final File processedImage = await _processImage(foodImage);
+        print('DEBUG API: Image processed: ${processedImage.path}');
+
+        final fileName = processedImage.path.split('/').last;
+        final extension = fileName.split('.').last.toLowerCase();
 
         // Validate file extension
         if (!['jpg', 'jpeg', 'png'].contains(extension)) {
@@ -423,22 +460,25 @@ class ApiService {
         }
 
         // Add file to request with correct content type
-        print('DEBUG API: Creating multipart file...');
         request.files.add(
           await http.MultipartFile.fromPath(
             'foodImage',
-            foodImage.path,
+            processedImage.path,
             contentType: MediaType.parse(contentType),
           ),
         );
 
-        print('DEBUG API: Image added to request: ${foodImage.path}');
+        print('DEBUG API: Added food image to request');
         print('DEBUG API: Image content type: $contentType');
       } else {
-        print('DEBUG API: No image provided');
+        print('DEBUG API: No food image provided');
       }
 
-      print('DEBUG API: Sending request to server...');
+      // Send the request
+      print('DEBUG API: Sending donation creation request...');
+      print(
+          'DEBUG API: Request contains ${request.fields.length} fields and ${request.files.length} files');
+
       final response = await request.send();
       final responseBody = await response.stream.bytesToString();
       print('DEBUG API: Response status code: ${response.statusCode}');
@@ -447,11 +487,25 @@ class ApiService {
       if (response.statusCode != 201) {
         print(
             'DEBUG API ERROR: Request failed with status ${response.statusCode}');
-        final responseData = json.decode(responseBody);
-        final errorMessage =
-            responseData['error']?.toString() ?? 'Failed to create donation';
-        print('DEBUG API ERROR: $errorMessage');
-        throw Exception(errorMessage);
+
+        try {
+          final responseData = json.decode(responseBody);
+          final errorMessage =
+              responseData['error']?.toString() ?? 'Failed to create donation';
+          print('DEBUG API ERROR: $errorMessage');
+
+          // Special handling for auth errors
+          if (response.statusCode == 401 &&
+              errorMessage.contains('User not found')) {
+            throw Exception(
+                'Authentication error: Your account may need to be re-verified. Please log out and log back in.');
+          }
+
+          throw Exception(errorMessage);
+        } catch (e) {
+          if (e is Exception) rethrow;
+          throw Exception('Failed to create donation: $responseBody');
+        }
       }
 
       print('DEBUG API: Donation created successfully!');
@@ -514,7 +568,8 @@ class ApiService {
     required String contact,
     String? about,
     double? latitude,
-    double? longitude, File? profileImage,
+    double? longitude,
+    File? profileImage,
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/volunteer/register'),
@@ -738,6 +793,21 @@ class ApiService {
     } catch (e) {
       print('Error in updateDirectRecipientProfile: $e');
       rethrow;
+    }
+  }
+
+  // Helper method to process images before upload (resize and compress)
+  // This is a simplified version without additional dependencies
+  Future<File> _processImage(File image) async {
+    try {
+      // In a real implementation, you would resize and compress the image
+      // For now, we'll return the original image without processing
+      print('Image would normally be processed for better performance');
+      // Just return the original file as is
+      return image;
+    } catch (e) {
+      print('Error in _processImage: $e');
+      return image;
     }
   }
 }
