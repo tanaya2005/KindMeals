@@ -201,6 +201,32 @@ const acceptedDonationSchema = new mongoose.Schema({
   feedback: { type: String, default: '' }
 });
 
+// New schema for expired donations
+const expiredDonationSchema = new mongoose.Schema({
+  originalDonationId: { type: mongoose.Schema.Types.ObjectId, ref: 'LiveDonation' },
+  donorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  donorName: { type: String, required: true },
+  foodName: { type: String, required: true },
+  quantity: { type: Number, required: true },
+  description: { type: String, required: true },
+  expiryDateTime: { type: Date, required: true },
+  timeOfUpload: { type: Date },
+  expiredAt: { type: Date, default: Date.now },
+  foodType: {
+    type: String,
+    enum: ['veg', 'nonveg', 'jain'],
+    required: true,
+  },
+  imageUrl: String,
+  location: {
+    address: { type: String, required: true },
+    latitude: Number,
+    longitude: Number,
+  },
+  needsVolunteer: { type: Boolean, default: false },
+  status: { type: String, default: 'Expired' }
+});
+
 // Create models
 const User = mongoose.model('User', userSchema);
 const Donor = mongoose.model('Donor', donorSchema);
@@ -208,6 +234,7 @@ const Recipient = mongoose.model('Recipient', recipientSchema);
 const Volunteer = mongoose.model('Volunteer', volunteerSchema);
 const LiveDonation = mongoose.model('LiveDonation', liveDonationSchema);
 const AcceptedDonation = mongoose.model('AcceptedDonation', acceptedDonationSchema);
+const ExpiredDonation = mongoose.model('ExpiredDonation', expiredDonationSchema);
 
 // New Firebase middleware that doesn't rely on User collection
 const firebaseAuthMiddleware = async (req, res, next) => {
@@ -775,21 +802,115 @@ app.post('/api/donations/feedback/:acceptedDonationId', authMiddleware, async (r
   }
 });
 
-// Clean up expired donations
+// Clean up expired donations and move them to ExpiredDonations
 app.delete('/api/donations/cleanup', async (req, res) => {
   try {
     const currentTime = new Date();
+    console.log('Running expired donations cleanup at:', currentTime);
     
-    // Find and delete expired donations
-    const result = await LiveDonation.deleteMany({
+    // Find all expired donations
+    const expiredDonations = await LiveDonation.find({
       expiryDateTime: { $lt: currentTime }
     });
     
-    res.status(200).json({ message: `Deleted ${result.deletedCount} expired donations` });
+    console.log(`Found ${expiredDonations.length} expired donations`);
+    
+    // Move each expired donation to ExpiredDonations collection
+    let movedCount = 0;
+    for (const donation of expiredDonations) {
+      try {
+        // Create expired donation record
+        const expiredDonation = new ExpiredDonation({
+          originalDonationId: donation._id,
+          donorId: donation.donorId,
+          donorName: donation.donorName,
+          foodName: donation.foodName,
+          quantity: donation.quantity,
+          description: donation.description,
+          expiryDateTime: donation.expiryDateTime,
+          timeOfUpload: donation.timeOfUpload,
+          expiredAt: currentTime,
+          foodType: donation.foodType,
+          imageUrl: donation.imageUrl,
+          location: donation.location,
+          needsVolunteer: donation.needsVolunteer,
+          status: 'Expired'
+        });
+        
+        await expiredDonation.save();
+        
+        // Delete from live donations
+        await LiveDonation.findByIdAndDelete(donation._id);
+        movedCount++;
+      } catch (err) {
+        console.error('Error moving expired donation:', err);
+      }
+    }
+    
+    res.status(200).json({ 
+      message: `Processed ${expiredDonations.length} expired donations, successfully moved ${movedCount} to ExpiredDonations` 
+    });
   } catch (err) {
+    console.error('Error in cleanup process:', err);
     res.status(400).json({ error: err.message });
   }
 });
+
+// Scheduled job to automatically clean up expired donations
+const runExpiredDonationsCleanup = async () => {
+  try {
+    const currentTime = new Date();
+    console.log('Running scheduled expired donations cleanup at:', currentTime);
+    
+    // Find all expired donations
+    const expiredDonations = await LiveDonation.find({
+      expiryDateTime: { $lt: currentTime }
+    });
+    
+    console.log(`Found ${expiredDonations.length} expired donations`);
+    
+    // Move each expired donation to ExpiredDonations collection
+    let movedCount = 0;
+    for (const donation of expiredDonations) {
+      try {
+        // Create expired donation record
+        const expiredDonation = new ExpiredDonation({
+          originalDonationId: donation._id,
+          donorId: donation.donorId,
+          donorName: donation.donorName,
+          foodName: donation.foodName,
+          quantity: donation.quantity,
+          description: donation.description,
+          expiryDateTime: donation.expiryDateTime,
+          timeOfUpload: donation.timeOfUpload,
+          expiredAt: currentTime,
+          foodType: donation.foodType,
+          imageUrl: donation.imageUrl,
+          location: donation.location,
+          needsVolunteer: donation.needsVolunteer,
+          status: 'Expired'
+        });
+        
+        await expiredDonation.save();
+        
+        // Delete from live donations
+        await LiveDonation.findByIdAndDelete(donation._id);
+        movedCount++;
+      } catch (err) {
+        console.error('Error moving expired donation:', err);
+      }
+    }
+    
+    console.log(`Processed ${expiredDonations.length} expired donations, successfully moved ${movedCount} to ExpiredDonations`);
+  } catch (err) {
+    console.error('Error in scheduled cleanup process:', err);
+  }
+};
+
+// Run the cleanup every hour
+setInterval(runExpiredDonationsCleanup, 60 * 60 * 1000);
+// Also run it once at server startup
+setTimeout(runExpiredDonationsCleanup, 5000);
 
 // Update donor profile (with optional profile image upload)
 app.put('/api/donor/profile', authMiddleware, upload, async (req, res) => {
@@ -839,12 +960,43 @@ app.get('/api/donor/donations', authMiddleware, async (req, res) => {
     const liveDonations = await LiveDonation.find({ donorId: req.user._id });
     
     // Get accepted donations that were originally created by this donor
-    const acceptedDonations = await AcceptedDonation.find({ donorId: req.user._id });
-    
-    res.status(200).json({
-      liveDonations,
-      acceptedDonations
+    const acceptedDonations = await AcceptedDonation.find({ donorId: req.user._id })
+      .sort({ acceptedAt: -1 });
+      
+    // Add status field to each accepted donation
+    const acceptedDonationsWithStatus = acceptedDonations.map(donation => {
+      const donationObj = donation.toObject();
+      donationObj.status = 'Accepted';
+      return donationObj;
     });
+    
+    // Get expired donations by this donor
+    const expiredDonations = await ExpiredDonation.find({ donorId: req.user._id })
+      .sort({ expiredAt: -1 });
+    
+    // Combine all donations into one response
+    const allDonations = {
+      active: liveDonations,
+      accepted: acceptedDonationsWithStatus,
+      expired: expiredDonations,
+      // Also provide a combined list for easier rendering in a single timeline
+      combined: [
+        ...liveDonations,
+        ...acceptedDonationsWithStatus,
+        ...expiredDonations
+      ].sort((a, b) => {
+        // Sort by creation time descending (newest first)
+        const dateA = a.timeOfUpload || a.expiredAt || a.acceptedAt;
+        const dateB = b.timeOfUpload || b.expiredAt || b.acceptedAt;
+        return new Date(dateB) - new Date(dateA);
+      })
+    };
+    
+    console.log('Active donations:', liveDonations.length);
+    console.log('Accepted donations:', acceptedDonations.length);
+    console.log('Expired donations:', expiredDonations.length);
+    
+    res.status(200).json(allDonations);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -1246,6 +1398,204 @@ app.post('/api/direct/donations/create', directFirebaseAuthMiddleware, upload, a
     res.status(201).json(savedDonation);
   } catch (err) {
     console.error('Error creating donation:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Direct donation acceptance endpoint
+app.post('/api/direct/donations/accept/:donationId', directFirebaseAuthMiddleware, async (req, res) => {
+  try {
+    console.log('Direct donation acceptance request received');
+    
+    // Ensure the user is a recipient
+    if (req.userType !== 'recipient') {
+      console.log('User is not a recipient:', req.userType);
+      return res.status(403).json({ error: 'Only registered recipients can accept donations' });
+    }
+
+    // Extract the recipient data from req.user
+    const recipient = req.user;
+    console.log('User authenticated as recipient:', recipient._id);
+    console.log('Recipient data:', { name: recipient.reciname, email: recipient.email });
+
+    // Find the donation
+    const donation = await LiveDonation.findById(req.params.donationId);
+    if (!donation) {
+      return res.status(404).json({ error: 'Donation not found' });
+    }
+
+    // Check if donation has expired
+    if (new Date(donation.expiryDateTime) < new Date()) {
+      return res.status(400).json({ error: 'This donation has expired' });
+    }
+
+    let volunteerInfo = req.body.volunteerName || "Self-pickup";
+    console.log('Volunteer info:', volunteerInfo);
+
+    // Create accepted donation record
+    const acceptedDonation = new AcceptedDonation({
+      originalDonationId: donation._id,
+      acceptedBy: recipient._id,
+      recipientName: recipient.reciname,
+      donorId: donation.donorId,
+      donorName: donation.donorName,
+      acceptedAt: new Date(),
+      foodName: donation.foodName,
+      quantity: donation.quantity,
+      description: donation.description,
+      expiryDateTime: donation.expiryDateTime,
+      timeOfUpload: donation.timeOfUpload,
+      foodType: donation.foodType,
+      deliveredby: volunteerInfo,
+      feedback: "" // Initialize empty feedback
+    });
+
+    const savedAcceptedDonation = await acceptedDonation.save();
+    console.log('Accepted donation saved with ID:', savedAcceptedDonation._id);
+    
+    // Remove from live donations
+    await LiveDonation.findByIdAndDelete(req.params.donationId);
+    console.log('Original donation deleted from live donations');
+    
+    res.status(200).json(savedAcceptedDonation);
+  } catch (err) {
+    console.error('Error accepting donation:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Direct add feedback endpoint
+app.post('/api/direct/donations/feedback/:acceptedDonationId', directFirebaseAuthMiddleware, async (req, res) => {
+  try {
+    console.log('Direct feedback request received');
+    
+    // Ensure the user is a recipient
+    if (req.userType !== 'recipient') {
+      console.log('User is not a recipient:', req.userType);
+      return res.status(403).json({ error: 'Only registered recipients can provide feedback' });
+    }
+
+    // Extract the recipient data from req.user
+    const recipient = req.user;
+    console.log('User authenticated as recipient:', recipient._id);
+    
+    const acceptedDonation = await AcceptedDonation.findById(req.params.acceptedDonationId);
+    if (!acceptedDonation) {
+      return res.status(404).json({ error: 'Accepted donation not found' });
+    }
+    
+    // Verify the user is the recipient who accepted this donation
+    if (!acceptedDonation.acceptedBy.equals(recipient._id)) {
+      return res.status(403).json({ error: 'You can only provide feedback for donations you accepted' });
+    }
+
+    console.log('Adding feedback to donation:', req.params.acceptedDonationId);
+    console.log('Feedback text:', req.body.feedback);
+
+    // Update the feedback
+    acceptedDonation.feedback = req.body.feedback;
+    const updatedDonation = await acceptedDonation.save();
+    console.log('Feedback added successfully');
+    
+    res.status(200).json(updatedDonation);
+  } catch (err) {
+    console.error('Error adding feedback:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Direct get recipient donation history endpoint
+app.get('/api/direct/recipient/donations', directFirebaseAuthMiddleware, async (req, res) => {
+  try {
+    console.log('Direct recipient donations request received');
+    
+    // Ensure the user is a recipient
+    if (req.userType !== 'recipient') {
+      console.log('User is not a recipient:', req.userType);
+      return res.status(403).json({ error: 'Only registered recipients can access donation history' });
+    }
+
+    // Extract the recipient data from req.user
+    const recipient = req.user;
+    console.log('User authenticated as recipient:', recipient._id);
+    
+    // Get accepted donations by this recipient
+    const acceptedDonations = await AcceptedDonation.find({ acceptedBy: recipient._id });
+    console.log('Found', acceptedDonations.length, 'accepted donations');
+    
+    res.status(200).json(acceptedDonations);
+  } catch (err) {
+    console.error('Error getting recipient donations:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Get donor donation history with direct authentication
+app.get('/api/direct/donor/donations', directFirebaseAuthMiddleware, async (req, res) => {
+  try {
+    console.log('Direct donor donations request received');
+    
+    // Ensure the user is a donor
+    if (req.userType !== 'donor') {
+      console.log('User is not a donor:', req.userType);
+      return res.status(403).json({ error: 'Only registered donors can access donation history' });
+    }
+
+    // Extract the donor data from req.user
+    const donor = req.user;
+    console.log('User authenticated as donor:', donor._id);
+    
+    // Get live donations by this donor
+    const liveDonations = await LiveDonation.find({ donorId: donor._id })
+      .sort({ timeOfUpload: -1 });
+      
+    // Add status field to each live donation
+    const liveDonationsWithStatus = liveDonations.map(donation => {
+      const donationObj = donation.toObject();
+      donationObj.status = 'Active';
+      return donationObj;
+    });
+    
+    // Get accepted donations that were originally created by this donor
+    const acceptedDonations = await AcceptedDonation.find({ donorId: donor._id })
+      .sort({ acceptedAt: -1 });
+      
+    // Add status field to each accepted donation
+    const acceptedDonationsWithStatus = acceptedDonations.map(donation => {
+      const donationObj = donation.toObject();
+      donationObj.status = 'Accepted';
+      return donationObj;
+    });
+    
+    // Get expired donations by this donor
+    const expiredDonations = await ExpiredDonation.find({ donorId: donor._id })
+      .sort({ expiredAt: -1 });
+    
+    // Combine all donations into one response
+    const allDonations = {
+      active: liveDonationsWithStatus,
+      accepted: acceptedDonationsWithStatus,
+      expired: expiredDonations,
+      // Also provide a combined list for easier rendering in a single timeline
+      combined: [
+        ...liveDonationsWithStatus,
+        ...acceptedDonationsWithStatus,
+        ...expiredDonations
+      ].sort((a, b) => {
+        // Sort by creation time descending (newest first)
+        const dateA = a.timeOfUpload || a.expiredAt || a.acceptedAt;
+        const dateB = b.timeOfUpload || b.expiredAt || b.acceptedAt;
+        return new Date(dateB) - new Date(dateA);
+      })
+    };
+    
+    console.log('Active donations:', liveDonations.length);
+    console.log('Accepted donations:', acceptedDonations.length);
+    console.log('Expired donations:', expiredDonations.length);
+    
+    res.status(200).json(allDonations);
+  } catch (err) {
+    console.error('Error getting donor donations:', err);
     res.status(400).json({ error: err.message });
   }
 });
