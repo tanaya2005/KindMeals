@@ -29,7 +29,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isLoading = false;
   bool _obscurePassword = true;
 
-  final List<String> _types = ['Donor', 'Recipient'];
+  final List<String> _types = ['Donor', 'Recipient', 'Volunteer'];
 
   Future<void> _pickImage() async {
     final ImagePicker picker = ImagePicker();
@@ -108,7 +108,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   about: _aboutController.text,
                   profileImage: _profileImage,
                 );
-              } else {
+              } else if (_selectedType == 'Recipient') {
                 await _apiService.registerRecipient(
                   name: _nameController.text,
                   ngoName: _orgNameController.text,
@@ -116,6 +116,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   address: _addressController.text,
                   contact: _contactController.text,
                   type: _selectedType!,
+                  about: _aboutController.text,
+                  profileImage: _profileImage,
+                );
+              } else if (_selectedType == 'Volunteer') {
+                await _apiService.registerVolunteer(
+                  name: _nameController.text,
+                  aadharId: _idController.text,
+                  address: _addressController.text,
+                  contact: _contactController.text,
                   about: _aboutController.text,
                   profileImage: _profileImage,
                 );
