@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import '../../config/api_config.dart';
 
 class DonationDetailScreen extends StatefulWidget {
   final Map<String, dynamic> donation;
@@ -17,6 +18,21 @@ class _DonationDetailScreenState extends State<DonationDetailScreen> {
   final _apiService = ApiService();
   bool _isLoading = false;
   String? _error;
+
+  // Helper to get image URL from donation data
+  String? _getImageUrl() {
+    if (widget.donation.containsKey('imageUrl') &&
+        widget.donation['imageUrl'] != null &&
+        widget.donation['imageUrl'].toString().isNotEmpty) {
+      return widget.donation['imageUrl'];
+    }
+    if (widget.donation.containsKey('foodImage') &&
+        widget.donation['foodImage'] != null &&
+        widget.donation['foodImage'].toString().isNotEmpty) {
+      return widget.donation['foodImage'];
+    }
+    return null;
+  }
 
   Future<void> _acceptDonation() async {
     try {
@@ -59,6 +75,8 @@ class _DonationDetailScreenState extends State<DonationDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final String? imageUrl = _getImageUrl();
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Donation Details'),
@@ -70,12 +88,27 @@ class _DonationDetailScreenState extends State<DonationDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (widget.donation['foodImage'] != null)
+                  if (imageUrl != null)
                     Image.network(
-                      widget.donation['foodImage'],
+                      ApiConfig.getImageUrl(imageUrl),
                       height: 200,
                       width: double.infinity,
                       fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        print('Error loading image: $error');
+                        print(
+                            'Image URL attempted: ${ApiConfig.getImageUrl(imageUrl)}');
+                        return Container(
+                          height: 200,
+                          width: double.infinity,
+                          color: Colors.grey[300],
+                          child: const Icon(
+                            Icons.fastfood,
+                            size: 50,
+                            color: Colors.grey,
+                          ),
+                        );
+                      },
                     ),
                   Padding(
                     padding: const EdgeInsets.all(16),
