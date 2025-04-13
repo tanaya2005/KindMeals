@@ -5,10 +5,19 @@ const multer = require('multer');
 const path = require('path');
 const { admin, verifyToken } = require('./firebase-admin'); // Update Firebase Admin import
 require('dotenv').config();
+const fs = require('fs');
 
 // Initialize Express app
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, 'uploads');
+console.log('Uploads directory path:', uploadsDir);
+if (!fs.existsSync(uploadsDir)) {
+  console.log('Creating uploads directory');
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
 // Middleware
 app.use(express.json());
@@ -22,10 +31,13 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Configure Multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/');
+    console.log('Saving file to:', uploadsDir);
+    cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
+    const filename = Date.now() + path.extname(file.originalname);
+    console.log('Generated filename:', filename);
+    cb(null, filename);
   }
 });
 
@@ -272,6 +284,57 @@ const authMiddleware = async (req, res, next) => {
       // Set the user on the request object
       req.user = user;
       console.log('User authenticated:', { id: user._id, role: user.role });
+      next();
+    } catch (error) {
+      console.error('Error verifying token:', error);
+      return res.status(401).json({ 
+        error: 'Authentication failed',
+        message: 'Failed to verify your authentication token. Please try logging in again.'
+      });
+    }
+  } catch (error) {
+    console.error('Error in auth middleware:', error);
+    res.status(401).json({ 
+      error: 'Not authorized',
+      message: 'You are not authorized to access this resource.'
+    });
+  }
+};
+
+// Update Firebase verification to work with direct collections
+const directFirebaseAuthMiddleware = async (req, res, next) => {
+  try {
+    const idToken = req.header('Authorization')?.replace('Bearer ', '');
+    if (!idToken) {
+      console.log('No authorization token provided');
+      return res.status(401).json({ error: 'No authentication token provided' });
+    }
+
+    try {
+      // Verify the ID token using our helper function
+      const decodedToken = await verifyToken(idToken);
+      const firebaseUid = decodedToken.uid;
+
+      console.log('Firebase token verified for UID:', firebaseUid);
+
+      // Find user in DirectDonor or DirectRecipient collections
+      const donor = await DirectDonor.findOne({ firebaseUid });
+      const recipient = await DirectRecipient.findOne({ firebaseUid });
+      
+      if (!donor && !recipient) {
+        console.log('No user found with Firebase UID:', firebaseUid);
+        return res.status(401).json({ 
+          error: 'User not found',
+          message: 'Your user account was not found. Please register first.'
+        });
+      }
+      
+      // Set the user type and data
+      req.user = donor || recipient;
+      req.userType = donor ? 'donor' : 'recipient';
+      req.firebaseUid = firebaseUid;
+      
+      console.log(`User authenticated as ${req.userType}:`, req.user._id);
       next();
     } catch (error) {
       console.error('Error verifying token:', error);
@@ -901,19 +964,34 @@ app.get('/api/health', (req, res) => {
 });
 
 // Direct Donor Registration Route (no User record)
-app.post('/api/direct/donor/register', directFirebaseAuthMiddleware, upload, async (req, res) => {
+app.post('/api/direct/donor/register', firebaseAuthMiddleware, upload, async (req, res) => {
   try {
+    console.log('=== DEBUG: Direct Donor Registration ===');
+    console.log('Firebase UID:', req.firebaseUid);
+    console.log('Request Body:', req.body);
+    console.log('Has files:', !!req.files);
+    if (req.files) {
+      console.log('Files:', Object.keys(req.files));
+      if (req.files['profileImage']) {
+        console.log('Profile Image File:', req.files['profileImage'][0].filename);
+        console.log('Profile Image Path:', req.files['profileImage'][0].path);
+      }
+    }
+    
     // Check if donor already registered
     const existingDonor = await DirectDonor.findOne({ firebaseUid: req.firebaseUid });
     if (existingDonor) {
+      console.log('Donor already exists with UID:', req.firebaseUid);
       return res.status(400).json({ error: 'Donor already registered' });
     }
 
     // Handle profile image upload - safely check if files exist
     let profileImage = '';
     if (req.files && req.files['profileImage'] && req.files['profileImage'][0]) {
-      profileImage = `/uploads/${req.files['profileImage'][0].filename}`;
-      console.log('Profile image uploaded:', profileImage);
+      // Store the path relative to the server's root directory
+      const filename = req.files['profileImage'][0].filename;
+      profileImage = `/uploads/${filename}`;
+      console.log('Profile image path to store in DB:', profileImage);
     }
 
     // Create donor profile directly with Firebase UID
@@ -951,12 +1029,22 @@ app.post('/api/direct/donor/register', directFirebaseAuthMiddleware, upload, asy
 // Direct Recipient Registration Route (no User record)
 app.post('/api/direct/recipient/register', firebaseAuthMiddleware, upload, async (req, res) => {
   try {
-    console.log('Direct recipient registration attempt for Firebase UID:', req.firebaseUid);
+    console.log('=== DEBUG: Direct Recipient Registration ===');
+    console.log('Firebase UID:', req.firebaseUid);
+    console.log('Request Body:', req.body);
+    console.log('Has files:', !!req.files);
+    if (req.files) {
+      console.log('Files:', Object.keys(req.files));
+      if (req.files['profileImage']) {
+        console.log('Profile Image File:', req.files['profileImage'][0].filename);
+        console.log('Profile Image Path:', req.files['profileImage'][0].path);
+      }
+    }
     
     // Check if recipient with this Firebase UID already exists
     const existingRecipient = await DirectRecipient.findOne({ firebaseUid: req.firebaseUid });
     if (existingRecipient) {
-      console.log('Recipient already registered with this Firebase UID:', req.firebaseUid);
+      console.log('Recipient already exists with UID:', req.firebaseUid);
       return res.status(400).json({ error: 'Recipient already registered with this account' });
     }
     
@@ -982,7 +1070,10 @@ app.post('/api/direct/recipient/register', firebaseAuthMiddleware, upload, async
     // Handle profile image upload - safely check if files exist
     let profileImage = '';
     if (req.files && req.files['profileImage'] && req.files['profileImage'][0]) {
-      profileImage = `/uploads/${req.files['profileImage'][0].filename}`;
+      // Store the path relative to the server's root directory
+      const filename = req.files['profileImage'][0].filename;
+      profileImage = `/uploads/${filename}`;
+      console.log('Profile image path to store in DB:', profileImage);
     }
 
     // Create recipient profile directly with Firebase UID
@@ -1017,57 +1108,6 @@ app.post('/api/direct/recipient/register', firebaseAuthMiddleware, upload, async
     res.status(400).json({ error: err.message });
   }
 });
-
-// Update Firebase verification to work with direct collections
-const directFirebaseAuthMiddleware = async (req, res, next) => {
-  try {
-    const idToken = req.header('Authorization')?.replace('Bearer ', '');
-    if (!idToken) {
-      console.log('No authorization token provided');
-      return res.status(401).json({ error: 'No authentication token provided' });
-    }
-
-    try {
-      // Verify the ID token using our helper function
-      const decodedToken = await verifyToken(idToken);
-      const firebaseUid = decodedToken.uid;
-
-      console.log('Firebase token verified for UID:', firebaseUid);
-
-      // Find user in DirectDonor or DirectRecipient collections
-      const donor = await DirectDonor.findOne({ firebaseUid });
-      const recipient = await DirectRecipient.findOne({ firebaseUid });
-      
-      if (!donor && !recipient) {
-        console.log('No user found with Firebase UID:', firebaseUid);
-        return res.status(401).json({ 
-          error: 'User not found',
-          message: 'Your user account was not found. Please register first.'
-        });
-      }
-      
-      // Set the user type and data
-      req.user = donor || recipient;
-      req.userType = donor ? 'donor' : 'recipient';
-      req.firebaseUid = firebaseUid;
-      
-      console.log(`User authenticated as ${req.userType}:`, req.user._id);
-      next();
-    } catch (error) {
-      console.error('Error verifying token:', error);
-      return res.status(401).json({ 
-        error: 'Authentication failed',
-        message: 'Failed to verify your authentication token. Please try logging in again.'
-      });
-    }
-  } catch (error) {
-    console.error('Error in auth middleware:', error);
-    res.status(401).json({ 
-      error: 'Not authorized',
-      message: 'You are not authorized to access this resource.'
-    });
-  }
-};
 
 // Get user profile from direct collections
 app.get('/api/direct/profile', directFirebaseAuthMiddleware, async (req, res) => {

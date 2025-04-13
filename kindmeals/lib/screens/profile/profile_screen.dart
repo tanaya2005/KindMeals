@@ -15,6 +15,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   File? _profileImage;
   bool _isLoading = true;
   bool _hasError = false;
+  bool _isEditing = false;
   String _errorMessage = '';
   Map<String, dynamic>? _userData;
   Map<String, dynamic>? _profileData;
@@ -81,9 +82,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         _profileImage = File(image.path);
       });
-      // Upload image to server
+
       try {
-        await _apiService.updateDirectDonorProfile(profileImage: _profileImage);
+        // Determine if user is donor or recipient
+        final userType = _userData?['type']?.toString().toLowerCase();
+
+        if (userType == 'donor') {
+          await _apiService.updateDirectDonorProfile(
+              profileImage: _profileImage);
+        } else if (userType == 'recipient') {
+          await _apiService.updateDirectRecipientProfile(
+              profileImage: _profileImage);
+        } else {
+          throw Exception('Unknown user type');
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profile image updated successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
         _loadUserProfile(); // Reload profile to get updated image URL
       } catch (e) {
         print('Error uploading profile image: $e');
@@ -163,9 +183,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.edit),
+            icon: Icon(_isEditing ? Icons.save : Icons.edit),
             onPressed: () {
-              // TODO: Navigate to edit profile screen
+              setState(() {
+                _isEditing = !_isEditing;
+              });
+              if (!_isEditing) {
+                // Save profile changes here if needed
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Edit mode disabled'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Now you can edit your profile'),
+                    backgroundColor: Colors.blue,
+                  ),
+                );
+              }
             },
           ),
           IconButton(
@@ -212,30 +250,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         GestureDetector(
-                          onTap: _pickImage,
-                          child: CircleAvatar(
-                            radius: 60,
-                            backgroundImage: _profileImage != null
-                                ? FileImage(_profileImage!)
-                                : (_userData?['profileImage'] != null &&
-                                        _userData!['profileImage']
-                                            .toString()
-                                            .isNotEmpty)
-                                    ? NetworkImage(ApiConfig.getImageUrl(
-                                            _userData!['profileImage']))
-                                        as ImageProvider
+                          onTap: _isEditing ? _pickImage : null,
+                          child: Stack(
+                            children: [
+                              CircleAvatar(
+                                radius: 60,
+                                backgroundImage: _profileImage != null
+                                    ? FileImage(_profileImage!)
+                                    : (_userData?['profileImage'] != null &&
+                                            _userData!['profileImage']
+                                                .toString()
+                                                .isNotEmpty)
+                                        ? NetworkImage(ApiConfig.getImageUrl(
+                                                _userData!['profileImage']))
+                                            as ImageProvider
+                                        : null,
+                                backgroundColor: Colors.grey[200],
+                                child: (_profileImage == null &&
+                                        (_userData?['profileImage'] == null ||
+                                            _userData!['profileImage']
+                                                .toString()
+                                                .isEmpty))
+                                    ? const Icon(
+                                        Icons.person,
+                                        size: 60,
+                                        color: Colors.grey,
+                                      )
                                     : null,
-                            child: _profileImage == null &&
-                                    (_userData?['profileImage'] == null ||
-                                        _userData!['profileImage']
-                                            .toString()
-                                            .isEmpty)
-                                ? const Icon(
-                                    Icons.add_a_photo,
-                                    size: 40,
-                                    color: Colors.grey,
-                                  )
-                                : null,
+                              ),
+                              if (_isEditing)
+                                Positioned(
+                                  bottom: 0,
+                                  right: 0,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      Icons.edit,
+                                      color: Colors.white,
+                                      size: 18,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                         const SizedBox(height: 20),
