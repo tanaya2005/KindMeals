@@ -28,50 +28,6 @@ app.use(cors({
 }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Firebase Direct Auth Middleware
-const directFirebaseAuthMiddleware = async (req, res, next) => {
-  try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-      return res.status(401).json({ error: 'No authorization header' });
-    }
-
-    const token = authHeader.split('Bearer ')[1];
-    if (!token) {
-      return res.status(401).json({ error: 'No token provided' });
-    }
-
-    const decodedToken = await admin.auth().verifyIdToken(token);
-    const firebaseUid = decodedToken.uid;
-    const email = decodedToken.email;
-
-    // Check if user exists in any of the direct collections
-    const [donor, recipient, volunteer] = await Promise.all([
-      DirectDonor.findOne({ firebaseUid }),
-      DirectRecipient.findOne({ firebaseUid }),
-      DirectVolunteer.findOne({ firebaseUid })
-    ]);
-
-    if (!donor && !recipient && !volunteer) {
-      console.log('No users found in MongoDB for UID:', firebaseUid);
-      return res.status(401).json({ error: 'User account not found' });
-    }
-
-    // Set user data on request object
-    req.user = {
-      firebaseUid,
-      email,
-      type: donor ? 'donor' : (recipient ? 'recipient' : 'volunteer'),
-      profile: donor || recipient || volunteer
-    };
-
-    next();
-  } catch (error) {
-    console.error('Auth middleware error:', error);
-    res.status(401).json({ error: 'Invalid token' });
-  }
-};
-
 // Configure Multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -146,26 +102,9 @@ const updatedRecipientSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
-const updatedVolunteerSchema = new mongoose.Schema({
-  firebaseUid: { type: String, required: true, unique: true },
-  email: { type: String, required: true, unique: true },
-  profileImage: { type: String },
-  volunteerName: { type: String, required: true },
-  aadharId: { type: String, required: true },
-  volunteeraddress: { type: String, required: true },
-  volunteercontact: { type: String, required: true },
-  volunteerabout: { type: String },
-  volunteerlocation: {
-    latitude: { type: Number },
-    longitude: { type: Number }
-  },
-  createdAt: { type: Date, default: Date.now }
-}, { timestamps: true });
-
 // Create new models with direct Firebase UID
 const DirectDonor = mongoose.model('DirectDonor', updatedDonorSchema);
 const DirectRecipient = mongoose.model('DirectRecipient', updatedRecipientSchema);
-const DirectVolunteer = mongoose.model('DirectVolunteer', updatedVolunteerSchema);
 
 // Define models
 const userSchema = new mongoose.Schema({
@@ -1174,8 +1113,8 @@ app.post('/api/direct/recipient/register', firebaseAuthMiddleware, upload, async
 app.get('/api/direct/profile', directFirebaseAuthMiddleware, async (req, res) => {
   try {
     res.status(200).json({
-      userType: req.user.type,
-      profile: req.user.profile
+      userType: req.userType,
+      profile: req.user
     });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -1185,28 +1124,28 @@ app.get('/api/direct/profile', directFirebaseAuthMiddleware, async (req, res) =>
 // Direct donor profile update
 app.put('/api/direct/donor/profile', directFirebaseAuthMiddleware, upload, async (req, res) => {
   try {
-    if (req.user.type !== 'donor') {
+    if (req.userType !== 'donor') {
       return res.status(403).json({ error: 'Only donors can update donor profiles' });
     }
     
     // Handle profile image upload if provided
-    let profileImage = req.user.profile.profileImage;
+    let profileImage = req.user.profileImage;
     if (req.files && req.files['profileImage'] && req.files['profileImage'][0]) {
       profileImage = `/uploads/${req.files['profileImage'][0].filename}`;
     }
 
     const updatedDonor = await DirectDonor.findByIdAndUpdate(
-      req.user.profile._id,
+      req.user._id,
       {
-        donorname: req.body.donorname || req.user.profile.donorname,
-        orgName: req.body.orgName || req.user.profile.orgName,
-        donoraddress: req.body.donoraddress || req.user.profile.donoraddress,
-        donorcontact: req.body.donorcontact || req.user.profile.donorcontact,
-        donorabout: req.body.donorabout || req.user.profile.donorabout,
+        donorname: req.body.donorname || req.user.donorname,
+        orgName: req.body.orgName || req.user.orgName,
+        donoraddress: req.body.donoraddress || req.user.donoraddress,
+        donorcontact: req.body.donorcontact || req.user.donorcontact,
+        donorabout: req.body.donorabout || req.user.donorabout,
         profileImage: profileImage,
         donorlocation: {
-          latitude: req.body.latitude || req.user.profile.donorlocation.latitude,
-          longitude: req.body.longitude || req.user.profile.donorlocation.longitude
+          latitude: req.body.latitude || req.user.donorlocation.latitude,
+          longitude: req.body.longitude || req.user.donorlocation.longitude
         }
       },
       { new: true }
@@ -1221,28 +1160,28 @@ app.put('/api/direct/donor/profile', directFirebaseAuthMiddleware, upload, async
 // Direct recipient profile update
 app.put('/api/direct/recipient/profile', directFirebaseAuthMiddleware, upload, async (req, res) => {
   try {
-    if (req.user.type !== 'recipient') {
+    if (req.userType !== 'recipient') {
       return res.status(403).json({ error: 'Only recipients can update recipient profiles' });
     }
     
     // Handle profile image upload if provided
-    let profileImage = req.user.profile.profileImage;
+    let profileImage = req.user.profileImage;
     if (req.files && req.files['profileImage'] && req.files['profileImage'][0]) {
       profileImage = `/uploads/${req.files['profileImage'][0].filename}`;
     }
 
     const updatedRecipient = await DirectRecipient.findByIdAndUpdate(
-      req.user.profile._id,
+      req.user._id,
       {
-        reciname: req.body.reciname || req.user.profile.reciname,
-        ngoName: req.body.ngoName || req.user.profile.ngoName,
-        reciaddress: req.body.reciaddress || req.user.profile.reciaddress,
-        recicontact: req.body.recicontact || req.user.profile.recicontact,
-        reciabout: req.body.reciabout || req.user.profile.reciabout,
+        reciname: req.body.reciname || req.user.reciname,
+        ngoName: req.body.ngoName || req.user.ngoName,
+        reciaddress: req.body.reciaddress || req.user.reciaddress,
+        recicontact: req.body.recicontact || req.user.recicontact,
+        reciabout: req.body.reciabout || req.user.reciabout,
         profileImage: profileImage,
         recilocation: {
-          latitude: req.body.latitude || req.user.profile.recilocation.latitude,
-          longitude: req.body.longitude || req.user.profile.recilocation.longitude
+          latitude: req.body.latitude || req.user.recilocation.latitude,
+          longitude: req.body.longitude || req.user.recilocation.longitude
         }
       },
       { new: true }
