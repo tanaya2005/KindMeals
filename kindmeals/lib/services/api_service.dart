@@ -373,19 +373,26 @@ class ApiService {
     File? foodImage,
   }) async {
     try {
+      print('DEBUG API: Starting createDonation process...');
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser == null) {
+        print('DEBUG API ERROR: No authenticated user found');
         throw Exception('No authenticated user found');
       }
+      print('DEBUG API: Current user UID: ${currentUser.uid}');
 
       final String url = '$baseUrl/donations/create';
+      print('DEBUG API: API endpoint: $url');
       final request = http.MultipartRequest('POST', Uri.parse(url));
 
       // Add auth token to headers
+      print('DEBUG API: Getting user ID token...');
       final String? token = await currentUser.getIdToken();
+      print('DEBUG API: Token received with length: ${token?.length}');
       request.headers['Authorization'] = 'Bearer $token';
 
       // Add form fields
+      print('DEBUG API: Adding form fields to request...');
       request.fields['foodName'] = foodName;
       request.fields['quantity'] = quantity.toString();
       request.fields['description'] = description;
@@ -393,14 +400,17 @@ class ApiService {
       request.fields['foodType'] = foodType;
       request.fields['address'] = address;
       request.fields['needsVolunteer'] = needsVolunteer.toString();
+      print('DEBUG API: Form fields added');
 
       // Add image if provided
       if (foodImage != null) {
+        print('DEBUG API: Processing food image...');
         final String fileName = foodImage.path.split('/').last;
         final String extension = fileName.split('.').last.toLowerCase();
 
         // Validate file extension
         if (!['jpg', 'jpeg', 'png'].contains(extension)) {
+          print('DEBUG API ERROR: Invalid image format: $extension');
           throw Exception('Only JPG, JPEG and PNG images are supported');
         }
 
@@ -413,6 +423,7 @@ class ApiService {
         }
 
         // Add file to request with correct content type
+        print('DEBUG API: Creating multipart file...');
         request.files.add(
           await http.MultipartFile.fromPath(
             'foodImage',
@@ -421,21 +432,31 @@ class ApiService {
           ),
         );
 
-        print('Adding image: ${foodImage.path}');
-        print('Image content type: $contentType');
+        print('DEBUG API: Image added to request: ${foodImage.path}');
+        print('DEBUG API: Image content type: $contentType');
+      } else {
+        print('DEBUG API: No image provided');
       }
 
+      print('DEBUG API: Sending request to server...');
       final response = await request.send();
       final responseBody = await response.stream.bytesToString();
-      print('Donation creation response: $responseBody');
+      print('DEBUG API: Response status code: ${response.statusCode}');
+      print('DEBUG API: Donation creation response: $responseBody');
 
       if (response.statusCode != 201) {
+        print(
+            'DEBUG API ERROR: Request failed with status ${response.statusCode}');
         final responseData = json.decode(responseBody);
-        throw Exception(
-            responseData['error']?.toString() ?? 'Failed to create donation');
+        final errorMessage =
+            responseData['error']?.toString() ?? 'Failed to create donation';
+        print('DEBUG API ERROR: $errorMessage');
+        throw Exception(errorMessage);
       }
+
+      print('DEBUG API: Donation created successfully!');
     } catch (e) {
-      print('Error in createDonation: $e');
+      print('DEBUG API ERROR: Error in createDonation: $e');
       rethrow;
     }
   }
