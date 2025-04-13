@@ -514,7 +514,7 @@ class ApiService {
     required String contact,
     String? about,
     double? latitude,
-    double? longitude,
+    double? longitude, File? profileImage,
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/volunteer/register'),
