@@ -3,6 +3,14 @@ class ApiConfig {
   static const String serverBaseUrl = 'http://192.168.168.180:5000';
   static const String apiBaseUrl = '$serverBaseUrl/api';
 
+  // Debug information
+  static void printAPIConfig() {
+    print('====== API Configuration ======');
+    print('Server Base URL: $serverBaseUrl');
+    print('API Base URL: $apiBaseUrl');
+    print('==============================');
+  }
+
   // Method to get full image URL
   static String getImageUrl(String? imagePath) {
     // If the path is empty or null, return empty string

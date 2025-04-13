@@ -228,8 +228,16 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
     final String expiryDate =
         '${expiryDateTime.day}/${expiryDateTime.month}/${expiryDateTime.year} at ${expiryDateTime.hour}:${expiryDateTime.minute.toString().padLeft(2, '0')}';
 
-    // Get image URL if available
-    final String? imageUrl = donation['imageUrl'];
+    // Get image URL if available - check multiple possible field names
+    String? imageUrl;
+    if (donation.containsKey('imageUrl') && donation['imageUrl'] != null) {
+      imageUrl = donation['imageUrl'];
+    } else if (donation.containsKey('foodImage') &&
+        donation['foodImage'] != null) {
+      imageUrl = donation['foodImage'];
+    }
+
+    print('DEBUG: Donation image URL: $imageUrl');
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -264,6 +272,8 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) {
                     print('Error loading image: $error');
+                    print(
+                        'Image URL attempted: ${ApiConfig.getImageUrl(imageUrl)}');
                     return Container(
                       height: 200,
                       width: double.infinity,
