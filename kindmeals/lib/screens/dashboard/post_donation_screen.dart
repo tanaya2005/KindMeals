@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../../services/api_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../config/api_config.dart';
 
 class PostDonationScreen extends StatefulWidget {
   const PostDonationScreen({super.key});
@@ -26,12 +28,15 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
   bool _isUserDonor = false;
   bool _isCheckingUserType = true;
   String _errorMessage = '';
+  Map<String, dynamic>? _userProfile;
 
   final List<String> _foodTypes = ['veg', 'nonveg', 'jain'];
 
   @override
   void initState() {
     super.initState();
+    // Print API configuration for debugging
+    ApiConfig.printAPIConfig();
     _checkUserType();
   }
 
@@ -42,11 +47,28 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
         _errorMessage = '';
       });
 
-      print('DEBUG: Checking user type...');
+      print('DEBUG: Checking user type and fetching profile...');
+      final currentUser = FirebaseAuth.instance.currentUser;
+      print('DEBUG: Current Firebase user: ${currentUser?.uid}');
+
       final userProfile = await _apiService.getDirectUserProfile();
       print('DEBUG: User profile received: ${userProfile.toString()}');
+
+      // Store the user profile for later use
+      _userProfile = userProfile;
+
       final userType = userProfile['userType'] ?? '';
 
+      // Check if profile data is available
+      if (userProfile.containsKey('profile') &&
+          userProfile['profile'] != null &&
+          userProfile['profile'].containsKey('_id')) {
+        print('DEBUG: MongoDB ID: ${userProfile['profile']['_id']}');
+      } else {
+        print('WARNING: MongoDB ID not found in profile data');
+      }
+
+      // Check if the user is a donor
       if (userType.toLowerCase() != 'donor') {
         setState(() {
           _isUserDonor = false;
@@ -57,23 +79,11 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
         return;
       }
 
-      // Check if donor profile exists
-      try {
-        print('DEBUG: Checking donor profile...');
-        await _apiService.getDonorProfile();
-        setState(() {
-          _isUserDonor = true;
-          _isCheckingUserType = false;
-        });
-      } catch (e) {
-        print('DEBUG: Donor profile check failed: $e');
-        setState(() {
-          _isUserDonor = false;
-          _errorMessage =
-              'Your donor profile was not found in our system. Please ensure you have completed registration as a donor.';
-          _isCheckingUserType = false;
-        });
-      }
+      // If we get here, the user is a donor in the directdonors collection
+      setState(() {
+        _isUserDonor = true;
+        _isCheckingUserType = false;
+      });
 
       print('DEBUG: User type check completed. Is Donor: $_isUserDonor');
     } catch (e) {
@@ -142,29 +152,15 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
     }
   }
 
-  Future<void> _handleSubmit() async {
-    print('DEBUG: Submit button pressed');
-    if (!_isUserDonor) {
-      print('DEBUG: Submission attempt by non-donor user');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-              'Only donors can post donations. Please register as a donor to continue.'),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 3),
-          behavior: SnackBarBehavior.floating,
-          margin: EdgeInsets.all(16),
-        ),
-      );
-      return;
-    }
-
+  void _submitDonation() async {
     if (_formKey.currentState!.validate()) {
+      _formKey.currentState!.save();
+
+      // Validate required fields that might not be caught by form validation
       if (_expiryDateTime == null) {
-        print('DEBUG: Expiry date time not selected');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Please select expiry date and time'),
+            content: Text('Please select a valid expiry date and time'),
             backgroundColor: Colors.red,
           ),
         );
@@ -172,7 +168,6 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
       }
 
       if (_selectedFoodType == null) {
-        print('DEBUG: Food type not selected');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Please select a food type'),
@@ -187,88 +182,172 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
       });
 
       try {
-        // Validate image if provided
-        if (_foodImage != null) {
-          final String extension =
-              _foodImage!.path.split('.').last.toLowerCase();
-          print('DEBUG: Image extension: $extension');
-          if (!['jpg', 'jpeg', 'png'].contains(extension)) {
-            throw Exception('Only JPG, JPEG and PNG images are supported');
-          }
-        }
+        // Make sure we reload the user before posting
+        await FirebaseAuth.instance.currentUser?.reload();
 
-        print('DEBUG: All validation passed, creating donation with:');
-        print('DEBUG: Food name: ${_foodNameController.text}');
-        print('DEBUG: Quantity: ${_quantityController.text}');
-        print('DEBUG: Food type: $_selectedFoodType');
-        print('DEBUG: Description: ${_descriptionController.text}');
-        print('DEBUG: Address: ${_addressController.text}');
-        print('DEBUG: Needs volunteer: $_needsVolunteer');
-        print('DEBUG: Expiry date: $_expiryDateTime');
-        print('DEBUG: Image path: ${_foodImage?.path}');
-        print('DEBUG: Calling API to create donation...');
+        // Force token refresh to ensure we have the latest token
+        await FirebaseAuth.instance.currentUser?.getIdToken(true);
 
         await _apiService.createDonation(
           foodName: _foodNameController.text,
           quantity: int.parse(_quantityController.text),
           description: _descriptionController.text,
-          expiryDateTime: _expiryDateTime!,
+          expiryDateTime:
+              _expiryDateTime!, // Now safe to use ! since we checked above
           foodType: _selectedFoodType!,
           address: _addressController.text,
           needsVolunteer: _needsVolunteer,
           foodImage: _foodImage,
         );
 
-        print('DEBUG: Donation created successfully!');
+        setState(() {
+          _isLoading = false;
+          _foodImage = null;
+        });
+
+        _formKey.currentState!.reset();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Donation posted successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } catch (e) {
+        setState(() {
+          _isLoading = false;
+        });
+
+        String errorMessage = 'Failed to post donation. Please try again.';
+
+        // Handle specific authentication errors
+        if (e.toString().contains('User not found in database') ||
+            e.toString().contains('Authentication error') ||
+            e.toString().contains('authentication token')) {
+          errorMessage =
+              'Authentication error: Please sign out and sign in again to refresh your credentials.';
+
+          // Show a dialog with more detailed instructions
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Authentication Error'),
+              content: const Text(
+                  'Your donor profile could not be verified. This could happen if:\n\n'
+                  '1. You recently registered and your profile is not fully synced\n'
+                  '2. Your authentication token has expired\n\n'
+                  'Please sign out and sign back in to refresh your credentials.'),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: const Text('OK'),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    // Sign out and navigate to login
+                    await FirebaseAuth.instance.signOut();
+                    Navigator.pop(context);
+                    Navigator.pushReplacementNamed(context, '/login');
+                  },
+                  child: const Text('Sign Out Now'),
+                ),
+              ],
+            ),
+          );
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+          ),
+        );
+
+        print('Error posting donation: $e');
+      }
+    }
+  }
+
+  Future<void> _signOut() async {
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      await FirebaseAuth.instance.signOut();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Signed out successfully. Please sign in again.'),
+            backgroundColor: Colors.blue,
+          ),
+        );
+
+        // Navigate to login screen
+        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error signing out: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _refreshAuthState() async {
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        // Force token refresh
+        await currentUser.reload();
+        await currentUser.getIdToken(true);
+
+        // Re-check user type
+        await _checkUserType();
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Donation posted successfully!'),
+              content: Text('Authentication refreshed!'),
               backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
-              behavior: SnackBarBehavior.floating,
-              margin: EdgeInsets.all(16),
-            ),
-          );
-          Navigator.pop(context);
-        }
-      } catch (e) {
-        print('DEBUG ERROR: Error posting donation: $e');
-
-        String errorMsg = e.toString().replaceAll('Exception: ', '');
-        // Check for common errors
-        if (errorMsg.contains('User not found in database')) {
-          print('DEBUG: User not found in database error detected');
-          errorMsg =
-              'Your donor profile was not found. Please ensure you have registered as a donor.';
-
-          // Set state to show the error screen
-          setState(() {
-            _isUserDonor = false;
-            _errorMessage = errorMsg;
-          });
-        }
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error: $errorMsg'),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 3),
-              behavior: SnackBarBehavior.floating,
-              margin: const EdgeInsets.all(16),
             ),
           );
         }
-      } finally {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-        }
+      } else {
+        throw Exception('No user is signed in');
       }
-    } else {
-      print('DEBUG: Form validation failed');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error refreshing authentication: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -310,6 +389,30 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      onPressed: _refreshAuthState,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Refresh Authentication'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 12),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: _signOut,
+                      icon: const Icon(Icons.logout),
+                      label: const Text('Sign Out & Sign In Again'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 12),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     ElevatedButton.icon(
                       onPressed: () {
                         Navigator.pushNamed(context, '/profile');
@@ -505,7 +608,7 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
                       ),
                       const SizedBox(height: 20),
                       ElevatedButton(
-                        onPressed: _isLoading ? null : _handleSubmit,
+                        onPressed: _isLoading ? null : _submitDonation,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.green,
                           padding: const EdgeInsets.symmetric(vertical: 15),
