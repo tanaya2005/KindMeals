@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:kindmeals/screens/dashboard/post_donation_screen.dart';
+import 'package:kindmeals/screens/dashboard/recipient_history_screen.dart';
 import 'package:kindmeals/screens/leaderboard/donorleaderboard.dart';
 import 'package:kindmeals/screens/leaderboard/volunteerleaderboard.dart';
 import 'package:kindmeals/screens/profile/profile_screen.dart';
@@ -50,13 +51,84 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  final List<Widget> _screens = [
-    const _HomeScreen(),
-    const PostDonationScreen(),
-    const ViewDonationsScreen(),
-    const VolunteersScreen(),
-    const ProfileScreen(),
-  ];
+  List<Widget> _getScreensForUserType() {
+    if (_userType.toLowerCase() == 'recipient') {
+      // Screens for recipient users
+      return [
+        const _HomeScreen(),
+        const RecipientHistoryScreen(), // Show history screen instead of post donation
+        ViewDonationsScreen(onDonationAccepted: () {
+          // Switch to history tab for recipients when donation is accepted
+          setState(() {
+            _selectedIndex = 1; // History tab
+          });
+        }),
+        const VolunteersScreen(),
+        const ProfileScreen(),
+      ];
+    } else {
+      // Default screens (for donors)
+      return [
+        const _HomeScreen(),
+        const PostDonationScreen(),
+        const ViewDonationsScreen(),
+        const VolunteersScreen(),
+        const ProfileScreen(),
+      ];
+    }
+  }
+
+  List<BottomNavigationBarItem> _getNavigationItemsForUserType() {
+    if (_userType.toLowerCase() == 'recipient') {
+      // Nav items for recipient users
+      return const [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.home_rounded),
+          label: 'Home',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.history_rounded),
+          label: 'History',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.visibility_rounded),
+          label: 'View Donations',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.volunteer_activism_rounded),
+          label: 'Volunteers',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.person_rounded),
+          label: 'Profile',
+        ),
+      ];
+    } else {
+      // Default nav items (for donors)
+      return const [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.home_rounded),
+          label: 'Home',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.add_circle_rounded),
+          label: 'Post Donation',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.visibility_rounded),
+          label: 'View Donations',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.volunteer_activism_rounded),
+          label: 'Volunteers',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.person_rounded),
+          label: 'Profile',
+        ),
+      ];
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,6 +139,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       );
     }
+
+    // Get screens and nav items based on user type
+    final screens = _getScreensForUserType();
+    final navItems = _getNavigationItemsForUserType();
 
     return WillPopScope(
       onWillPop: () async {
@@ -101,7 +177,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return false;
       },
       child: Scaffold(
-        body: _screens[_selectedIndex],
+        body: screens[_selectedIndex],
         bottomNavigationBar: BottomNavigationBar(
           currentIndex: _selectedIndex,
           onTap: (index) {
@@ -113,28 +189,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           selectedItemColor: Colors.green,
           unselectedItemColor: Colors.grey,
           type: BottomNavigationBarType.fixed,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home_rounded),
-              label: 'Home',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.add_circle_rounded),
-              label: 'Post Donation',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.visibility_rounded),
-              label: 'View Donations',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.volunteer_activism_rounded),
-              label: 'Volunteers',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_rounded),
-              label: 'Profile',
-            ),
-          ],
+          items: navItems,
         ),
       ),
     );

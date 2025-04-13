@@ -4,7 +4,12 @@ import '../../config/api_config.dart';
 import 'donation_detail_screen.dart';
 
 class ViewDonationsScreen extends StatefulWidget {
-  const ViewDonationsScreen({super.key});
+  final VoidCallback? onDonationAccepted;
+
+  const ViewDonationsScreen({
+    super.key,
+    this.onDonationAccepted,
+  });
 
   @override
   State<ViewDonationsScreen> createState() => _ViewDonationsScreenState();
@@ -66,31 +71,92 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
       });
 
       print('Accepting donation $donationId');
-      await _apiService.acceptDonation(donationId);
+      final acceptedDonation = await _apiService.acceptDonation(donationId);
+      print('Donation accepted with ID: ${acceptedDonation['_id']}');
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Donation accepted successfully!'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
-          margin: EdgeInsets.all(16),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Donation accepted successfully!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.all(16),
+          ),
+        );
+
+        // Wait for the snackbar to show briefly before redirecting
+        Future.delayed(const Duration(milliseconds: 1500), () {
+          if (mounted) {
+            // Show a dialog confirming the donation was accepted
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) => AlertDialog(
+                title: const Text('Donation Accepted!'),
+                content: const Text(
+                  'The donation has been accepted successfully. You can view it in your donation history.',
+                ),
+                actions: [
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context); // Close dialog
+
+                      // Navigate back to dashboard and use a notification
+                      // to tell the parent screen to switch to history tab
+                      if (widget.onDonationAccepted != null) {
+                        widget.onDonationAccepted!();
+                      }
+                    },
+                    child: const Text('View History'),
+                  ),
+                ],
+              ),
+            );
+          }
+        });
+      }
 
       // Refresh the donations list
       await _fetchDonations();
     } catch (e) {
       print('Error accepting donation: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: ${e.toString().replaceAll('Exception: ', '')}'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 3),
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(16),
-        ),
-      );
+
+      String errorMessage = e.toString().replaceAll('Exception: ', '');
+      String displayMessage = errorMessage;
+
+      // Provide user-friendly error messages for common errors
+      if (errorMessage
+          .contains('Only registered recipients can accept donations')) {
+        displayMessage =
+            'You need to be registered as a recipient to accept donations. Please complete your recipient profile.';
+      } else if (errorMessage.contains('No authenticated user found')) {
+        displayMessage = 'You need to sign in to accept donations.';
+      } else if (errorMessage.contains('Donation not found')) {
+        displayMessage =
+            'This donation is no longer available. It may have been accepted by someone else.';
+      } else if (errorMessage.contains('This donation has expired')) {
+        displayMessage =
+            'This donation has expired and is no longer available.';
+      } else if (errorMessage.contains('User not found in database')) {
+        displayMessage =
+            'Your recipient profile was not found. Please ensure you have completed registration as a recipient.';
+      } else if (errorMessage.contains('User is not a recipient')) {
+        displayMessage =
+            'Only recipients can accept donations. Please register as a recipient to accept donations.';
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $displayMessage'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+      }
       setState(() {
         _isLoading = false;
       });
@@ -252,6 +318,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
             MaterialPageRoute(
               builder: (context) => DonationDetailScreen(
                 donation: donation,
+                onDonationAccepted: widget.onDonationAccepted,
               ),
             ),
           );

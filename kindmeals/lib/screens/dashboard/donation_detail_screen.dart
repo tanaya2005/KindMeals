@@ -4,10 +4,12 @@ import '../../config/api_config.dart';
 
 class DonationDetailScreen extends StatefulWidget {
   final Map<String, dynamic> donation;
+  final VoidCallback? onDonationAccepted;
 
   const DonationDetailScreen({
     super.key,
     required this.donation,
+    this.onDonationAccepted,
   });
 
   @override
@@ -44,6 +46,11 @@ class _DonationDetailScreenState extends State<DonationDetailScreen> {
       await _apiService.acceptDonation(widget.donation['_id']);
 
       if (mounted) {
+        // Call the onDonationAccepted callback if provided
+        if (widget.onDonationAccepted != null) {
+          widget.onDonationAccepted!();
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Donation accepted successfully!'),
@@ -53,13 +60,39 @@ class _DonationDetailScreenState extends State<DonationDetailScreen> {
         Navigator.pop(context, true); // Return true to indicate success
       }
     } catch (e) {
+      print('Error accepting donation: $e');
+      String errorMessage = e.toString().replaceAll('Exception: ', '');
+      String displayMessage = errorMessage;
+
+      // Provide user-friendly error messages for common errors
+      if (errorMessage
+          .contains('Only registered recipients can accept donations')) {
+        displayMessage =
+            'You need to be registered as a recipient to accept donations. Please complete your recipient profile.';
+      } else if (errorMessage.contains('No authenticated user found')) {
+        displayMessage = 'You need to sign in to accept donations.';
+      } else if (errorMessage.contains('Donation not found')) {
+        displayMessage =
+            'This donation is no longer available. It may have been accepted by someone else.';
+      } else if (errorMessage.contains('This donation has expired')) {
+        displayMessage =
+            'This donation has expired and is no longer available.';
+      } else if (errorMessage.contains('User not found in database')) {
+        displayMessage =
+            'Your recipient profile was not found. Please ensure you have completed registration as a recipient.';
+      } else if (errorMessage.contains('User is not a recipient')) {
+        displayMessage =
+            'Only recipients can accept donations. Please register as a recipient to accept donations.';
+      }
+
       setState(() {
-        _error = e.toString();
+        _error = displayMessage;
       });
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error accepting donation: $_error'),
+            content: Text('Error: $_error'),
             backgroundColor: Colors.red,
           ),
         );
