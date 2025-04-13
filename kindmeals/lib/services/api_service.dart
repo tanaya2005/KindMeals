@@ -116,39 +116,69 @@ class ApiService {
     String? about,
     double? latitude,
     double? longitude,
+    File? profileImage,
   }) async {
     final user = _auth.currentUser;
     if (user == null) throw Exception('No authenticated user found');
 
     try {
-      print('=== DEBUG: Registering Donor ===');
+      print('=== DEBUG: Starting Donor Registration ===');
       print('Firebase UID: ${user.uid}');
       print('Firebase Email: ${user.email}');
 
       final idToken = await user.getIdToken();
-      print('ID Token: $idToken');
 
-      final response = await http.post(
-        Uri.parse('$baseUrl/direct/donor/register'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $idToken',
-        },
-        body: jsonEncode({
-          'firebaseUid':
-              user.uid, // Using the actual Firebase UID, not the token
-          'email': user.email,
-          'donorname': name,
-          'orgName': orgName,
-          'identificationId': identificationId,
-          'donoraddress': address,
-          'donorcontact': contact,
-          'type': type,
-          'donorabout': about,
-          'latitude': latitude,
-          'longitude': longitude,
-        }),
-      );
+      // Create multipart request for sending form data with file
+      final request = http.MultipartRequest(
+          'POST', Uri.parse('$baseUrl/direct/donor/register'));
+
+      // Add authorization header
+      request.headers['Authorization'] = 'Bearer $idToken';
+
+      // Add text fields
+      request.fields['firebaseUid'] = user.uid;
+      request.fields['email'] = user.email ?? '';
+      request.fields['donorname'] = name;
+      request.fields['orgName'] = orgName;
+      request.fields['identificationId'] = identificationId;
+      request.fields['donoraddress'] = address;
+      request.fields['donorcontact'] = contact;
+      request.fields['type'] = type;
+      if (about != null) request.fields['donorabout'] = about;
+      if (latitude != null) request.fields['latitude'] = latitude.toString();
+      if (longitude != null) request.fields['longitude'] = longitude.toString();
+
+      // Add profile image if provided
+      if (profileImage != null) {
+        print('Adding profile image to request: ${profileImage.path}');
+        final fileName = profileImage.path.split('/').last;
+        final extension = fileName.split('.').last.toLowerCase();
+
+        // Determine content type
+        String contentType;
+        if (extension == 'png') {
+          contentType = 'image/png';
+        } else {
+          contentType = 'image/jpeg';
+        }
+
+        // Add file to request
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'profileImage',
+            profileImage.path,
+            contentType: MediaType.parse(contentType),
+          ),
+        );
+      } else {
+        print('No profile image provided');
+      }
+
+      // Send the request
+      print(
+          'Sending registration request with ${request.fields.length} fields and ${request.files.length} files');
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
 
       print('Response status code: ${response.statusCode}');
       print('Response body: ${response.body}');
@@ -214,38 +244,69 @@ class ApiService {
     String? about,
     double? latitude,
     double? longitude,
+    File? profileImage,
   }) async {
     final user = _auth.currentUser;
     if (user == null) throw Exception('No authenticated user found');
 
     try {
-      print('Attempting to register recipient with Firebase UID: ${user.uid}');
-      print('API URL: $baseUrl/direct/recipient/register');
-      print('Recipient name: $name');
-      print('NGO name: $ngoName');
+      print('=== DEBUG: Starting Recipient Registration ===');
+      print('Firebase UID: ${user.uid}');
+      print('Firebase Email: ${user.email}');
 
       final idToken = await user.getIdToken();
 
-      final response = await http.post(
-        Uri.parse('$baseUrl/direct/recipient/register'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $idToken',
-        },
-        body: jsonEncode({
-          'firebaseUid': user.uid,
-          'email': user.email,
-          'reciname': name,
-          'ngoName': ngoName,
-          'ngoId': ngoId,
-          'reciaddress': address,
-          'recicontact': contact,
-          'type': type,
-          'reciabout': about,
-          'latitude': latitude,
-          'longitude': longitude,
-        }),
-      );
+      // Create multipart request for sending form data with file
+      final request = http.MultipartRequest(
+          'POST', Uri.parse('$baseUrl/direct/recipient/register'));
+
+      // Add authorization header
+      request.headers['Authorization'] = 'Bearer $idToken';
+
+      // Add text fields
+      request.fields['firebaseUid'] = user.uid;
+      request.fields['email'] = user.email ?? '';
+      request.fields['reciname'] = name;
+      request.fields['ngoName'] = ngoName;
+      request.fields['ngoId'] = ngoId;
+      request.fields['reciaddress'] = address;
+      request.fields['recicontact'] = contact;
+      request.fields['type'] = type;
+      if (about != null) request.fields['reciabout'] = about;
+      if (latitude != null) request.fields['latitude'] = latitude.toString();
+      if (longitude != null) request.fields['longitude'] = longitude.toString();
+
+      // Add profile image if provided
+      if (profileImage != null) {
+        print('Adding profile image to request: ${profileImage.path}');
+        final fileName = profileImage.path.split('/').last;
+        final extension = fileName.split('.').last.toLowerCase();
+
+        // Determine content type
+        String contentType;
+        if (extension == 'png') {
+          contentType = 'image/png';
+        } else {
+          contentType = 'image/jpeg';
+        }
+
+        // Add file to request
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'profileImage',
+            profileImage.path,
+            contentType: MediaType.parse(contentType),
+          ),
+        );
+      } else {
+        print('No profile image provided');
+      }
+
+      // Send the request
+      print(
+          'Sending registration request with ${request.fields.length} fields and ${request.files.length} files');
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
 
       print('Response status code: ${response.statusCode}');
       print('Response body: ${response.body}');
@@ -565,12 +626,12 @@ class ApiService {
         print('Image content type: $contentType');
       }
 
-      final response = await request.send();
-      final responseBody = await response.stream.bytesToString();
-      print('Profile update response: $responseBody');
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      print('Profile update response: ${response.body}');
 
       if (response.statusCode != 200) {
-        final responseData = json.decode(responseBody);
+        final responseData = json.decode(response.body);
         throw Exception(
             responseData['error']?.toString() ?? 'Failed to update profile');
       }
@@ -582,6 +643,7 @@ class ApiService {
 
   // Update direct recipient profile
   Future<void> updateDirectRecipientProfile({
+    File? profileImage,
     String? name,
     String? ngoName,
     String? address,
@@ -590,22 +652,71 @@ class ApiService {
     double? latitude,
     double? longitude,
   }) async {
-    final response = await http.put(
-      Uri.parse('$baseUrl/direct/recipient/profile'),
-      headers: await _authHeaders,
-      body: jsonEncode({
-        if (name != null) 'reciname': name,
-        if (ngoName != null) 'ngoName': ngoName,
-        if (address != null) 'reciaddress': address,
-        if (contact != null) 'recicontact': contact,
-        if (about != null) 'reciabout': about,
-        if (latitude != null) 'latitude': latitude,
-        if (longitude != null) 'longitude': longitude,
-      }),
-    );
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        throw Exception('No authenticated user found');
+      }
 
-    if (response.statusCode != 200) {
-      throw Exception('Failed to update recipient profile: ${response.body}');
+      final String url = '$baseUrl/direct/recipient/profile';
+      final request = http.MultipartRequest('PUT', Uri.parse(url));
+
+      // Add auth token to headers
+      final String? token = await currentUser.getIdToken();
+      request.headers['Authorization'] = 'Bearer $token';
+
+      // Add form fields
+      if (name != null) request.fields['reciname'] = name;
+      if (ngoName != null) request.fields['ngoName'] = ngoName;
+      if (address != null) request.fields['reciaddress'] = address;
+      if (contact != null) request.fields['recicontact'] = contact;
+      if (about != null) request.fields['reciabout'] = about;
+      if (latitude != null) request.fields['latitude'] = latitude.toString();
+      if (longitude != null) request.fields['longitude'] = longitude.toString();
+
+      // Add image if provided
+      if (profileImage != null) {
+        final String fileName = profileImage.path.split('/').last;
+        final String extension = fileName.split('.').last.toLowerCase();
+
+        // Validate file extension
+        if (!['jpg', 'jpeg', 'png'].contains(extension)) {
+          throw Exception('Only JPG, JPEG and PNG images are supported');
+        }
+
+        // Determine content type based on extension
+        String contentType;
+        if (extension == 'png') {
+          contentType = 'image/png';
+        } else {
+          contentType = 'image/jpeg';
+        }
+
+        // Add file to request with correct content type
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'profileImage',
+            profileImage.path,
+            contentType: MediaType.parse(contentType),
+          ),
+        );
+
+        print('Adding profile image: ${profileImage.path}');
+        print('Image content type: $contentType');
+      }
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      print('Profile update response: ${response.body}');
+
+      if (response.statusCode != 200) {
+        final responseData = json.decode(response.body);
+        throw Exception(
+            responseData['error']?.toString() ?? 'Failed to update profile');
+      }
+    } catch (e) {
+      print('Error in updateDirectRecipientProfile: $e');
+      rethrow;
     }
   }
 }
