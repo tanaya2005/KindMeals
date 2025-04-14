@@ -12,6 +12,7 @@ class _LanguageScreenState extends State<LanguageScreen> {
   String? selectedLanguage;
 
   final List<Map<String, String>> languages = [
+    {'name': 'English', 'code': 'en', 'english': 'English'},
     {'name': 'हिंदी', 'code': 'hi', 'english': 'Hindi'},
     {'name': 'मराठी', 'code': 'mr', 'english': 'Marathi'},
     {'name': 'ગુજરાતી', 'code': 'gu', 'english': 'Gujarati'},
@@ -23,7 +24,6 @@ class _LanguageScreenState extends State<LanguageScreen> {
     {'name': 'ਪੰਜਾਬੀ', 'code': 'pa', 'english': 'Punjabi'},
     {'name': 'ଓଡ଼ିଆ', 'code': 'or', 'english': 'Odia'},
     {'name': 'অসমীয়া', 'code': 'as', 'english': 'Assamese'},
-    {'name': 'English', 'code': 'en', 'english': 'English'},
   ];
 
   @override
