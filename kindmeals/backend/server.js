@@ -11,6 +11,10 @@ const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Set timezone to India Standard Time (IST)
+process.env.TZ = 'Asia/Kolkata';
+console.log(`Server timezone set to: ${process.env.TZ} (${new Date().toString()})`);
+
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, 'uploads');
 console.log('Uploads directory path:', uploadsDir);
@@ -1520,13 +1524,22 @@ app.get('/api/direct/recipient/donations', directFirebaseAuthMiddleware, async (
     console.log('User authenticated as recipient:', recipient._id);
     
     // Get accepted donations by this recipient
-    const acceptedDonations = await AcceptedDonation.find({ acceptedBy: recipient._id });
+    const acceptedDonations = await AcceptedDonation.find({ acceptedBy: recipient._id })
+      .sort({ acceptedAt: -1 });
+    
+    // If no donations found, return empty array instead of error
+    if (!acceptedDonations || acceptedDonations.length === 0) {
+      console.log('No accepted donations found for recipient:', recipient._id);
+      return res.status(200).json([]);
+    }
+    
     console.log('Found', acceptedDonations.length, 'accepted donations');
     
     res.status(200).json(acceptedDonations);
   } catch (err) {
     console.error('Error getting recipient donations:', err);
-    res.status(400).json({ error: err.message });
+    // Return empty array instead of error for better client handling
+    res.status(200).json([]);
   }
 });
 
@@ -1570,17 +1583,26 @@ app.get('/api/direct/donor/donations', directFirebaseAuthMiddleware, async (req,
     // Get expired donations by this donor
     const expiredDonations = await ExpiredDonation.find({ donorId: donor._id })
       .sort({ expiredAt: -1 });
+      
+    // Add status field to each expired donation if not already present
+    const expiredDonationsWithStatus = expiredDonations.map(donation => {
+      const donationObj = donation.toObject();
+      if (!donationObj.status) {
+        donationObj.status = 'Expired';
+      }
+      return donationObj;
+    });
     
     // Combine all donations into one response
     const allDonations = {
       active: liveDonationsWithStatus,
       accepted: acceptedDonationsWithStatus,
-      expired: expiredDonations,
+      expired: expiredDonationsWithStatus,
       // Also provide a combined list for easier rendering in a single timeline
       combined: [
         ...liveDonationsWithStatus,
         ...acceptedDonationsWithStatus,
-        ...expiredDonations
+        ...expiredDonationsWithStatus
       ].sort((a, b) => {
         // Sort by creation time descending (newest first)
         const dateA = a.timeOfUpload || a.expiredAt || a.acceptedAt;
@@ -1595,7 +1617,7 @@ app.get('/api/direct/donor/donations', directFirebaseAuthMiddleware, async (req,
     
     res.status(200).json(allDonations);
   } catch (err) {
-    console.error('Error getting donor donations:', err);
+    console.error('Error in donor donations API:', err);
     res.status(400).json({ error: err.message });
   }
 });

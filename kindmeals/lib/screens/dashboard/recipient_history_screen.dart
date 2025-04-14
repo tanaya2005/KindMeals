@@ -46,11 +46,16 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
         errorMsg = 'No donation history found. Please try again later.';
       } else if (errorMsg.contains('No authenticated user found')) {
         errorMsg = 'Please sign in to view your donation history.';
+      } else {
+        // General error message for any other error
+        errorMsg = 'Unable to load donations. Please try again later.';
       }
 
       setState(() {
         _errorMessage = errorMsg;
         _isLoading = false;
+        // Initialize with empty list to prevent null errors
+        _acceptedDonations = [];
       });
     }
   }
