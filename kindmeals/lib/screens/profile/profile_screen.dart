@@ -3,6 +3,8 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:kindmeals/services/api_service.dart';
 import 'package:kindmeals/config/api_config.dart';
+import 'package:kindmeals/services/firebase_service.dart';
+import 'edit_profile_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -20,6 +22,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Map<String, dynamic>? _userData;
   Map<String, dynamic>? _profileData;
   final ApiService _apiService = ApiService();
+  final FirebaseService _firebaseService = FirebaseService();
 
   @override
   void initState() {
@@ -117,6 +120,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _handleLogout() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await _firebaseService.signOut();
+      if (mounted) {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/',
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Logout failed: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   Widget _buildProfileSection(String title, List<Widget> children) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -185,11 +220,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           IconButton(
             icon: Icon(_isEditing ? Icons.save : Icons.edit),
             onPressed: () {
-              setState(() {
-                _isEditing = !_isEditing;
-              });
-              if (!_isEditing) {
-                // Save profile changes here if needed
+              if (_isEditing) {
+                setState(() {
+                  _isEditing = false;
+                });
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Edit mode disabled'),
@@ -197,18 +231,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 );
               } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Now you can edit your profile'),
-                    backgroundColor: Colors.blue,
+                // Navigate to edit profile screen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => EditProfileScreen(
+                      userData: _userData,
+                      profileData: _profileData,
+                    ),
                   ),
-                );
+                ).then((result) {
+                  // Reload profile data if successfully updated
+                  if (result == true) {
+                    _loadUserProfile();
+                  }
+                });
               }
             },
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadUserProfile,
+          ),
+          IconButton(
+            icon: const Icon(Icons.exit_to_app),
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Log Out'),
+                  content: const Text('Are you sure you want to log out?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _handleLogout();
+                      },
+                      child: const Text('Log Out'),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
         ],
       ),

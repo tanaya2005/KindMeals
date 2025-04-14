@@ -213,23 +213,39 @@ class ApiService {
     String? about,
     double? latitude,
     double? longitude,
+    File? profileImage,
   }) async {
-    final response = await http.put(
-      Uri.parse('$baseUrl/donor/profile'),
-      headers: await _authHeaders,
-      body: jsonEncode({
-        if (name != null) 'donorname': name,
-        if (orgName != null) 'orgName': orgName,
-        if (address != null) 'donoraddress': address,
-        if (contact != null) 'donorcontact': contact,
-        if (about != null) 'donorabout': about,
-        if (latitude != null) 'latitude': latitude,
-        if (longitude != null) 'longitude': longitude,
-      }),
-    );
+    if (profileImage == null) {
+      // Use simple PUT request if no image is provided
+      final response = await http.put(
+        Uri.parse('$baseUrl/donor/profile'),
+        headers: await _authHeaders,
+        body: jsonEncode({
+          if (name != null) 'donorname': name,
+          if (orgName != null) 'orgName': orgName,
+          if (address != null) 'donoraddress': address,
+          if (contact != null) 'donorcontact': contact,
+          if (about != null) 'donorabout': about,
+          if (latitude != null) 'latitude': latitude,
+          if (longitude != null) 'longitude': longitude,
+        }),
+      );
 
-    if (response.statusCode != 200) {
-      throw Exception('Failed to update donor profile: ${response.body}');
+      if (response.statusCode != 200) {
+        throw Exception('Failed to update donor profile: ${response.body}');
+      }
+    } else {
+      // Use direct API with image upload support
+      await updateDirectDonorProfile(
+        name: name,
+        orgName: orgName,
+        address: address,
+        contact: contact,
+        about: about,
+        latitude: latitude,
+        longitude: longitude,
+        profileImage: profileImage,
+      );
     }
   }
 
@@ -341,23 +357,39 @@ class ApiService {
     String? about,
     double? latitude,
     double? longitude,
+    File? profileImage,
   }) async {
-    final response = await http.put(
-      Uri.parse('$baseUrl/recipient/profile'),
-      headers: await _authHeaders,
-      body: jsonEncode({
-        if (name != null) 'reciname': name,
-        if (ngoName != null) 'ngoName': ngoName,
-        if (address != null) 'reciaddress': address,
-        if (contact != null) 'recicontact': contact,
-        if (about != null) 'reciabout': about,
-        if (latitude != null) 'latitude': latitude,
-        if (longitude != null) 'longitude': longitude,
-      }),
-    );
+    if (profileImage == null) {
+      // Use simple PUT request if no image is provided
+      final response = await http.put(
+        Uri.parse('$baseUrl/recipient/profile'),
+        headers: await _authHeaders,
+        body: jsonEncode({
+          if (name != null) 'reciname': name,
+          if (ngoName != null) 'ngoName': ngoName,
+          if (address != null) 'reciaddress': address,
+          if (contact != null) 'recicontact': contact,
+          if (about != null) 'reciabout': about,
+          if (latitude != null) 'latitude': latitude,
+          if (longitude != null) 'longitude': longitude,
+        }),
+      );
 
-    if (response.statusCode != 200) {
-      throw Exception('Failed to update recipient profile: ${response.body}');
+      if (response.statusCode != 200) {
+        throw Exception('Failed to update recipient profile: ${response.body}');
+      }
+    } else {
+      // Use direct API with image upload support
+      await updateDirectRecipientProfile(
+        name: name,
+        ngoName: ngoName,
+        address: address,
+        contact: contact,
+        about: about,
+        latitude: latitude,
+        longitude: longitude,
+        profileImage: profileImage,
+      );
     }
   }
 
@@ -941,6 +973,50 @@ class ApiService {
     } catch (e) {
       print('Error in _processImage: $e');
       return image;
+    }
+  }
+
+  // Generic user profile update for volunteer or other types
+  Future<void> updateUserProfile({
+    String? name,
+    String? email,
+    String? phone,
+    String? address,
+    String? about,
+    File? profileImage,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) throw Exception('No authenticated user found');
+
+      // Get user type first
+      final profile = await getDirectUserProfile();
+      final userType = profile['userType']?.toString().toLowerCase() ?? '';
+
+      if (userType.contains('donor')) {
+        await updateDonorProfile(
+          name: name,
+          contact: phone,
+          address: address,
+          about: about,
+          profileImage: profileImage,
+        );
+      } else if (userType.contains('recipient')) {
+        await updateRecipientProfile(
+          name: name,
+          contact: phone,
+          address: address,
+          about: about,
+          profileImage: profileImage,
+        );
+      } else {
+        // For volunteers or other user types
+        // Implement volunteer profile update when volunteer API is available
+        throw Exception('Profile update not supported for this user type yet');
+      }
+    } catch (e) {
+      print('Error updating user profile: $e');
+      rethrow;
     }
   }
 }
