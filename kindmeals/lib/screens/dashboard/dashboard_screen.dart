@@ -4,6 +4,7 @@ import 'package:kindmeals/screens/dashboard/post_donation_screen.dart';
 import 'package:kindmeals/screens/dashboard/recipient_history_screen.dart';
 import 'package:kindmeals/screens/leaderboard/donorleaderboard.dart';
 import 'package:kindmeals/screens/leaderboard/volunteerleaderboard.dart';
+import 'package:kindmeals/screens/profile/donor_history_screen.dart';
 import 'package:kindmeals/screens/profile/profile_screen.dart';
 import 'package:kindmeals/screens/volunteer/volunteerdashboard.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
@@ -70,8 +71,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       // Default screens (for donors)
       return [
         const _HomeScreen(),
+        const DonorHistoryScreen(),
         const PostDonationScreen(),
-        const ViewDonationsScreen(),
         const VolunteersScreen(),
         const ProfileScreen(),
       ];
@@ -111,12 +112,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
           label: 'Home',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.add_circle_rounded),
-          label: 'Post Donation',
+          icon: Icon(Icons.history_rounded),
+          label: 'History',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.visibility_rounded),
-          label: 'View Donations',
+          icon: Icon(Icons.add_circle_rounded),
+          label: 'Post Donation',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.volunteer_activism_rounded),
