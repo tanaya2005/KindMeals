@@ -590,7 +590,7 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
                         title: const Text('Expiry Date & Time'),
                         subtitle: Text(
                           _expiryDateTime != null
-                              ? '${_expiryDateTime!.day}/${_expiryDateTime!.month}/${_expiryDateTime!.year} ${_expiryDateTime!.hour}:${_expiryDateTime!.minute}'
+                              ? '${_expiryDateTime!.day.toString().padLeft(2, '0')}/${_expiryDateTime!.month.toString().padLeft(2, '0')}/${_expiryDateTime!.year} ${_expiryDateTime!.hour.toString().padLeft(2, '0')}:${_expiryDateTime!.minute.toString().padLeft(2, '0')}'
                               : 'Not set',
                         ),
                         leading: const Icon(Icons.access_time),

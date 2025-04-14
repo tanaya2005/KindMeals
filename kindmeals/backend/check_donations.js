@@ -6,6 +6,10 @@ mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('Connected to MongoDB Atlas'))
   .catch(err => console.error('MongoDB connection error:', err));
 
+// Set timezone to India Standard Time (IST)
+process.env.TZ = 'Asia/Kolkata';
+console.log(`Timezone set to: ${process.env.TZ} (${new Date().toString()})`);
+
 // Define the LiveDonation schema
 const liveDonationSchema = new mongoose.Schema({
   donorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },

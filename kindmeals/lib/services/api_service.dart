@@ -712,7 +712,7 @@ class ApiService {
     return data.cast<Map<String, dynamic>>();
   }
 
-  // Get recipient donation history
+  // Get recipient donations (history)
   Future<List<Map<String, dynamic>>> getRecipientDonations() async {
     try {
       print('DEBUG: Fetching recipient donations...');
@@ -739,33 +739,51 @@ class ApiService {
     }
   }
 
-  // Get donor donation history
+  // Get donor donations history
   Future<Map<String, dynamic>> getDonorDonations() async {
     try {
-      print('DEBUG: Fetching donor donations history...');
-      // Use direct API endpoint that works with DirectDonor
-      final response = await http.get(
-        Uri.parse('$baseUrl/direct/donor/donations'),
-        headers: await _authHeaders,
-      );
-
-      print('DEBUG: Donor donations response status: ${response.statusCode}');
-      if (response.statusCode != 200) {
-        print(
-            'DEBUG ERROR: Failed to get donor donations. Status: ${response.statusCode}, Body: ${response.body}');
-        throw Exception('Failed to get donor donations: ${response.body}');
+      final user = _auth.currentUser;
+      if (user == null) {
+        throw Exception('No authenticated user found');
       }
 
-      final Map<String, dynamic> data = jsonDecode(response.body);
-      print('DEBUG: Fetched donor donation history:');
-      print('  - Active: ${data['active']?.length ?? 0}');
-      print('  - Accepted: ${data['accepted']?.length ?? 0}');
-      print('  - Expired: ${data['expired']?.length ?? 0}');
-      print('  - Combined: ${data['combined']?.length ?? 0}');
+      print('Fetching donation history for donor: ${user.uid}');
 
-      return data;
+      final headers = await _authHeaders;
+      final url = Uri.parse('${baseUrl}/direct/donor/donations');
+
+      final response = await http.get(
+        url,
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+
+        print('Fetched donor donation history:');
+        print('  - Active: ${responseData['active']?.length ?? 0}');
+        print('  - Accepted: ${responseData['accepted']?.length ?? 0}');
+        print('  - Expired: ${responseData['expired']?.length ?? 0}');
+        print('  - Combined: ${responseData['combined']?.length ?? 0}');
+
+        // Ensure all donation lists exist
+        if (!responseData.containsKey('active')) responseData['active'] = [];
+        if (!responseData.containsKey('accepted'))
+          responseData['accepted'] = [];
+        if (!responseData.containsKey('expired')) responseData['expired'] = [];
+        if (!responseData.containsKey('combined'))
+          responseData['combined'] = [];
+
+        return responseData;
+      } else {
+        final errorData = jsonDecode(response.body);
+        final errorMessage =
+            errorData['error'] ?? 'Failed to get donation history';
+        print('Error fetching donation history: $errorMessage');
+        throw Exception(errorMessage);
+      }
     } catch (e) {
-      print('DEBUG ERROR: Exception in getDonorDonations: $e');
+      print('Error in getDonorDonations: $e');
       rethrow;
     }
   }
@@ -1016,6 +1034,21 @@ class ApiService {
       }
     } catch (e) {
       print('Error updating user profile: $e');
+      rethrow;
+    }
+  }
+
+  // Robust method for handling API calls with better error handling
+  Future<dynamic> _safeApiCall(String endpoint,
+      {required Function handler}) async {
+    try {
+      return await handler();
+    } catch (e) {
+      print('API error in $endpoint: $e');
+      // Return empty results instead of throwing
+      if (endpoint.contains('donations')) {
+        return [];
+      }
       rethrow;
     }
   }
