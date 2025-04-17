@@ -1,9 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../services/firebase_service.dart';
 import '../../services/api_service.dart';
 import 'volunteerhistory.dart';
 import 'volunteerprofile.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class VolunteerDashboardScreen extends StatefulWidget {
   const VolunteerDashboardScreen({super.key});
@@ -19,8 +21,6 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
   bool _isLoading = true;
   List<Map<String, dynamic>> _deliveryOpportunities = [];
   Map<String, dynamic> _volunteerProfile = {};
-  int _selectedRadius = 5; // Default radius in km
-  bool _hasNotifications = true;
   int _selectedIndex = 0;
 
   @override
@@ -35,294 +35,151 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
         _isLoading = true;
       });
 
-      // Get volunteer profile data
+      // Get volunteer profile data from API
       try {
-        final profile = await _apiService.getDirectUserProfile();
-        if (profile != null && profile['profile'] != null) {
+        final userProfile = await _apiService.getDirectUserProfile();
+        if (userProfile['profile'] != null) {
           setState(() {
-            _volunteerProfile = profile['profile'];
+            _volunteerProfile = userProfile['profile'];
           });
         }
       } catch (e) {
-        print('Error fetching volunteer profile: $e');
-        // Use placeholder data if profile fetch fails
-        _volunteerProfile = {
-          'volunteerName': 'Volunteer',
-          'rating': 0,
-          'totalRatings': 0,
-        };
+        if (kDebugMode) {
+          print('Error fetching volunteer profile: $e');
+        }
+        // Use placeholder data when profile fetch fails
+        setState(() {
+          _volunteerProfile = {
+            'volunteerName': 'Volunteer',
+            'totalRatings': 0,
+            'rating': 0.0,
+          };
+        });
       }
 
-      // Get delivery opportunities from API
+      // Get accepted donations that need volunteer delivery
       try {
-        final opportunities = await _apiService.getVolunteerOpportunities();
+        if (kDebugMode) {
+          print('Fetching volunteer opportunities...');
+          final user = FirebaseAuth.instance.currentUser;
+          if (user != null) {
+            print('Current volunteer user: ${user.uid}, ${user.email}');
+          } else {
+            print('No user signed in - cannot fetch opportunities');
+          }
+        }
+
+        final opportunities =
+            await _apiService.getAcceptedDonationsForVolunteer();
+
+        if (kDebugMode) {
+          print('Received ${opportunities.length} opportunities from API');
+          if (opportunities.isNotEmpty) {
+            print('Sample opportunity: ${opportunities[0]}');
+          }
+        }
+
+        // Validate each opportunity to ensure it has all required fields
+        final validOpportunities = opportunities.where((donation) {
+          // Check for essential fields
+          return donation.containsKey('_id') &&
+              donation.containsKey('foodName') &&
+              donation.containsKey('donorName');
+        }).toList();
+
+        if (validOpportunities.length < opportunities.length && kDebugMode) {
+          print(
+              'Filtered out ${opportunities.length - validOpportunities.length} invalid opportunities');
+        }
+
         setState(() {
-          _deliveryOpportunities = opportunities;
+          _deliveryOpportunities = validOpportunities;
         });
+
+        if (validOpportunities.isEmpty && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'No delivery opportunities available right now. Check back later!'),
+              backgroundColor: Colors.blue,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
       } catch (e) {
-        print('Error fetching volunteer opportunities: $e');
+        if (kDebugMode) {
+          print('Error fetching delivery opportunities: $e');
+        }
+
         setState(() {
           _deliveryOpportunities = [];
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                'Error loading opportunities: ${e.toString().replaceAll('Exception: ', '')}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+
+        // Show error message only if mounted
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'Error loading opportunities: ${e.toString().replaceAll('Exception: ', '')}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     } catch (e) {
-      print('Error loading data: $e');
+      if (kDebugMode) {
+        print('Error loading data: $e');
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
-  void _acceptDeliveryOpportunity(String donationId) async {
+  void _acceptDeliveryOpportunity(String acceptedDonationId) async {
     try {
       setState(() {
         _isLoading = true;
       });
 
       // Call API to accept donation delivery
-      await _apiService.volunteerAcceptDonation(
-        donationId: donationId,
+      await _apiService.volunteerAcceptDelivery(
+        acceptedDonationId: acceptedDonationId,
       );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Delivery accepted successfully!'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Delivery accepted successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
 
       // Refresh data
       _loadData();
     } catch (e) {
-      print('Error accepting delivery: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-              'Failed to accept delivery: ${e.toString().replaceAll('Exception: ', '')}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (kDebugMode) {
+        print('Error accepting delivery: $e');
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'Failed to accept delivery: ${e.toString().replaceAll('Exception: ', '')}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+
       setState(() {
         _isLoading = false;
       });
     }
-  }
-
-  Widget _buildOpportunityCard(Map<String, dynamic> opportunity) {
-    // Calculate time left for expiry
-    final expiryTime = DateTime.parse(opportunity['expiryDateTime']);
-    final now = DateTime.now();
-    final difference = expiryTime.difference(now);
-
-    // Format the time difference for display
-    String timeLeft;
-    if (difference.inHours > 0) {
-      timeLeft = '${difference.inHours} hours';
-    } else if (difference.inMinutes > 0) {
-      timeLeft = '${difference.inMinutes} minutes';
-    } else {
-      timeLeft = 'Expiring soon';
-    }
-
-    // Calculate how long ago the donation was posted
-    final uploadTime = DateTime.parse(opportunity['timeOfUpload']);
-    final uploadDifference = now.difference(uploadTime);
-    String postedTime;
-
-    if (uploadDifference.inDays > 0) {
-      postedTime = '${uploadDifference.inDays} days ago';
-    } else if (uploadDifference.inHours > 0) {
-      postedTime = '${uploadDifference.inHours} hours ago';
-    } else if (uploadDifference.inMinutes > 0) {
-      postedTime = '${uploadDifference.inMinutes} minutes ago';
-    } else {
-      postedTime = 'Just now';
-    }
-
-    // Food type icon
-    IconData foodTypeIcon = Icons.restaurant;
-    Color foodTypeColor = Colors.grey;
-
-    if (opportunity['foodType'] == 'veg') {
-      foodTypeIcon = Icons.eco;
-      foodTypeColor = Colors.green;
-    } else if (opportunity['foodType'] == 'nonveg') {
-      foodTypeIcon = FontAwesomeIcons.drumstickBite;
-      foodTypeColor = Colors.red;
-    } else if (opportunity['foodType'] == 'jain') {
-      foodTypeIcon = Icons.spa;
-      foodTypeColor = Colors.green.shade800;
-    }
-
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.green.shade50,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12),
-                topRight: Radius.circular(12),
-              ),
-            ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  backgroundColor: Colors.green.shade100,
-                  child: const Icon(Icons.restaurant, color: Colors.green),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        opportunity['donorName'],
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      Text(
-                        'Posted $postedTime',
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: difference.inHours < 2
-                        ? Colors.red.shade100
-                        : Colors.amber.shade100,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    'Expires in $timeLeft',
-                    style: TextStyle(
-                      color: difference.inHours < 2
-                          ? Colors.red.shade700
-                          : Colors.amber.shade900,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(foodTypeIcon, size: 18, color: foodTypeColor),
-                    const SizedBox(width: 8),
-                    Text(
-                      opportunity['foodType']?.toString()?.toUpperCase() ??
-                          'FOOD',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: foodTypeColor,
-                      ),
-                    ),
-                    const Spacer(),
-                    Icon(Icons.people, size: 16, color: Colors.blue.shade700),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Serves ${opportunity['quantity']}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.blue.shade700,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  opportunity['foodName'],
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  opportunity['description'] ?? 'No description provided',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey.shade700,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Icon(Icons.location_on,
-                        size: 16, color: Colors.grey.shade700),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        opportunity['location']?['address'] ??
-                            'Address not available',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey.shade700,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () =>
-                        _acceptDeliveryOpportunity(opportunity['_id']),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: const Text(
-                      'Accept Delivery',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   // Navigation to other screens
@@ -423,80 +280,7 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
         ),
         body: _isLoading
             ? const Center(child: CircularProgressIndicator())
-            : IndexedStack(
-                index: _selectedIndex,
-                children: [
-                  // Opportunities Tab
-                  RefreshIndicator(
-                    onRefresh: _loadData,
-                    child: _deliveryOpportunities.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.no_food,
-                                  size: 64,
-                                  color: Colors.grey.shade400,
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'No delivery opportunities',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Check back later for new donations',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                ),
-                                const SizedBox(height: 24),
-                                ElevatedButton.icon(
-                                  onPressed: _loadData,
-                                  icon: const Icon(Icons.refresh),
-                                  label: const Text('Refresh'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.green,
-                                    foregroundColor: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                        : ListView(
-                            padding: const EdgeInsets.only(top: 8, bottom: 72),
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 8),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.delivery_dining,
-                                        color: Colors.green),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      '${_deliveryOpportunities.length} Delivery Opportunities',
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              ..._deliveryOpportunities
-                                  .map(_buildOpportunityCard)
-                                  .toList(),
-                            ],
-                          ),
-                  ),
-                ],
-              ),
+            : _buildDashboardView(),
         bottomNavigationBar: BottomNavigationBar(
           currentIndex: _selectedIndex,
           onTap: (index) {
@@ -530,6 +314,467 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
           selectedItemColor: Colors.green,
           elevation: 8,
         ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () {
+            // Refresh available donations
+            setState(() {
+              _isLoading = true;
+            });
+            _loadData();
+          },
+          backgroundColor: Colors.green,
+          child: const Icon(Icons.refresh),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDashboardView() {
+    return RefreshIndicator(
+      onRefresh: _loadData,
+      child: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: _buildVolunteerProfile(),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.delivery_dining, color: Colors.green),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${_deliveryOpportunities.length} Delivery ${_deliveryOpportunities.length == 1 ? 'Request' : 'Requests'}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  TextButton.icon(
+                    onPressed: () async {
+                      // Force refresh with debug info
+                      if (kDebugMode) {
+                        print(
+                            'DEBUG: Force refreshing volunteer opportunities...');
+
+                        // Check current user and auth state
+                        final user = FirebaseAuth.instance.currentUser;
+                        if (user != null) {
+                          print(
+                              'DEBUG: Current user: ${user.uid}, ${user.email}');
+                          print('DEBUG: Token: ${await user.getIdToken(true)}');
+                        } else {
+                          print('DEBUG: No user is signed in!');
+                        }
+                      }
+                      _loadData();
+                    },
+                    icon: const Icon(Icons.refresh, size: 16),
+                    label: const Text('Refresh'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.green,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                if (_deliveryOpportunities.isEmpty) {
+                  return Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.no_food,
+                            size: 64,
+                            color: Colors.grey.shade400,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No delivery requests available right now',
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: Colors.grey.shade600,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Delivery requests appear here when recipients need volunteer assistance.\n\nRecipients must accept donations and select "Need Volunteer Help" when accepting.',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey.shade500,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 24),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              ElevatedButton.icon(
+                                onPressed: _loadData,
+                                icon: const Icon(Icons.refresh),
+                                label: const Text('Refresh'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green,
+                                  foregroundColor: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              OutlinedButton.icon(
+                                onPressed: _navigateToVolunteerHistory,
+                                icon: const Icon(Icons.history),
+                                label: const Text('View History'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.green,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+                return _buildDeliveryRequestCard(_deliveryOpportunities[index]);
+              },
+              childCount: _deliveryOpportunities.isEmpty
+                  ? 1
+                  : _deliveryOpportunities.length,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVolunteerProfile() {
+    // Extract volunteer name and rating from profile data
+    final name = _volunteerProfile['volunteerName'] ?? 'Volunteer';
+    final deliveries = _volunteerProfile['totalRatings'] ?? 0;
+    final rating = _volunteerProfile['rating'] ?? 0.0;
+
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.green.shade500, Colors.green.shade700],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.green.withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 30,
+            backgroundColor: Colors.white,
+            child: Icon(
+              Icons.person,
+              size: 36,
+              color: Colors.green.shade700,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '$deliveries Deliveries Completed',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.star,
+                  size: 16,
+                  color: Colors.amber.shade600,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  rating.toStringAsFixed(1),
+                  style: TextStyle(
+                    color: Colors.green.shade700,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDeliveryRequestCard(Map<String, dynamic> donation) {
+    // Calculate time since acceptance with null safety
+    String acceptedTime = 'Recently';
+    if (donation['acceptedAt'] != null) {
+      try {
+        final acceptedAt = DateTime.parse(donation['acceptedAt']);
+        final now = DateTime.now();
+        final difference = now.difference(acceptedAt);
+
+        if (difference.inDays > 0) {
+          acceptedTime = '${difference.inDays} days ago';
+        } else if (difference.inHours > 0) {
+          acceptedTime = '${difference.inHours} hours ago';
+        } else if (difference.inMinutes > 0) {
+          acceptedTime = '${difference.inMinutes} minutes ago';
+        } else {
+          acceptedTime = 'Just now';
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('Error parsing date: $e');
+        }
+        acceptedTime = 'Recently';
+      }
+    }
+
+    // Get recipient information with enhanced null safety
+    final recipientInfo = donation['recipientInfo'] ?? {};
+    final recipientName = recipientInfo['recipientName'] ??
+        donation['recipientName'] ??
+        'Unknown Recipient';
+    final recipientContact =
+        recipientInfo['recipientContact'] ?? 'Contact not available';
+    final recipientAddress =
+        recipientInfo['recipientAddress'] ?? 'Address not available';
+
+    // Food type icon and color with null safety
+    IconData foodTypeIcon = Icons.restaurant;
+    Color foodTypeColor = Colors.grey.shade700;
+
+    final foodType = donation['foodType']?.toString().toLowerCase() ?? '';
+    if (foodType == 'veg') {
+      foodTypeIcon = Icons.eco;
+      foodTypeColor = Colors.green;
+    } else if (foodType == 'nonveg') {
+      foodTypeIcon = FontAwesomeIcons.drumstickBite;
+      foodTypeColor = Colors.red;
+    } else if (foodType == 'jain') {
+      foodTypeIcon = Icons.spa;
+      foodTypeColor = Colors.green.shade800;
+    }
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.green.shade50,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(12),
+                topRight: Radius.circular(12),
+              ),
+            ),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: Colors.green.shade100,
+                  child: Icon(foodTypeIcon, color: foodTypeColor),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        donation['foodName'] ?? 'Food Donation',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      Text(
+                        'Accepted $acceptedTime',
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${donation['quantity'] ?? 0} servings',
+                    style: TextStyle(
+                      color: Colors.blue.shade700,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Donor Information
+                _buildSectionTitle('From Donor'),
+                _buildInfoRow(
+                  Icons.person,
+                  'Donor Name',
+                  donation['donorName'] ?? 'Unknown Donor',
+                ),
+
+                const SizedBox(height: 16),
+
+                // Recipient Information
+                _buildSectionTitle('To Recipient'),
+                _buildInfoRow(
+                  Icons.person_outline,
+                  'Recipient',
+                  recipientName,
+                ),
+                _buildInfoRow(
+                  Icons.phone,
+                  'Contact',
+                  recipientContact,
+                ),
+                _buildInfoRow(
+                  Icons.location_on,
+                  'Address',
+                  recipientAddress,
+                ),
+
+                const SizedBox(height: 16),
+
+                // Food Information
+                _buildSectionTitle('Food Details'),
+                Text(
+                  donation['description'] ?? 'No description provided',
+                  style: TextStyle(color: Colors.grey.shade800),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Accept Button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: donation['_id'] != null
+                        ? () => _acceptDeliveryOpportunity(donation['_id'])
+                        : null,
+                    icon: const Icon(Icons.delivery_dining),
+                    label: const Text('ACCEPT DELIVERY REQUEST'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: Colors.green.shade800,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16, color: Colors.grey.shade600),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: Colors.grey.shade600,
+                    fontSize: 12,
+                  ),
+                ),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -1,6 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../services/firebase_service.dart';
-import '../dashboard/dashboard_screen.dart';
 import 'register_screen.dart';
 import 'register_volunteer_screen.dart';
 import 'forgot_password_screen.dart';
@@ -29,8 +29,12 @@ class _LoginScreenState extends State<LoginScreen> {
       });
 
       try {
-        print('=== DEBUG: Starting Login Process ===');
-        print('Email: ${_emailController.text.trim()}');
+        if (kDebugMode) {
+          print('=== DEBUG: Starting Login Process ===');
+        }
+        if (kDebugMode) {
+          print('Email: ${_emailController.text.trim()}');
+        }
 
         // Authenticate with Firebase
         final userCredential =
@@ -38,25 +42,41 @@ class _LoginScreenState extends State<LoginScreen> {
           _emailController.text.trim(),
           _passwordController.text,
         );
-        print('=== DEBUG: Firebase Auth Successful ===');
-        print('User UID: ${userCredential.user?.uid}');
-        print('User Email: ${userCredential.user?.email}');
+        if (kDebugMode) {
+          print('=== DEBUG: Firebase Auth Successful ===');
+        }
+        if (kDebugMode) {
+          print('User UID: ${userCredential.user?.uid}');
+        }
+        if (kDebugMode) {
+          print('User Email: ${userCredential.user?.email}');
+        }
 
         // Force token refresh to ensure we have a valid token
         final token = await userCredential.user?.getIdToken(true);
-        print('=== DEBUG: Token Refresh ===');
-        print('New token obtained: ${token != null}');
+        if (kDebugMode) {
+          print('=== DEBUG: Token Refresh ===');
+        }
+        if (kDebugMode) {
+          print('New token obtained: ${token != null}');
+        }
 
         // Verify if the user exists in our direct database collections
         try {
-          print('=== DEBUG: Checking Direct Profile ===');
+          if (kDebugMode) {
+            print('=== DEBUG: Checking Direct Profile ===');
+          }
           // Check profile without waiting
           final profile = await _apiService.getDirectUserProfile();
-          print('Direct profile check successful: $profile');
+          if (kDebugMode) {
+            print('Direct profile check successful: $profile');
+          }
 
           // Store user type for redirection
           final userType = profile['userType'] ?? '';
-          print('Detected user type: $userType');
+          if (kDebugMode) {
+            print('Detected user type: $userType');
+          }
 
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -85,8 +105,12 @@ class _LoginScreenState extends State<LoginScreen> {
             }
           }
         } catch (profileError) {
-          print('=== DEBUG: Direct Profile Check Failed ===');
-          print('Profile check error: $profileError');
+          if (kDebugMode) {
+            print('=== DEBUG: Direct Profile Check Failed ===');
+          }
+          if (kDebugMode) {
+            print('Profile check error: $profileError');
+          }
           // Fallback to default dashboard if profile check fails
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
