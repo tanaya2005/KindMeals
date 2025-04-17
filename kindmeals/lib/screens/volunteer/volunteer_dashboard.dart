@@ -88,7 +88,9 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
       });
 
       // Call API to accept donation delivery
-      await _apiService.volunteerAcceptDonation(donationId);
+      await _apiService.volunteerAcceptDonation(
+        donationId: donationId,
+      );
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

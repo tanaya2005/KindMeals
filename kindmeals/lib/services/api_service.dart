@@ -87,7 +87,7 @@ class ApiService {
     try {
       print('Fetching user profile for: ${user.uid}');
       final response = await http.get(
-        Uri.parse('$baseUrl/user/profile'),
+        Uri.parse('$baseUrl/profile'),
         headers: await _authHeaders,
       );
 
@@ -107,7 +107,7 @@ class ApiService {
 
   // Register directly to donor collection
   Future<void> registerDonor({
-    required String name,
+    required String donorname,
     required String orgName,
     required String identificationId,
     required String address,
@@ -130,8 +130,8 @@ class ApiService {
       print('Token obtained, length: ${idToken?.length}');
 
       // Create multipart request for sending form data with file
-      final request = http.MultipartRequest(
-          'POST', Uri.parse('$baseUrl/direct/donor/register'));
+      final request =
+          http.MultipartRequest('POST', Uri.parse('$baseUrl/donor/register'));
 
       // Add authorization header
       request.headers['Authorization'] = 'Bearer $idToken';
@@ -139,7 +139,7 @@ class ApiService {
       // Add text fields
       request.fields['firebaseUid'] = user.uid;
       request.fields['email'] = user.email ?? '';
-      request.fields['donorname'] = name;
+      request.fields['donorname'] = donorname;
       request.fields['orgName'] = orgName;
       request.fields['identificationId'] = identificationId;
       request.fields['donoraddress'] = address;
@@ -276,7 +276,7 @@ class ApiService {
 
       // Create multipart request for sending form data with file
       final request = http.MultipartRequest(
-          'POST', Uri.parse('$baseUrl/direct/recipient/register'));
+          'POST', Uri.parse('$baseUrl/recipient/register'));
 
       // Add authorization header
       request.headers['Authorization'] = 'Bearer $idToken';
@@ -395,8 +395,8 @@ class ApiService {
     }
   }
 
-  // Donation Methods
-  Future<void> createDonation({
+  // Create a food donation
+  Future<Map<String, dynamic>> createDonation({
     required String foodName,
     required int quantity,
     required String description,
@@ -404,69 +404,26 @@ class ApiService {
     required String foodType,
     required String address,
     required bool needsVolunteer,
+    double? latitude,
+    double? longitude,
     File? foodImage,
   }) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('No authenticated user found');
+
     try {
-      print('DEBUG API: Starting createDonation process...');
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser == null) {
-        print('DEBUG API ERROR: No authenticated user found');
-        throw Exception('No authenticated user found');
-      }
-      print('DEBUG API: Current user UID: ${currentUser.uid}');
+      final idToken = await user.getIdToken();
 
-      // Get user profile first to find the MongoDB ID
-      Map<String, dynamic> userProfile;
-      try {
-        print('DEBUG API: Fetching direct user profile before donation...');
-        userProfile = await getDirectUserProfile();
-        print(
-            'DEBUG API: User profile found with type: ${userProfile['userType']}');
+      // Define the URL endpoint
+      final String url = '$baseUrl/donations/create';
 
-        if (userProfile['userType'].toString().toLowerCase() != 'donor') {
-          print('DEBUG API ERROR: User is not a donor');
-          throw Exception('Only donors can post donations');
-        }
-
-        // Extract MongoDB ID if available
-        print('DEBUG API: User profile ID: ${userProfile['profile']['_id']}');
-      } catch (e) {
-        print('DEBUG API ERROR: Failed to verify donor profile: $e');
-        rethrow;
-      }
-
-      // Create the request
-      // Use the direct donations create endpoint for direct donors
-      final String url = '$baseUrl/direct/donations/create';
-      print('DEBUG API: API endpoint: $url');
+      // Create multipart request
       final request = http.MultipartRequest('POST', Uri.parse(url));
 
-      // Add auth token to headers
-      print('DEBUG API: Getting user ID token...');
-      await currentUser.reload();
-      final String? idTokenRaw = await currentUser.getIdToken(true);
-      if (idTokenRaw == null) {
-        print('DEBUG ERROR: Failed to get ID token');
-        throw Exception('Authentication error: Failed to get ID token');
-      }
-      final String idToken = idTokenRaw;
-      print('DEBUG: ID token received with length: ${idToken.length}');
+      // Add auth header
       request.headers['Authorization'] = 'Bearer $idToken';
 
-      // Add form fields with MongoDB IDs
-      print('DEBUG API: Adding form fields to request...');
-      request.fields['firebaseUid'] = currentUser.uid;
-      request.fields['email'] = currentUser.email ?? '';
-
-      // Add MongoDB ID if available
-      if (userProfile.containsKey('profile') &&
-          userProfile['profile'] != null &&
-          userProfile['profile'].containsKey('_id')) {
-        request.fields['donorId'] = userProfile['profile']['_id'].toString();
-        print(
-            'DEBUG API: Including donor MongoDB ID: ${userProfile['profile']['_id']}');
-      }
-
+      // Add text fields
       request.fields['foodName'] = foodName;
       request.fields['quantity'] = quantity.toString();
       request.fields['description'] = description;
@@ -474,23 +431,16 @@ class ApiService {
       request.fields['foodType'] = foodType;
       request.fields['address'] = address;
       request.fields['needsVolunteer'] = needsVolunteer.toString();
+      if (latitude != null) request.fields['latitude'] = latitude.toString();
+      if (longitude != null) request.fields['longitude'] = longitude.toString();
 
       // Add food image if provided
       if (foodImage != null) {
-        print('DEBUG API: Processing food image: ${foodImage.path}');
-        final File processedImage = await _processImage(foodImage);
-        print('DEBUG API: Image processed: ${processedImage.path}');
-
-        final fileName = processedImage.path.split('/').last;
+        print('Adding food image to request: ${foodImage.path}');
+        final fileName = foodImage.path.split('/').last;
         final extension = fileName.split('.').last.toLowerCase();
 
-        // Validate file extension
-        if (!['jpg', 'jpeg', 'png'].contains(extension)) {
-          print('DEBUG API ERROR: Invalid image format: $extension');
-          throw Exception('Only JPG, JPEG and PNG images are supported');
-        }
-
-        // Determine content type based on extension
+        // Determine content type
         String contentType;
         if (extension == 'png') {
           contentType = 'image/png';
@@ -498,255 +448,207 @@ class ApiService {
           contentType = 'image/jpeg';
         }
 
-        // Add file to request with correct content type
+        // Add file to request
         request.files.add(
           await http.MultipartFile.fromPath(
             'foodImage',
-            processedImage.path,
+            foodImage.path,
             contentType: MediaType.parse(contentType),
           ),
         );
-
-        print('DEBUG API: Added food image to request');
-        print('DEBUG API: Image content type: $contentType');
-      } else {
-        print('DEBUG API: No food image provided');
       }
 
       // Send the request
-      print('DEBUG API: Sending donation creation request...');
-      print(
-          'DEBUG API: Request contains ${request.fields.length} fields and ${request.files.length} files');
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
 
-      final response = await request.send();
-      final responseBody = await response.stream.bytesToString();
-      print('DEBUG API: Response status code: ${response.statusCode}');
-      print('DEBUG API: Donation creation response: $responseBody');
+      print(
+          'Donation creation response: ${response.statusCode} | ${response.body}');
 
       if (response.statusCode != 201) {
-        print(
-            'DEBUG API ERROR: Request failed with status ${response.statusCode}');
-
-        try {
-          final responseData = json.decode(responseBody);
-          final errorMessage =
-              responseData['error']?.toString() ?? 'Failed to create donation';
-          print('DEBUG API ERROR: $errorMessage');
-
-          // Special handling for auth errors
-          if (response.statusCode == 401 &&
-              errorMessage.contains('User not found')) {
-            throw Exception(
-                'Authentication error: Your account may need to be re-verified. Please log out and log back in.');
-          }
-
-          throw Exception(errorMessage);
-        } catch (e) {
-          if (e is Exception) rethrow;
-          throw Exception('Failed to create donation: $responseBody');
-        }
+        throw Exception('Failed to create donation: ${response.body}');
       }
 
-      print('DEBUG API: Donation created successfully!');
+      return jsonDecode(response.body);
     } catch (e) {
-      print('DEBUG API ERROR: Error in createDonation: $e');
+      print('Error creating donation: $e');
       rethrow;
     }
   }
 
-  Future<List<Map<String, dynamic>>> getLiveDonations() async {
+  // Accept a donation
+  Future<Map<String, dynamic>> acceptDonation({
+    required String donationId,
+    String? volunteerName,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('No authenticated user found');
+
     try {
-      print('DEBUG: Fetching live donations...');
-      // Use the correct route as defined in server.js
-      final response = await http.get(
-        Uri.parse('$baseUrl/donations/live'),
-        headers: await _authHeaders,
-      );
+      final idToken = await user.getIdToken();
 
-      print('DEBUG: Live donations response status: ${response.statusCode}');
-      if (response.statusCode != 200) {
-        print(
-            'DEBUG ERROR: Failed to get live donations. Status: ${response.statusCode}, Body: ${response.body}');
-        throw Exception('Failed to get live donations: ${response.body}');
-      }
+      // Define the URL endpoint
+      final String url = '$baseUrl/donations/accept/$donationId';
 
-      final List<dynamic> data = jsonDecode(response.body);
-      print('DEBUG: Fetched ${data.length} live donations');
-      return data.cast<Map<String, dynamic>>();
-    } catch (e) {
-      print('DEBUG ERROR: Exception in getLiveDonations: $e');
-      rethrow;
-    }
-  }
-
-  Future<Map<String, dynamic>> acceptDonation(String donationId,
-      {String? volunteerName}) async {
-    try {
-      print('DEBUG: Starting acceptDonation process for ID: $donationId');
-
-      // Get current user
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser == null) {
-        print('DEBUG: No authenticated user found');
-        throw Exception('No authenticated user found');
-      }
-
-      // Get fresh token
-      print('DEBUG: Getting fresh ID token...');
-      await currentUser.reload();
-      final String? idTokenRaw = await currentUser.getIdToken(true);
-      if (idTokenRaw == null) {
-        print('DEBUG ERROR: Failed to get ID token');
-        throw Exception('Authentication error: Failed to get ID token');
-      }
-      final String idToken = idTokenRaw;
-      print('DEBUG: ID token received with length: ${idToken.length}');
-
-      final Map<String, String> headers = {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $idToken',
-      };
-      print('DEBUG: Request headers prepared');
-
-      // Prepare request body
+      // Create request body
       final Map<String, dynamic> requestBody = {};
       if (volunteerName != null) {
         requestBody['volunteerName'] = volunteerName;
       }
-      print('DEBUG: Request body: $requestBody');
 
-      // Make the API call - use the direct endpoint that works with DirectRecipient
-      final String url = '$baseUrl/direct/donations/accept/$donationId';
-      print('DEBUG: Making POST request to: $url');
-
+      // Send the request
       final response = await http.post(
         Uri.parse(url),
-        headers: headers,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $idToken',
+        },
         body: jsonEncode(requestBody),
       );
 
-      print('DEBUG: Response status code: ${response.statusCode}');
-      print('DEBUG: Response body: ${response.body}');
+      print(
+          'Donation acceptance response: ${response.statusCode} | ${response.body}');
 
       if (response.statusCode != 200) {
-        print(
-            'DEBUG ERROR: Failed to accept donation. Status: ${response.statusCode}, Body: ${response.body}');
         throw Exception('Failed to accept donation: ${response.body}');
       }
 
-      print('DEBUG: Donation accepted successfully!');
       return jsonDecode(response.body);
     } catch (e) {
-      print('DEBUG ERROR: Exception in acceptDonation: $e');
+      print('Error accepting donation: $e');
       rethrow;
     }
   }
 
-  Future<void> addFeedback(String acceptedDonationId, String feedback) async {
+  // Add feedback to accepted donation
+  Future<Map<String, dynamic>> addFeedback({
+    required String acceptedDonationId,
+    required String feedback,
+  }) async {
     try {
-      print('DEBUG: Adding feedback for donation: $acceptedDonationId');
-
-      // Use direct API endpoint that works with DirectRecipient
       final response = await http.post(
-        Uri.parse('$baseUrl/direct/donations/feedback/$acceptedDonationId'),
+        Uri.parse('$baseUrl/donations/feedback/$acceptedDonationId'),
         headers: await _authHeaders,
-        body: jsonEncode({
-          'feedback': feedback,
-        }),
+        body: jsonEncode({'feedback': feedback}),
       );
 
-      print('DEBUG: Feedback response status: ${response.statusCode}');
       if (response.statusCode != 200) {
-        print(
-            'DEBUG ERROR: Failed to add feedback. Status: ${response.statusCode}, Body: ${response.body}');
         throw Exception('Failed to add feedback: ${response.body}');
       }
 
-      print('DEBUG: Feedback added successfully');
+      return jsonDecode(response.body);
     } catch (e) {
-      print('DEBUG ERROR: Exception in addFeedback: $e');
+      print('Error adding feedback: $e');
       rethrow;
     }
   }
 
-  // Volunteer Methods
+  // Volunteer accept donation opportunity
+  Future<Map<String, dynamic>> volunteerAcceptDonation({
+    required String donationId,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('No authenticated user found');
+
+    try {
+      final idToken = await user.getIdToken();
+
+      // Define the URL endpoint
+      final String url = '$baseUrl/volunteer/donations/accept/$donationId';
+
+      // Send the request
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $idToken',
+        },
+      );
+
+      print(
+          'Volunteer donation acceptance response: ${response.statusCode} | ${response.body}');
+
+      if (response.statusCode != 200) {
+        throw Exception(
+            'Failed to accept donation as volunteer: ${response.body}');
+      }
+
+      return jsonDecode(response.body);
+    } catch (e) {
+      print('Error accepting donation as volunteer: $e');
+      rethrow;
+    }
+  }
+
+  // Register volunteer
   Future<void> registerVolunteer({
-    required String name,
-    required String aadharId,
+    required String volunteerName,
+    required String aadharID,
     required String address,
     required String contact,
     String? about,
+    bool hasVehicle = false,
+    String? vehicleType,
+    String? vehicleNumber,
     double? latitude,
     double? longitude,
     File? profileImage,
+    File? drivingLicenseImage,
     Map<String, dynamic>? vehicleDetails,
   }) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('No authenticated user found');
+
     try {
-      final user = _auth.currentUser;
-      if (user == null) throw Exception('No authenticated user found');
-
-      print('=== DEBUG: Starting Volunteer Registration ===');
-      print('Firebase UID: ${user.uid}');
-      print('Firebase Email: ${user.email}');
-
       final idToken = await user.getIdToken();
-      print('Token obtained, length: ${idToken?.length}');
 
-      // Create a multipart request to handle file uploads
+      // Create multipart request
       final request = http.MultipartRequest(
         'POST',
         Uri.parse('$baseUrl/volunteer/register'),
       );
-      print('Request URL: ${request.url}');
 
-      // Add authentication headers
+      // Add auth header
       request.headers['Authorization'] = 'Bearer $idToken';
-      print('Added auth header');
 
       // Add text fields
       request.fields['firebaseUid'] = user.uid;
       request.fields['email'] = user.email ?? '';
-      request.fields['volunteerName'] = name;
-      request.fields['aadharID'] = aadharId;
+      request.fields['volunteerName'] = volunteerName;
+      request.fields['aadharID'] = aadharID;
       request.fields['volunteeraddress'] = address;
       request.fields['volunteercontact'] = contact;
       if (about != null) request.fields['volunteerabout'] = about;
+      request.fields['hasVehicle'] = hasVehicle.toString();
+
+      if (hasVehicle) {
+        if (vehicleType != null) request.fields['vehicleType'] = vehicleType;
+        if (vehicleNumber != null)
+          request.fields['vehicleNumber'] = vehicleNumber;
+      }
+
+      // Handle vehicle details from the map if provided
+      if (vehicleDetails != null) {
+        if (vehicleDetails['vehicleType'] != null) {
+          request.fields['vehicleType'] = vehicleDetails['vehicleType'];
+        }
+        if (vehicleDetails['vehicleNumber'] != null) {
+          request.fields['vehicleNumber'] = vehicleDetails['vehicleNumber'];
+        }
+        if (vehicleDetails['drivingLicenseImage'] != null &&
+            vehicleDetails['drivingLicenseImage'] is File) {
+          drivingLicenseImage = vehicleDetails['drivingLicenseImage'];
+        }
+      }
+
       if (latitude != null) request.fields['latitude'] = latitude.toString();
       if (longitude != null) request.fields['longitude'] = longitude.toString();
-      print('Added basic fields');
-
-      // Add vehicle details if provided
-      if (vehicleDetails != null) {
-        request.fields['hasVehicle'] = 'true';
-        request.fields['vehicleType'] = vehicleDetails['vehicleType'];
-        request.fields['vehicleNumber'] = vehicleDetails['vehicleNumber'];
-        print(
-            'Added vehicle fields: ${vehicleDetails['vehicleType']}, ${vehicleDetails['vehicleNumber']}');
-
-        // Add driving license image if provided
-        final drivingLicenseImage =
-            vehicleDetails['drivingLicenseImage'] as File?;
-        if (drivingLicenseImage != null) {
-          print('Adding license image: ${drivingLicenseImage.path}');
-          request.files.add(
-            await http.MultipartFile.fromPath(
-              'drivingLicenseImage',
-              drivingLicenseImage.path,
-            ),
-          );
-        }
-      } else {
-        request.fields['hasVehicle'] = 'false';
-        print('No vehicle information provided');
-      }
 
       // Add profile image if provided
       if (profileImage != null) {
-        print('Adding profile image: ${profileImage.path}');
         final fileName = profileImage.path.split('/').last;
         final extension = fileName.split('.').last.toLowerCase();
 
-        // Determine content type
         String contentType;
         if (extension == 'png') {
           contentType = 'image/png';
@@ -761,22 +663,36 @@ class ApiService {
             contentType: MediaType.parse(contentType),
           ),
         );
-      } else {
-        print('No profile image provided');
       }
 
-      print('Sending volunteer registration request...');
+      // Add driving license image if provided
+      if (drivingLicenseImage != null && hasVehicle) {
+        final fileName = drivingLicenseImage.path.split('/').last;
+        final extension = fileName.split('.').last.toLowerCase();
+
+        String contentType;
+        if (extension == 'png') {
+          contentType = 'image/png';
+        } else {
+          contentType = 'image/jpeg';
+        }
+
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'drivingLicenseImage',
+            drivingLicenseImage.path,
+            contentType: MediaType.parse(contentType),
+          ),
+        );
+      }
+
       // Send the request
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
-      print('Response status: ${response.statusCode}');
-      print('Response body: ${response.body}');
 
       if (response.statusCode != 201) {
         throw Exception('Failed to register volunteer: ${response.body}');
       }
-
-      print('=== DEBUG: Volunteer Registration Successful ===');
     } catch (e) {
       print('Error in registerVolunteer: $e');
       rethrow;
@@ -805,62 +721,6 @@ class ApiService {
       return data.cast<Map<String, dynamic>>();
     } catch (e) {
       print('DEBUG ERROR: Exception in getVolunteerOpportunities: $e');
-      rethrow;
-    }
-  }
-
-  Future<Map<String, dynamic>> volunteerAcceptDonation(
-      String donationId) async {
-    try {
-      print(
-          'DEBUG: Starting volunteer donation acceptance for ID: $donationId');
-
-      // Get current user
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser == null) {
-        print('DEBUG: No authenticated user found');
-        throw Exception('No authenticated user found');
-      }
-
-      // Get fresh token
-      print('DEBUG: Getting fresh ID token...');
-      await currentUser.reload();
-      final String? idTokenRaw = await currentUser.getIdToken(true);
-      if (idTokenRaw == null) {
-        print('DEBUG ERROR: Failed to get ID token');
-        throw Exception('Authentication error: Failed to get ID token');
-      }
-      final String idToken = idTokenRaw;
-      print('DEBUG: ID token received with length: ${idToken.length}');
-
-      final Map<String, String> headers = {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $idToken',
-      };
-      print('DEBUG: Request headers prepared');
-
-      // Make the API call
-      final String url = '$baseUrl/volunteer/donations/accept/$donationId';
-      print('DEBUG: Making POST request to: $url');
-
-      final response = await http.post(
-        Uri.parse(url),
-        headers: headers,
-      );
-
-      print('DEBUG: Response status code: ${response.statusCode}');
-      print('DEBUG: Response body: ${response.body}');
-
-      if (response.statusCode != 200) {
-        print(
-            'DEBUG ERROR: Failed to accept donation. Status: ${response.statusCode}, Body: ${response.body}');
-        throw Exception('Failed to accept donation: ${response.body}');
-      }
-
-      print('DEBUG: Donation accepted successfully by volunteer!');
-      return jsonDecode(response.body);
-    } catch (e) {
-      print('DEBUG ERROR: Exception in volunteerAcceptDonation: $e');
       rethrow;
     }
   }
@@ -915,98 +775,60 @@ class ApiService {
     }
   }
 
-  // Get recipient donation history
+  // Recipient donation history
   Future<List<Map<String, dynamic>>> getRecipientDonations() async {
     try {
-      print('DEBUG: Fetching recipient donations...');
-      // Use direct API endpoint that works with DirectRecipient
+      print('Fetching recipient donations history...');
       final response = await http.get(
-        Uri.parse('$baseUrl/direct/recipient/donations'),
+        Uri.parse('$baseUrl/recipient/donations'),
         headers: await _authHeaders,
       );
 
-      print(
-          'DEBUG: Recipient donations response status: ${response.statusCode}');
       if (response.statusCode != 200) {
-        print(
-            'DEBUG ERROR: Failed to get recipient donations. Status: ${response.statusCode}, Body: ${response.body}');
         throw Exception('Failed to get recipient donations: ${response.body}');
       }
 
       final List<dynamic> data = jsonDecode(response.body);
-      print('DEBUG: Fetched ${data.length} accepted donations');
       return data.cast<Map<String, dynamic>>();
     } catch (e) {
-      print('DEBUG ERROR: Exception in getRecipientDonations: $e');
+      print('Error fetching recipient donations: $e');
       rethrow;
     }
   }
 
-  // Get donor donations history
+  // Donor donation history
   Future<Map<String, dynamic>> getDonorDonations() async {
+    try {
+      print('Fetching donor donations history...');
+      final url = Uri.parse('${baseUrl}/donor/donations');
+
+      final response = await http.get(
+        url,
+        headers: await _authHeaders,
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to get donor donations: ${response.body}');
+      }
+
+      return jsonDecode(response.body);
+    } catch (e) {
+      print('Error fetching donor donations: $e');
+      rethrow;
+    }
+  }
+
+  // Get user profile - common API for all user types
+  Future<Map<String, dynamic>> getDirectUserProfile() async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
         throw Exception('No authenticated user found');
       }
 
-      print('Fetching donation history for donor: ${user.uid}');
-
-      final headers = await _authHeaders;
-      final url = Uri.parse('${baseUrl}/direct/donor/donations');
-
-      final response = await http.get(
-        url,
-        headers: headers,
-      );
-
-      if (response.statusCode == 200) {
-        final responseData = jsonDecode(response.body);
-
-        print('Fetched donor donation history:');
-        print('  - Active: ${responseData['active']?.length ?? 0}');
-        print('  - Accepted: ${responseData['accepted']?.length ?? 0}');
-        print('  - Expired: ${responseData['expired']?.length ?? 0}');
-        print('  - Combined: ${responseData['combined']?.length ?? 0}');
-
-        // Ensure all donation lists exist
-        if (!responseData.containsKey('active')) responseData['active'] = [];
-        if (!responseData.containsKey('accepted'))
-          responseData['accepted'] = [];
-        if (!responseData.containsKey('expired')) responseData['expired'] = [];
-        if (!responseData.containsKey('combined'))
-          responseData['combined'] = [];
-
-        return responseData;
-      } else {
-        final errorData = jsonDecode(response.body);
-        final errorMessage =
-            errorData['error'] ?? 'Failed to get donation history';
-        print('Error fetching donation history: $errorMessage');
-        throw Exception(errorMessage);
-      }
-    } catch (e) {
-      print('Error in getDonorDonations: $e');
-      rethrow;
-    }
-  }
-
-  // Get user profile data from direct collections
-  Future<Map<String, dynamic>> getDirectUserProfile() async {
-    final user = _auth.currentUser;
-    if (user == null) throw Exception('No authenticated user found');
-
-    try {
-      print('=== DEBUG: Getting Direct User Profile ===');
-      print('Current Firebase UID: ${user.uid}');
-      print('Current User Email: ${user.email}');
-
-      final idToken = await user.getIdToken();
-      print('Current ID Token: $idToken');
-
       print('Fetching direct user profile for: ${user.uid}');
       final response = await http.get(
-        Uri.parse('$baseUrl/direct/profile'),
+        Uri.parse('$baseUrl/profile'),
         headers: await _authHeaders,
       );
 
@@ -1024,9 +846,8 @@ class ApiService {
     }
   }
 
-  // Update direct donor profile
-  Future<void> updateDirectDonorProfile({
-    File? profileImage,
+  // Update donor profile
+  Future<Map<String, dynamic>> updateDirectDonorProfile({
     String? name,
     String? orgName,
     String? address,
@@ -1034,21 +855,21 @@ class ApiService {
     String? about,
     double? latitude,
     double? longitude,
+    File? profileImage,
   }) async {
     try {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser == null) {
-        throw Exception('No authenticated user found');
+      final idToken = await _auth.currentUser?.getIdToken();
+      if (idToken == null) {
+        throw Exception('Not authenticated');
       }
 
-      final String url = '$baseUrl/direct/donor/profile';
+      final String url = '$baseUrl/donor/profile';
       final request = http.MultipartRequest('PUT', Uri.parse(url));
 
-      // Add auth token to headers
-      final String? token = await currentUser.getIdToken();
-      request.headers['Authorization'] = 'Bearer $token';
+      // Add authorization header
+      request.headers['Authorization'] = 'Bearer $idToken';
 
-      // Add form fields
+      // Add text fields if provided
       if (name != null) request.fields['donorname'] = name;
       if (orgName != null) request.fields['orgName'] = orgName;
       if (address != null) request.fields['donoraddress'] = address;
@@ -1057,17 +878,11 @@ class ApiService {
       if (latitude != null) request.fields['latitude'] = latitude.toString();
       if (longitude != null) request.fields['longitude'] = longitude.toString();
 
-      // Add image if provided
+      // Add profile image if provided
       if (profileImage != null) {
-        final String fileName = profileImage.path.split('/').last;
-        final String extension = fileName.split('.').last.toLowerCase();
+        final fileName = profileImage.path.split('/').last;
+        final extension = fileName.split('.').last.toLowerCase();
 
-        // Validate file extension
-        if (!['jpg', 'jpeg', 'png'].contains(extension)) {
-          throw Exception('Only JPG, JPEG and PNG images are supported');
-        }
-
-        // Determine content type based on extension
         String contentType;
         if (extension == 'png') {
           contentType = 'image/png';
@@ -1075,7 +890,6 @@ class ApiService {
           contentType = 'image/jpeg';
         }
 
-        // Add file to request with correct content type
         request.files.add(
           await http.MultipartFile.fromPath(
             'profileImage',
@@ -1083,70 +897,62 @@ class ApiService {
             contentType: MediaType.parse(contentType),
           ),
         );
-
-        print('Adding profile image: ${profileImage.path}');
-        print('Image content type: $contentType');
       }
 
+      // Send the request
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
-      print('Profile update response: ${response.body}');
 
       if (response.statusCode != 200) {
-        final responseData = json.decode(response.body);
-        throw Exception(
-            responseData['error']?.toString() ?? 'Failed to update profile');
+        throw Exception('Failed to update donor profile: ${response.body}');
       }
+
+      return jsonDecode(response.body);
     } catch (e) {
-      print('Error in updateDirectDonorProfile: $e');
+      print('Error updating donor profile: $e');
       rethrow;
     }
   }
 
-  // Update direct recipient profile
-  Future<void> updateDirectRecipientProfile({
-    File? profileImage,
+  // Update recipient profile
+  Future<Map<String, dynamic>> updateDirectRecipientProfile({
     String? name,
     String? ngoName,
+    String? ngoId,
     String? address,
     String? contact,
     String? about,
     double? latitude,
     double? longitude,
+    File? profileImage,
   }) async {
     try {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser == null) {
-        throw Exception('No authenticated user found');
+      final idToken = await _auth.currentUser?.getIdToken();
+      if (idToken == null) {
+        throw Exception('Not authenticated');
       }
 
-      final String url = '$baseUrl/direct/recipient/profile';
+      final String url = '$baseUrl/recipient/profile';
       final request = http.MultipartRequest('PUT', Uri.parse(url));
 
-      // Add auth token to headers
-      final String? token = await currentUser.getIdToken();
-      request.headers['Authorization'] = 'Bearer $token';
+      // Add authorization header
+      request.headers['Authorization'] = 'Bearer $idToken';
 
-      // Add form fields
+      // Add text fields if provided
       if (name != null) request.fields['reciname'] = name;
       if (ngoName != null) request.fields['ngoName'] = ngoName;
+      if (ngoId != null) request.fields['ngoId'] = ngoId;
       if (address != null) request.fields['reciaddress'] = address;
       if (contact != null) request.fields['recicontact'] = contact;
       if (about != null) request.fields['reciabout'] = about;
       if (latitude != null) request.fields['latitude'] = latitude.toString();
       if (longitude != null) request.fields['longitude'] = longitude.toString();
 
-      // Add image if provided
+      // Add profile image if provided
       if (profileImage != null) {
-        final String fileName = profileImage.path.split('/').last;
-        final String extension = fileName.split('.').last.toLowerCase();
+        final fileName = profileImage.path.split('/').last;
+        final extension = fileName.split('.').last.toLowerCase();
 
-        // Validate file extension
-        if (!['jpg', 'jpeg', 'png'].contains(extension)) {
-          throw Exception('Only JPG, JPEG and PNG images are supported');
-        }
-
-        // Determine content type based on extension
         String contentType;
         if (extension == 'png') {
           contentType = 'image/png';
@@ -1154,7 +960,6 @@ class ApiService {
           contentType = 'image/jpeg';
         }
 
-        // Add file to request with correct content type
         request.files.add(
           await http.MultipartFile.fromPath(
             'profileImage',
@@ -1162,22 +967,19 @@ class ApiService {
             contentType: MediaType.parse(contentType),
           ),
         );
-
-        print('Adding profile image: ${profileImage.path}');
-        print('Image content type: $contentType');
       }
 
+      // Send the request
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
-      print('Profile update response: ${response.body}');
 
       if (response.statusCode != 200) {
-        final responseData = json.decode(response.body);
-        throw Exception(
-            responseData['error']?.toString() ?? 'Failed to update profile');
+        throw Exception('Failed to update recipient profile: ${response.body}');
       }
+
+      return jsonDecode(response.body);
     } catch (e) {
-      print('Error in updateDirectRecipientProfile: $e');
+      print('Error updating recipient profile: $e');
       rethrow;
     }
   }
@@ -1251,6 +1053,48 @@ class ApiService {
     } catch (e) {
       print('API connection failed: $e');
       return false;
+    }
+  }
+
+  // Get all live donations
+  Future<List<Map<String, dynamic>>> getLiveDonations() async {
+    try {
+      print('Fetching live donations...');
+      final response = await http.get(
+        Uri.parse('$baseUrl/donations/live'),
+        headers: await _authHeaders,
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to get live donations: ${response.body}');
+      }
+
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.cast<Map<String, dynamic>>();
+    } catch (e) {
+      print('Error fetching live donations: $e');
+      rethrow;
+    }
+  }
+
+  // Get user's donations
+  Future<List<Map<String, dynamic>>> getUserDonations() async {
+    try {
+      print('Fetching user donations...');
+      final response = await http.get(
+        Uri.parse('$baseUrl/donations/user'),
+        headers: await _authHeaders,
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to get user donations: ${response.body}');
+      }
+
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.cast<Map<String, dynamic>>();
+    } catch (e) {
+      print('Error fetching user donations: $e');
+      rethrow;
     }
   }
 }

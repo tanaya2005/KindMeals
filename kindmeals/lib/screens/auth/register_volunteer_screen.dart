@@ -72,19 +72,16 @@ class _RegisterVolunteerScreenState extends State<RegisterVolunteerScreen> {
 
         // Register volunteer details including vehicle information
         await _apiService.registerVolunteer(
-          name: _nameController.text,
-          aadharId: _aadharController.text,
+          volunteerName: _nameController.text,
+          aadharID: _aadharController.text,
           address: _addressController.text,
           contact: _contactController.text,
           about: _aboutController.text,
           profileImage: _profileImage,
-          vehicleDetails: _hasVehicle
-              ? {
-                  'vehicleType': _vehicleType,
-                  'vehicleNumber': _vehicleNumberController.text,
-                  'drivingLicenseImage': _drivingLicenseImage,
-                }
-              : null,
+          hasVehicle: _hasVehicle,
+          vehicleType: _hasVehicle ? _vehicleType : null,
+          vehicleNumber: _hasVehicle ? _vehicleNumberController.text : null,
+          drivingLicenseImage: _hasVehicle ? _drivingLicenseImage : null,
         );
 
         if (mounted) {
