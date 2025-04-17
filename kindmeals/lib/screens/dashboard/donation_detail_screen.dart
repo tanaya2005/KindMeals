@@ -43,7 +43,9 @@ class _DonationDetailScreenState extends State<DonationDetailScreen> {
         _error = null;
       });
 
-      await _apiService.acceptDonation(widget.donation['_id']);
+      await _apiService.acceptDonation(
+        donationId: widget.donation['_id'],
+      );
 
       if (mounted) {
         // Call the onDonationAccepted callback if provided

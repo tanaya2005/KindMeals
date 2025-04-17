@@ -71,8 +71,8 @@ mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('Connected to MongoDB Atlas'))
   .catch(err => console.error('MongoDB connection error:', err));
 
-// Define updated schemas with Firebase UID
-const updatedDonorSchema = new mongoose.Schema({
+// Define schemas
+const directDonorSchema = new mongoose.Schema({
   firebaseUid: { type: String, required: true, unique: true },
   email: { type: String, required: true, unique: true },
   profileImage: { type: String },
@@ -90,7 +90,7 @@ const updatedDonorSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 }, { timestamps: true });
 
-const updatedRecipientSchema = new mongoose.Schema({
+const directRecipientSchema = new mongoose.Schema({
   firebaseUid: { type: String, required: true, unique: true },
   email: { type: String, required: true, unique: true },
   profileImage: { type: String },
@@ -108,50 +108,6 @@ const updatedRecipientSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
-// Create new models with direct Firebase UID
-const DirectDonor = mongoose.model('DirectDonor', updatedDonorSchema);
-const DirectRecipient = mongoose.model('DirectRecipient', updatedRecipientSchema);
-
-// Define models
-const userSchema = new mongoose.Schema({
-  firebaseUid: { type: String, required: true, unique: true },
-  email: { type: String, required: true, unique: true },
-  role: { type: String, enum: ['donor', 'recipient', 'volunteer'], required: true },
-  profileImage: { type: String },
-  createdAt: { type: Date, default: Date.now }
-});
-
-const donorSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  donorname: { type: String, required: true },
-  orgName: { type: String, required: true },
-  identificationId: { type: String, required: true },
-  donoraddress: { type: String, required: true },
-  donorcontact: { type: String, required: true },
-  type: { type: String, required: true },
-  donorabout: { type: String },
-  donorlocation: {
-    latitude: { type: Number },
-    longitude: { type: Number }
-  }
-}, { timestamps: true });
-
-const recipientSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  reciname: { type: String, required: true },
-  ngoName: { type: String, required: true },
-  ngoId: { type: String, required: true },
-  reciaddress: { type: String, required: true },
-  recicontact: { type: String, required: true },
-  type: { type: String, required: true },
-  reciabout: { type: String },
-  recilocation: {
-    latitude: { type: Number },
-    longitude: { type: Number }
-  }
-});
-
-// Define the direct volunteer schema
 const directVolunteerSchema = new mongoose.Schema({
   firebaseUid: { type: String, required: true, unique: true },
   email: { type: String, required: true, unique: true },
@@ -176,33 +132,12 @@ const directVolunteerSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
-// Create the DirectVolunteer model
-const DirectVolunteer = mongoose.model('DirectVolunteer', directVolunteerSchema);
-
-const volunteerSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  volunteerName: { type: String, required: true },
-  aadharID: { type: String, required: true },
-  volunteeraddress: { type: String, required: true },
-  volunteercontact: { type: String, required: true },
-  volunteerabout: { type: String },
-  profileImage: { type: String },
-  rating: { type: Number, default: 0 },
-  totalRatings: { type: Number, default: 0 },
-  hasVehicle: { type: Boolean, default: false },
-  vehicleDetails: {
-    vehicleType: { type: String },
-    vehicleNumber: { type: String },
-    drivingLicenseImage: { type: String }
-  },
-  volunteerlocation: {
-    latitude: { type: Number },
-    longitude: { type: Number }
-  }
-});
-
 const liveDonationSchema = new mongoose.Schema({
-  donorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  donorId: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    required: true,
+    ref: 'DirectDonor'
+  },
   donorName: { type: String, required: true },
   foodName: { type: String, required: true },
   quantity: { type: Number, required: true },
@@ -231,9 +166,17 @@ const liveDonationSchema = new mongoose.Schema({
 
 const acceptedDonationSchema = new mongoose.Schema({
   originalDonationId: { type: mongoose.Schema.Types.ObjectId, ref: 'LiveDonation', required: true },
-  acceptedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  acceptedBy: { 
+    type: mongoose.Schema.Types.ObjectId,
+    required: true,
+    ref: 'DirectRecipient'
+  },
   recipientName: { type: String, required: true },
-  donorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  donorId: { 
+    type: mongoose.Schema.Types.ObjectId,
+    required: true,
+    ref: 'DirectDonor'
+  },
   donorName: { type: String, required: true },
   acceptedAt: { type: Date, default: Date.now },
   foodName: { type: String, required: true },
@@ -250,10 +193,9 @@ const acceptedDonationSchema = new mongoose.Schema({
   feedback: { type: String, default: '' }
 });
 
-// New schema for expired donations
 const expiredDonationSchema = new mongoose.Schema({
   originalDonationId: { type: mongoose.Schema.Types.ObjectId, ref: 'LiveDonation' },
-  donorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  donorId: { type: mongoose.Schema.Types.ObjectId, ref: 'DirectDonor', required: true },
   donorName: { type: String, required: true },
   foodName: { type: String, required: true },
   quantity: { type: Number, required: true },
@@ -277,111 +219,15 @@ const expiredDonationSchema = new mongoose.Schema({
 });
 
 // Create models
-const User = mongoose.model('User', userSchema);
-const Donor = mongoose.model('Donor', donorSchema);
-const Recipient = mongoose.model('Recipient', recipientSchema);
-const Volunteer = mongoose.model('Volunteer', volunteerSchema);
+const DirectDonor = mongoose.model('DirectDonor', directDonorSchema);
+const DirectRecipient = mongoose.model('DirectRecipient', directRecipientSchema);
+const DirectVolunteer = mongoose.model('DirectVolunteer', directVolunteerSchema);
 const LiveDonation = mongoose.model('LiveDonation', liveDonationSchema);
 const AcceptedDonation = mongoose.model('AcceptedDonation', acceptedDonationSchema);
 const ExpiredDonation = mongoose.model('ExpiredDonation', expiredDonationSchema);
 
-// Firebase admin is already initialized in firebase-admin.js
-console.log('Using Firebase Admin SDK from firebase-admin.js');
-
-// New Firebase middleware that doesn't rely on User collection
+// Firebase auth middleware
 const firebaseAuthMiddleware = async (req, res, next) => {
-  try {
-    const idToken = req.header('Authorization')?.replace('Bearer ', '');
-    if (!idToken) {
-      console.log('No authorization token provided');
-      return res.status(401).json({ error: 'No authentication token provided' });
-    }
-
-    try {
-      // Verify the ID token using our helper function
-      const decodedToken = await verifyToken(idToken);
-      const firebaseUid = decodedToken.uid;
-
-      console.log('Firebase token verified for UID:', firebaseUid);
-
-      // Add the Firebase UID to the request
-      req.firebaseUid = firebaseUid;
-      next();
-    } catch (error) {
-      console.error('Error verifying token:', error);
-      return res.status(401).json({ 
-        error: 'Authentication failed',
-        message: 'Failed to verify your authentication token. Please try logging in again.'
-      });
-    }
-  } catch (error) {
-    console.error('Error in auth middleware:', error);
-    res.status(401).json({ 
-      error: 'Not authorized',
-      message: 'You are not authorized to access this resource.'
-    });
-  }
-};
-
-// Auth Middleware - Verify Firebase token
-const authMiddleware = async (req, res, next) => {
-  try {
-    const idToken = req.header('Authorization')?.replace('Bearer ', '');
-    if (!idToken) {
-      console.log('No authorization token provided');
-      return res.status(401).json({ error: 'No authentication token provided' });
-    }
-
-    try {
-      // Verify the ID token using our helper function
-      const decodedToken = await verifyToken(idToken);
-      const firebaseUid = decodedToken.uid;
-
-      console.log('Firebase token verified for UID:', firebaseUid);
-
-      // Find the user in our database
-      const user = await User.findOne({ firebaseUid });
-      
-      if (!user) {
-        console.log('User not found in database for UID:', firebaseUid);
-        
-        // Check if the user exists in Firebase but not in MongoDB (for debugging)
-        console.log('Checking all users in MongoDB...');
-        const allUsers = await User.find({});
-        console.log('Available users in MongoDB:', allUsers.map(u => ({ 
-          _id: u._id, 
-          firebaseUid: u.firebaseUid,
-          email: u.email
-        })));
-        
-        return res.status(401).json({ 
-          error: 'User not found in database',
-          message: 'Your user account was not found in our database. Please try registering again.'
-        });
-      }
-
-      // Set the user on the request object
-      req.user = user;
-      console.log('User authenticated:', { id: user._id, role: user.role });
-      next();
-    } catch (error) {
-      console.error('Error verifying token:', error);
-      return res.status(401).json({ 
-        error: 'Authentication failed',
-        message: 'Failed to verify your authentication token. Please try logging in again.'
-      });
-    }
-  } catch (error) {
-    console.error('Error in auth middleware:', error);
-    res.status(401).json({ 
-      error: 'Not authorized',
-      message: 'You are not authorized to access this resource.'
-    });
-  }
-};
-
-// Update Firebase verification to work with direct collections
-const directFirebaseAuthMiddleware = async (req, res, next) => {
   try {
     const token = req.headers.authorization?.split('Bearer ')[1];
     if (!token) {
@@ -435,250 +281,164 @@ const directFirebaseAuthMiddleware = async (req, res, next) => {
   }
 };
 
-// Helper function to get user type and profile
-const getUserProfile = async (userId) => {
-  const user = await User.findById(userId);
-  if (!user) return null;
-
-  let profile = null;
-  
-  if (user.role === 'donor') {
-    profile = await Donor.findOne({ userId });
-  } else if (user.role === 'recipient') {
-    profile = await Recipient.findOne({ userId });
-  } else if (user.role === 'volunteer') {
-    profile = await Volunteer.findOne({ userId });
-  }
-  
-  return { user, profile };
-};
-
-// Auth Routes
-
-// User Registration (after Firebase auth)
-app.post('/api/register', async (req, res) => {
-  try {
-    const { firebaseUid, email, role } = req.body;
-    
-    console.log('Registration attempt:', { firebaseUid, email, role });
-    
-    if (!firebaseUid || !email || !role) {
-      console.log('Missing required fields:', { 
-        hasFirebaseUid: !!firebaseUid, 
-        hasEmail: !!email, 
-        hasRole: !!role 
-      });
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
-
-    // Check if user already exists
-    const existingUser = await User.findOne({ firebaseUid });
-    if (existingUser) {
-      console.log('User already exists:', existingUser);
-      return res.status(400).json({ error: 'User already exists' });
-    }
-
-    // Create new user
-    const user = new User({
-      firebaseUid,
-      email,
-      role
-    });
-
-    const savedUser = await user.save();
-    console.log('User created successfully:', savedUser);
-
-    res.status(201).json({ 
-      message: 'User created successfully',
-      user: { _id: savedUser._id, email: savedUser.email, role: savedUser.role }
-    });
-  } catch (err) {
-    console.error('Error in registration:', err);
-    res.status(400).json({ error: err.message });
-  }
-});
-
-// Delete user (for registration rollback)
-app.delete('/api/user', authMiddleware, async (req, res) => {
-  try {
-    const user = req.user;
-    
-    // Delete user's profile based on role
-    if (user.role === 'donor') {
-      await Donor.findOneAndDelete({ userId: user._id });
-    } else if (user.role === 'recipient') {
-      await Recipient.findOneAndDelete({ userId: user._id });
-    } else if (user.role === 'volunteer') {
-      await Volunteer.findOneAndDelete({ userId: user._id });
-    }
-    
-    // Delete user from Users collection
-    await User.findByIdAndDelete(user._id);
-    
-    res.status(200).json({ message: 'User deleted successfully' });
-  } catch (err) {
-    console.error('Error deleting user:', err);
-    res.status(400).json({ error: err.message });
-  }
-});
-
-// Check if user exists
-app.get('/api/user/check', authMiddleware, async (req, res) => {
-  try {
-    const user = await User.findById(req.user._id);
-    
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    res.status(200).json({ exists: true });
-  } catch (err) {
-    console.error('Error checking user:', err);
-    res.status(400).json({ error: err.message });
-  }
-});
-
-// User Profile Routes
-
+// API Routes
 // Get user profile
-app.get('/api/user/profile', authMiddleware, async (req, res) => {
+app.get('/api/profile', firebaseAuthMiddleware, async (req, res) => {
   try {
-    const profile = await getUserProfile(req.user._id);
-    if (!profile) {
-      return res.status(404).json({ error: 'Profile not found' });
+    console.log('Profile request received');
+    
+    // The firebaseAuthMiddleware already checked all collections and set userType
+    if (!req.userType) {
+      console.log('No user profile found for this Firebase user');
+      return res.status(404).json({ error: 'User profile not found' });
     }
     
-    res.status(200).json(profile);
+    console.log(`Found user in ${req.userType} collection:`, req.user._id);
+    
+    res.status(200).json({
+      userType: req.userType,
+      profile: req.user
+    });
   } catch (err) {
+    console.error('Error getting profile:', err);
     res.status(400).json({ error: err.message });
   }
 });
 
 // Complete donor registration (after signup)
-app.post('/api/donor/register', authMiddleware, upload, async (req, res) => {
+app.post('/api/donor/register', firebaseAuthMiddleware, upload, async (req, res) => {
   try {
-    console.log('Donor registration attempt for user:', req.user._id);
-    console.log('User details:', { 
-      id: req.user._id, 
-      email: req.user.email,
-      role: req.user.role,
-      firebaseUid: req.user.firebaseUid 
-    });
+    console.log('=== DEBUG: Direct Donor Registration ===');
+    console.log('Request body:', req.body);
+    console.log('Request files:', req.files);
     
-    if (req.user.role !== 'donor') {
-      console.log('User role mismatch. Expected: donor, Got:', req.user.role);
-      return res.status(403).json({ error: 'Only users with donor role can register as donors' });
+    if (!req.firebaseUid) {
+      console.log('ERROR: No Firebase UID provided in the request');
+      return res.status(401).json({ error: 'Authentication required' });
     }
 
-    // Check if donor already registered
-    const existingDonor = await Donor.findOne({ userId: req.user._id });
+    console.log('Firebase UID:', req.firebaseUid);
+    console.log('Email:', req.firebaseEmail);
+
+    // Check if donor already exists
+    const existingDonor = await DirectDonor.findOne({ firebaseUid: req.firebaseUid });
     if (existingDonor) {
-      console.log('Donor already registered:', existingDonor);
-      return res.status(400).json({ error: 'Donor already registered' });
+      console.log('Donor already exists for this user');
+      return res.status(400).json({ error: 'Donor profile already exists for this user' });
     }
 
-    // Validate required fields
-    const requiredFields = ['donorname', 'orgName', 'identificationId', 'donoraddress', 'donorcontact', 'type'];
-    const missingFields = [];
+    // Handle profile image upload
+    const profileImage = req.files && req.files['profileImage'] ? 
+      `/uploads/${req.files['profileImage'][0].filename}` : '';
     
-    for (const field of requiredFields) {
-      if (!req.body[field]) {
-        missingFields.push(field);
-      }
-    }
-    
-    if (missingFields.length > 0) {
-      console.log('Missing required fields:', missingFields);
+    console.log('Profile image:', profileImage ? 'Uploaded' : 'Not provided');
+
+    // Create and save new donor document
+    try {
+      const donor = new DirectDonor({
+        firebaseUid: req.firebaseUid,
+        email: req.body.email || req.firebaseEmail,
+        donorname: req.body.donorname,
+        orgName: req.body.orgName,
+        identificationId: req.body.identificationId,
+        donoraddress: req.body.donoraddress,
+        donorcontact: req.body.donorcontact,
+        type: req.body.type,
+        donorabout: req.body.donorabout || '',
+        profileImage,
+        donorlocation: {
+          latitude: parseFloat(req.body.latitude) || 0,
+          longitude: parseFloat(req.body.longitude) || 0
+        }
+      });
+
+      console.log('Creating donor with data:', {
+        name: donor.donorname,
+        orgName: donor.orgName,
+        identificationId: donor.identificationId
+      });
+
+      const savedDonor = await donor.save();
+      console.log('Donor saved successfully with ID:', savedDonor._id);
+      
+      res.status(201).json(savedDonor);
+    } catch (validationError) {
+      console.error('Validation error:', validationError);
       return res.status(400).json({ 
-        error: `Missing required fields: ${missingFields.join(', ')}` 
+        error: 'Validation failed',
+        details: validationError.message 
       });
     }
-    
-    console.log('All required fields present:', Object.keys(req.body));
-
-    // Handle profile image upload - safely check if files exist
-    let profileImage = '';
-    if (req.files && req.files['profileImage'] && req.files['profileImage'][0]) {
-      profileImage = `/uploads/${req.files['profileImage'][0].filename}`;
-      // Update user with profile image
-      await User.findByIdAndUpdate(req.user._id, { profileImage });
-    }
-
-    // Create donor profile
-    const donor = new Donor({
-      userId: req.user._id,
-      donorname: req.body.donorname,
-      orgName: req.body.orgName,
-      identificationId: req.body.identificationId,
-      donoraddress: req.body.donoraddress,
-      donorcontact: req.body.donorcontact,
-      type: req.body.type,
-      donorabout: req.body.donorabout || '',
-      donorlocation: {
-        latitude: req.body.latitude || 0,
-        longitude: req.body.longitude || 0
-      }
-    });
-
-    const savedDonor = await donor.save();
-    console.log('Donor registered successfully:', savedDonor);
-    res.status(201).json(savedDonor);
   } catch (err) {
     console.error('Error in donor registration:', err);
-    if (err.code === 11000) {
-      // Handle duplicate key error
-      return res.status(400).json({ 
-        error: 'A donor with this information already exists. Please check your details and try again.' 
-      });
-    }
     res.status(400).json({ error: err.message });
   }
 });
 
 // Complete recipient registration (after signup)
-app.post('/api/recipient/register', authMiddleware, upload, async (req, res) => {
+app.post('/api/recipient/register', firebaseAuthMiddleware, upload, async (req, res) => {
   try {
-    console.log('Recipient registration attempt for user:', req.user._id);
+    console.log('=== DEBUG: Direct Recipient Registration ===');
+    console.log('Request body:', req.body);
+    console.log('Request files:', req.files);
     
-    if (req.user.role !== 'recipient') {
-      console.log('User role mismatch. Expected: recipient, Got:', req.user.role);
-      return res.status(403).json({ error: 'Only users with recipient role can register as recipients' });
+    if (!req.firebaseUid) {
+      console.log('ERROR: No Firebase UID provided in the request');
+      return res.status(401).json({ error: 'Authentication required' });
     }
 
-    // Check if recipient already registered
-    const existingRecipient = await Recipient.findOne({ userId: req.user._id });
+    console.log('Firebase UID:', req.firebaseUid);
+    console.log('Email:', req.firebaseEmail);
+
+    // Check if recipient already exists
+    const existingRecipient = await DirectRecipient.findOne({ firebaseUid: req.firebaseUid });
     if (existingRecipient) {
-      console.log('Recipient already registered:', existingRecipient);
-      return res.status(400).json({ error: 'Recipient already registered' });
+      console.log('Recipient already exists for this user');
+      return res.status(400).json({ error: 'Recipient profile already exists for this user' });
     }
 
-    // Handle profile image upload - safely check if files exist
-    let profileImage = '';
-    if (req.files && req.files['profileImage'] && req.files['profileImage'][0]) {
-      profileImage = `/uploads/${req.files['profileImage'][0].filename}`;
-      // Update user with profile image
-      await User.findByIdAndUpdate(req.user._id, { profileImage });
+    // Handle profile image upload
+    const profileImage = req.files && req.files['profileImage'] ? 
+      `/uploads/${req.files['profileImage'][0].filename}` : '';
+    
+    console.log('Profile image:', profileImage ? 'Uploaded' : 'Not provided');
+
+    // Create and save new recipient document
+    try {
+      const recipient = new DirectRecipient({
+        firebaseUid: req.firebaseUid,
+        email: req.body.email || req.firebaseEmail,
+        reciname: req.body.reciname,
+        ngoName: req.body.ngoName,
+        ngoId: req.body.ngoId,
+        reciaddress: req.body.reciaddress,
+        recicontact: req.body.recicontact,
+        type: req.body.type,
+        reciabout: req.body.reciabout || '',
+        profileImage,
+        recilocation: {
+          latitude: parseFloat(req.body.latitude) || 0,
+          longitude: parseFloat(req.body.longitude) || 0
+        }
+      });
+
+      console.log('Creating recipient with data:', {
+        name: recipient.reciname,
+        ngoName: recipient.ngoName,
+        ngoId: recipient.ngoId
+      });
+
+      const savedRecipient = await recipient.save();
+      console.log('Recipient saved successfully with ID:', savedRecipient._id);
+      
+      res.status(201).json(savedRecipient);
+    } catch (validationError) {
+      console.error('Validation error:', validationError);
+      return res.status(400).json({ 
+        error: 'Validation failed',
+        details: validationError.message 
+      });
     }
-
-    // Create recipient profile
-    const recipient = new Recipient({
-      userId: req.user._id,
-      reciname: req.body.reciname,
-      ngoName: req.body.ngoName,
-      ngoId: req.body.ngoId,
-      reciaddress: req.body.reciaddress,
-      recicontact: req.body.recicontact,
-      type: req.body.type,
-      reciabout: req.body.reciabout || '',
-      recilocation: {
-        latitude: req.body.latitude || 0,
-        longitude: req.body.longitude || 0
-      }
-    });
-
-    const savedRecipient = await recipient.save();
-    console.log('Recipient registered successfully:', savedRecipient);
-    res.status(201).json(savedRecipient);
   } catch (err) {
     console.error('Error in recipient registration:', err);
     res.status(400).json({ error: err.message });
@@ -686,7 +446,7 @@ app.post('/api/recipient/register', authMiddleware, upload, async (req, res) => 
 });
 
 // Complete volunteer registration (after signup)
-app.post('/api/volunteer/register', directFirebaseAuthMiddleware, upload, async (req, res) => {
+app.post('/api/volunteer/register', firebaseAuthMiddleware, upload, async (req, res) => {
   try {
     console.log('=== DEBUG: Direct Volunteer Registration ===');
     console.log('Request headers:', req.headers);
@@ -771,21 +531,30 @@ app.post('/api/volunteer/register', directFirebaseAuthMiddleware, upload, async 
 
 // Donation Management Routes
 
-// Create a new live donation (with food image upload)
-app.post('/api/donations/create', authMiddleware, upload, async (req, res) => {
+// Create a new donation
+app.post('/api/donations/create', firebaseAuthMiddleware, upload, async (req, res) => {
   try {
+    console.log('=== DEBUG: Donation Creation ===');
+    console.log('Request body:', req.body);
+    console.log('Request files:', req.files);
+    
     // Check if user is a donor
-    const donor = await Donor.findOne({ userId: req.user._id });
-    if (!donor) {
+    if (req.userType !== 'donor') {
+      console.log('User is not a donor:', req.userType);
       return res.status(403).json({ error: 'Only registered donors can create donations' });
     }
 
+    const donor = req.user;
+    console.log('User authenticated as donor:', donor._id);
+
     // Handle food image upload
-    const foodImage = req.files['foodImage'] ? 
+    const foodImage = req.files && req.files['foodImage'] ? 
       `/uploads/${req.files['foodImage'][0].filename}` : '';
+    
+    console.log('Food image:', foodImage ? 'Uploaded' : 'Not provided');
 
     const newDonation = new LiveDonation({
-      donorId: req.user._id,
+      donorId: donor._id,
       donorName: donor.donorname,
       foodName: req.body.foodName,
       quantity: req.body.quantity,
@@ -799,12 +568,21 @@ app.post('/api/donations/create', authMiddleware, upload, async (req, res) => {
         latitude: req.body.latitude || donor.donorlocation.latitude,
         longitude: req.body.longitude || donor.donorlocation.longitude
       },
-      needsVolunteer: req.body.needsVolunteer || false
+      needsVolunteer: req.body.needsVolunteer === 'true'
+    });
+
+    console.log('Creating donation with data:', {
+      foodName: newDonation.foodName,
+      quantity: newDonation.quantity,
+      expiryDateTime: newDonation.expiryDateTime
     });
 
     const savedDonation = await newDonation.save();
+    console.log('Donation saved successfully with ID:', savedDonation._id);
+    
     res.status(201).json(savedDonation);
   } catch (err) {
+    console.error('Error in donation creation:', err);
     res.status(400).json({ error: err.message });
   }
 });
@@ -827,30 +605,40 @@ app.get('/api/donations/live', async (req, res) => {
 });
 
 // Accept a donation
-app.post('/api/donations/accept/:donationId', authMiddleware, async (req, res) => {
+app.post('/api/donations/accept/:donationId', firebaseAuthMiddleware, async (req, res) => {
   try {
+    console.log('=== DEBUG: Donation Acceptance ===');
+    console.log('Request body:', req.body);
+    console.log('Donation ID:', req.params.donationId);
+    
     // Check if user is a recipient
-    const recipient = await Recipient.findOne({ userId: req.user._id });
-    if (!recipient) {
+    if (req.userType !== 'recipient') {
+      console.log('User is not a recipient:', req.userType);
       return res.status(403).json({ error: 'Only registered recipients can accept donations' });
     }
 
+    const recipient = req.user;
+    console.log('User authenticated as recipient:', recipient._id);
+
     const donation = await LiveDonation.findById(req.params.donationId);
     if (!donation) {
+      console.log('Donation not found with ID:', req.params.donationId);
       return res.status(404).json({ error: 'Donation not found' });
     }
 
     // Check if donation has expired
     if (new Date(donation.expiryDateTime) < new Date()) {
+      console.log('Donation has expired:', donation.expiryDateTime);
       return res.status(400).json({ error: 'This donation has expired' });
     }
 
     let volunteerInfo = req.body.volunteerName || "Self-pickup";
+    console.log('Volunteer info:', volunteerInfo);
 
     // Create accepted donation record
     const acceptedDonation = new AcceptedDonation({
       originalDonationId: donation._id,
-      acceptedBy: req.user._id,
+      acceptedBy: recipient._id,
       recipientName: recipient.reciname,
       donorId: donation.donorId,
       donorName: donation.donorName,
@@ -866,98 +654,66 @@ app.post('/api/donations/accept/:donationId', authMiddleware, async (req, res) =
     });
 
     const savedAcceptedDonation = await acceptedDonation.save();
+    console.log('Accepted donation saved with ID:', savedAcceptedDonation._id);
     
     // Remove from live donations
     await LiveDonation.findByIdAndDelete(req.params.donationId);
+    console.log('Removed from live donations:', req.params.donationId);
     
     res.status(200).json(savedAcceptedDonation);
   } catch (err) {
+    console.error('Error in donation acceptance:', err);
     res.status(400).json({ error: err.message });
   }
 });
 
 // Add feedback to an accepted donation
-app.post('/api/donations/feedback/:acceptedDonationId', authMiddleware, async (req, res) => {
+app.post('/api/donations/feedback/:acceptedDonationId', firebaseAuthMiddleware, async (req, res) => {
   try {
+    console.log('=== DEBUG: Feedback Addition ===');
+    console.log('Request body:', req.body);
+    console.log('Accepted Donation ID:', req.params.acceptedDonationId);
+    
+    // Check if user is a recipient
+    if (req.userType !== 'recipient') {
+      console.log('User is not a recipient:', req.userType);
+      return res.status(403).json({ error: 'Only registered recipients can add feedback' });
+    }
+
+    const recipient = req.user;
+    console.log('User authenticated as recipient:', recipient._id);
+
     const acceptedDonation = await AcceptedDonation.findById(req.params.acceptedDonationId);
     if (!acceptedDonation) {
+      console.log('Accepted donation not found with ID:', req.params.acceptedDonationId);
       return res.status(404).json({ error: 'Accepted donation not found' });
     }
     
-    // Verify the user is the recipient who accepted this donation
-    if (!acceptedDonation.acceptedBy.equals(req.user._id)) {
+    // Check if the user is the recipient who accepted this donation
+    if (acceptedDonation.acceptedBy.toString() !== recipient._id.toString()) {
+      console.log('User is not authorized to provide feedback for this donation');
+      console.log('Accepted by:', acceptedDonation.acceptedBy);
+      console.log('Recipient ID:', recipient._id);
       return res.status(403).json({ error: 'You can only provide feedback for donations you accepted' });
     }
 
     // Update the feedback
     acceptedDonation.feedback = req.body.feedback;
     const updatedDonation = await acceptedDonation.save();
+    console.log('Updated donation with feedback');
     
     res.status(200).json(updatedDonation);
   } catch (err) {
+    console.error('Error adding feedback:', err);
     res.status(400).json({ error: err.message });
   }
 });
 
 // Clean up expired donations and move them to ExpiredDonations
-app.delete('/api/donations/cleanup', async (req, res) => {
-  try {
-    const currentTime = new Date();
-    console.log('Running expired donations cleanup at:', currentTime);
-    
-    // Find all expired donations
-    const expiredDonations = await LiveDonation.find({
-      expiryDateTime: { $lt: currentTime }
-    });
-    
-    console.log(`Found ${expiredDonations.length} expired donations`);
-    
-    // Move each expired donation to ExpiredDonations collection
-    let movedCount = 0;
-    for (const donation of expiredDonations) {
-      try {
-        // Create expired donation record
-        const expiredDonation = new ExpiredDonation({
-          originalDonationId: donation._id,
-          donorId: donation.donorId,
-          donorName: donation.donorName,
-          foodName: donation.foodName,
-          quantity: donation.quantity,
-          description: donation.description,
-          expiryDateTime: donation.expiryDateTime,
-          timeOfUpload: donation.timeOfUpload,
-          expiredAt: currentTime,
-          foodType: donation.foodType,
-          imageUrl: donation.imageUrl,
-          location: donation.location,
-          needsVolunteer: donation.needsVolunteer,
-          status: 'Expired'
-        });
-        
-        await expiredDonation.save();
-        
-        // Delete from live donations
-        await LiveDonation.findByIdAndDelete(donation._id);
-        movedCount++;
-      } catch (err) {
-        console.error('Error moving expired donation:', err);
-      }
-    }
-    
-    res.status(200).json({ 
-      message: `Processed ${expiredDonations.length} expired donations, successfully moved ${movedCount} to ExpiredDonations` 
-    });
-  } catch (err) {
-    console.error('Error in cleanup process:', err);
-    res.status(400).json({ error: err.message });
-  }
-});
-
-// Scheduled job to automatically clean up expired donations
 const runExpiredDonationsCleanup = async () => {
   try {
     const currentTime = new Date();
-    console.log('Running scheduled expired donations cleanup at:', currentTime);
+    console.log('Running expired donations cleanup at:', currentTime);
     
     // Find all expired donations
     const expiredDonations = await LiveDonation.find({
@@ -1009,215 +765,78 @@ setInterval(runExpiredDonationsCleanup, 60 * 60 * 1000);
 // Also run it once at server startup
 setTimeout(runExpiredDonationsCleanup, 5000);
 
-// Update donor profile (with optional profile image upload)
-app.put('/api/donor/profile', authMiddleware, upload, async (req, res) => {
+// Manual trigger for expired donations cleanup
+app.post('/api/donations/cleanup', async (req, res) => {
   try {
-    const donor = await Donor.findOne({ userId: req.user._id });
-    if (!donor) {
-      return res.status(404).json({ error: 'Donor not found' });
-    }
-    
-    // Handle profile image upload if provided
-    if (req.files['profileImage']) {
-      const profileImage = `/uploads/${req.files['profileImage'][0].filename}`;
-      await User.findByIdAndUpdate(req.user._id, { profileImage });
-    }
-
-    const updatedDonor = await Donor.findOneAndUpdate(
-      { userId: req.user._id },
-      {
-        donorname: req.body.donorname || donor.donorname,
-        orgName: req.body.orgName || donor.orgName,
-        donoraddress: req.body.donoraddress || donor.donoraddress,
-        donorcontact: req.body.donorcontact || donor.donorcontact,
-        donorabout: req.body.donorabout || donor.donorabout,
-        donorlocation: {
-          latitude: req.body.latitude || donor.donorlocation.latitude,
-          longitude: req.body.longitude || donor.donorlocation.longitude
-        }
-      },
-      { new: true }
-    );
-    
-    res.status(200).json(updatedDonor);
+    await runExpiredDonationsCleanup();
+    res.status(200).json({ message: 'Expired donations cleanup completed' });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
 });
 
-// Get donor donation history
-app.get('/api/donor/donations', authMiddleware, async (req, res) => {
+// Volunteer accept donation opportunity
+app.post('/api/volunteer/donations/accept/:donationId', firebaseAuthMiddleware, async (req, res) => {
   try {
-    const donor = await Donor.findOne({ userId: req.user._id });
-    if (!donor) {
-      return res.status(404).json({ error: 'Donor not found' });
-    }
+    console.log('=== DEBUG: Volunteer Donation Acceptance ===');
+    console.log('Request headers:', req.headers);
+    console.log('Request body:', req.body);
+    console.log('Donation ID:', req.params.donationId);
     
-    // Get live donations by this donor
-    const liveDonations = await LiveDonation.find({ donorId: req.user._id });
-    
-    // Get accepted donations that were originally created by this donor
-    const acceptedDonations = await AcceptedDonation.find({ donorId: req.user._id })
-      .sort({ acceptedAt: -1 });
-      
-    // Add status field to each accepted donation
-    const acceptedDonationsWithStatus = acceptedDonations.map(donation => {
-      const donationObj = donation.toObject();
-      donationObj.status = 'Accepted';
-      return donationObj;
-    });
-    
-    // Get expired donations by this donor
-    const expiredDonations = await ExpiredDonation.find({ donorId: req.user._id })
-      .sort({ expiredAt: -1 });
-    
-    // Combine all donations into one response
-    const allDonations = {
-      active: liveDonations,
-      accepted: acceptedDonationsWithStatus,
-      expired: expiredDonations,
-      // Also provide a combined list for easier rendering in a single timeline
-      combined: [
-        ...liveDonations,
-        ...acceptedDonationsWithStatus,
-        ...expiredDonations
-      ].sort((a, b) => {
-        // Sort by creation time descending (newest first)
-        const dateA = a.timeOfUpload || a.expiredAt || a.acceptedAt;
-        const dateB = b.timeOfUpload || b.expiredAt || b.acceptedAt;
-        return new Date(dateB) - new Date(dateA);
-      })
-    };
-    
-    console.log('Active donations:', liveDonations.length);
-    console.log('Accepted donations:', acceptedDonations.length);
-    console.log('Expired donations:', expiredDonations.length);
-    
-    res.status(200).json(allDonations);
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-});
-
-// Update recipient profile (with optional profile image upload)
-app.put('/api/recipient/profile', authMiddleware, upload, async (req, res) => {
-  try {
-    const recipient = await Recipient.findOne({ userId: req.user._id });
-    if (!recipient) {
-      return res.status(404).json({ error: 'Recipient not found' });
-    }
-    
-    // Handle profile image upload if provided
-    if (req.files['profileImage']) {
-      const profileImage = `/uploads/${req.files['profileImage'][0].filename}`;
-      await User.findByIdAndUpdate(req.user._id, { profileImage });
-    }
-
-    const updatedRecipient = await Recipient.findOneAndUpdate(
-      { userId: req.user._id },
-      {
-        reciname: req.body.reciname || recipient.reciname,
-        ngoName: req.body.ngoName || recipient.ngoName,
-        reciaddress: req.body.reciaddress || recipient.reciaddress,
-        recicontact: req.body.recicontact || recipient.recicontact,
-        reciabout: req.body.reciabout || recipient.reciabout,
-        recilocation: {
-          latitude: req.body.latitude || recipient.recilocation.latitude,
-          longitude: req.body.longitude || recipient.recilocation.longitude
-        }
-      },
-      { new: true }
-    );
-    
-    res.status(200).json(updatedRecipient);
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-});
-
-// Get recipient donation history
-app.get('/api/recipient/donations', authMiddleware, async (req, res) => {
-  try {
-    const recipient = await Recipient.findOne({ userId: req.user._id });
-    if (!recipient) {
-      return res.status(404).json({ error: 'Recipient not found' });
-    }
-    
-    // Get accepted donations by this recipient
-    const acceptedDonations = await AcceptedDonation.find({ acceptedBy: req.user._id });
-    
-    res.status(200).json(acceptedDonations);
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-});
-
-// Update volunteer profile (with optional profile image upload)
-app.put('/api/volunteer/profile', authMiddleware, upload, async (req, res) => {
-  try {
-    const volunteer = await Volunteer.findOne({ userId: req.user._id });
-    if (!volunteer) {
-      return res.status(404).json({ error: 'Volunteer not found' });
-    }
-    
-    // Handle profile image upload if provided
-    if (req.files['profileImage']) {
-      const profileImage = `/uploads/${req.files['profileImage'][0].filename}`;
-      await User.findByIdAndUpdate(req.user._id, { profileImage });
-    }
-
-    const updatedVolunteer = await Volunteer.findOneAndUpdate(
-      { userId: req.user._id },
-      {
-        volunteerName: req.body.volunteerName || volunteer.volunteerName,
-        volunteeraddress: req.body.volunteeraddress || volunteer.volunteeraddress,
-        volunteercontact: req.body.volunteercontact || volunteer.volunteercontact,
-        volunteerabout: req.body.volunteerabout || volunteer.volunteerabout,
-        volunteerlocation: {
-          latitude: req.body.latitude || volunteer.volunteerlocation.latitude,
-          longitude: req.body.longitude || volunteer.volunteerlocation.longitude
-        }
-      },
-      { new: true }
-    );
-    
-    res.status(200).json(updatedVolunteer);
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-});
-
-// Get volunteer donation history
-app.get('/api/volunteer/donations/history', directFirebaseAuthMiddleware, async (req, res) => {
-  try {
-    console.log('Volunteer history request received');
-    
-    // Ensure the user is a volunteer
+    // Check if user is a volunteer
     if (req.userType !== 'volunteer') {
       console.log('User is not a volunteer:', req.userType);
-      return res.status(403).json({ error: 'Only registered volunteers can access their history' });
+      return res.status(403).json({ error: 'Only registered volunteers can accept donations' });
     }
 
-    // Extract the volunteer data from req.user
     const volunteer = req.user;
     console.log('User authenticated as volunteer:', volunteer._id);
+
+    const donation = await LiveDonation.findById(req.params.donationId);
+    if (!donation) {
+      console.log('Donation not found with ID:', req.params.donationId);
+      return res.status(404).json({ error: 'Donation not found' });
+    }
+
+    // Check if donation has expired
+    if (new Date(donation.expiryDateTime) < new Date()) {
+      console.log('Donation has expired:', donation.expiryDateTime);
+      return res.status(400).json({ error: 'This donation has expired' });
+    }
     
-    // Find all accepted donations where this volunteer was involved
-    const acceptedDonations = await AcceptedDonation.find({ 
-      deliveredby: volunteer.volunteerName 
-    }).sort({ acceptedAt: -1 });
+    // Check if donation needs a volunteer
+    if (!donation.needsVolunteer) {
+      console.log('Donation does not need a volunteer');
+      return res.status(400).json({ error: 'This donation does not need volunteer assistance' });
+    }
+
+    // Check if the donation already has a volunteer assigned
+    if (donation.volunteerInfo && donation.volunteerInfo.volunteerId) {
+      console.log('Donation already has a volunteer assigned');
+      return res.status(400).json({ error: 'This donation already has a volunteer assigned' });
+    }
+
+    // Update the donation with volunteer info
+    donation.volunteerInfo = {
+      volunteerId: volunteer._id,
+      volunteerName: volunteer.volunteerName,
+      volunteerContact: volunteer.volunteercontact,
+      assignedAt: new Date()
+    };
+
+    // Save the updated donation
+    const updatedDonation = await donation.save();
+    console.log('Donation updated with volunteer assignment');
     
-    console.log(`Found ${acceptedDonations.length} donations delivered by this volunteer`);
-    
-    res.status(200).json(acceptedDonations);
+    res.status(200).json(updatedDonation);
   } catch (err) {
-    console.error('Error getting volunteer donation history:', err);
+    console.error('Error in volunteer donation acceptance:', err);
     res.status(400).json({ error: err.message });
   }
 });
 
-// Get volunteer delivery opportunities
-app.get('/api/volunteer/opportunities', directFirebaseAuthMiddleware, async (req, res) => {
+// Get volunteer opportunities
+app.get('/api/volunteer/opportunities', firebaseAuthMiddleware, async (req, res) => {
   try {
     console.log('Volunteer opportunities request received');
     
@@ -1254,25 +873,120 @@ app.get('/api/volunteer/opportunities', directFirebaseAuthMiddleware, async (req
   }
 });
 
-// Get user profile from direct collections
-app.get('/api/direct/profile', directFirebaseAuthMiddleware, async (req, res) => {
+// Get volunteer donation history
+app.get('/api/volunteer/donations/history', firebaseAuthMiddleware, async (req, res) => {
   try {
-    console.log('Direct profile request received');
+    console.log('Volunteer history request received');
     
-    // The directFirebaseAuthMiddleware already checked all collections and set userType
-    if (!req.userType) {
-      console.log('No user profile found for this Firebase user');
-      return res.status(404).json({ error: 'User profile not found' });
+    // Ensure the user is a volunteer
+    if (req.userType !== 'volunteer') {
+      console.log('User is not a volunteer:', req.userType);
+      return res.status(403).json({ error: 'Only registered volunteers can access their history' });
     }
+
+    // Extract the volunteer data from req.user
+    const volunteer = req.user;
+    console.log('User authenticated as volunteer:', volunteer._id);
     
-    console.log(`Found user in ${req.userType} collection:`, req.user._id);
+    // Find all accepted donations where this volunteer was involved
+    const acceptedDonations = await AcceptedDonation.find({ 
+      deliveredby: volunteer.volunteerName 
+    }).sort({ acceptedAt: -1 });
     
-    res.status(200).json({
-      userType: req.userType,
-      profile: req.user
-    });
+    console.log(`Found ${acceptedDonations.length} donations delivered by this volunteer`);
+    
+    res.status(200).json(acceptedDonations);
   } catch (err) {
-    console.error('Error getting direct profile:', err);
+    console.error('Error getting volunteer donation history:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Get donor donation history
+app.get('/api/donor/donations', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    console.log('=== DEBUG: Donor Donations History ===');
+    console.log('Request headers:', req.headers);
+    
+    // Check if user is a donor
+    if (req.userType !== 'donor') {
+      console.log('User is not a donor:', req.userType);
+      return res.status(403).json({ error: 'Only registered donors can view their donations' });
+    }
+
+    const donor = req.user;
+    console.log('User authenticated as donor:', donor._id);
+    
+    // Get live donations by this donor
+    const liveDonations = await LiveDonation.find({ donorId: donor._id });
+    console.log(`Found ${liveDonations.length} active donations for donor`);
+    
+    // Get accepted donations that were originally created by this donor
+    const acceptedDonations = await AcceptedDonation.find({ donorId: donor._id })
+      .sort({ acceptedAt: -1 });
+    console.log(`Found ${acceptedDonations.length} accepted donations for donor`);
+      
+    // Add status field to each accepted donation
+    const acceptedDonationsWithStatus = acceptedDonations.map(donation => {
+      const donationObj = donation.toObject();
+      donationObj.status = 'Accepted';
+      return donationObj;
+    });
+    
+    // Get expired donations by this donor
+    const expiredDonations = await ExpiredDonation.find({ donorId: donor._id })
+      .sort({ expiredAt: -1 });
+    console.log(`Found ${expiredDonations.length} expired donations for donor`);
+    
+    // Combine all donations into one response
+    const allDonations = {
+      active: liveDonations,
+      accepted: acceptedDonationsWithStatus,
+      expired: expiredDonations,
+      // Also provide a combined list for easier rendering in a single timeline
+      combined: [
+        ...liveDonations,
+        ...acceptedDonationsWithStatus,
+        ...expiredDonations
+      ].sort((a, b) => {
+        // Sort by creation time descending (newest first)
+        const dateA = a.timeOfUpload || a.expiredAt || a.acceptedAt;
+        const dateB = b.timeOfUpload || b.expiredAt || b.acceptedAt;
+        return new Date(dateB) - new Date(dateA);
+      })
+    };
+    
+    res.status(200).json(allDonations);
+  } catch (err) {
+    console.error('Error getting direct donor donations:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Get recipient donation history
+app.get('/api/recipient/donations', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    console.log('=== DEBUG: Recipient Donations History ===');
+    console.log('Request headers:', req.headers);
+    
+    // Check if user is a recipient
+    if (req.userType !== 'recipient') {
+      console.log('User is not a recipient:', req.userType);
+      return res.status(403).json({ error: 'Only registered recipients can view their accepted donations' });
+    }
+
+    const recipient = req.user;
+    console.log('User authenticated as recipient:', recipient._id);
+    
+    // Get accepted donations by this recipient
+    const acceptedDonations = await AcceptedDonation.find({ acceptedBy: recipient._id })
+      .sort({ acceptedAt: -1 });
+    
+    console.log(`Found ${acceptedDonations.length} accepted donations for recipient`);
+    
+    res.status(200).json(acceptedDonations);
+  } catch (err) {
+    console.error('Error getting recipient donations:', err);
     res.status(400).json({ error: err.message });
   }
 });

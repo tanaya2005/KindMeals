@@ -62,7 +62,7 @@ class _VolunteerHomeScreenState extends State<VolunteerHomeScreen> {
         setState(() {
           _deliveryOpportunities = [
             {
-              'id': '1',
+              '_id': '1',
               'donorName': 'Restaurant A',
               'foodName': 'Mixed Indian Food',
               'quantity': 5,
@@ -77,7 +77,7 @@ class _VolunteerHomeScreenState extends State<VolunteerHomeScreen> {
                   .toIso8601String(),
             },
             {
-              'id': '2',
+              '_id': '2',
               'donorName': 'Hotel C',
               'foodName': 'Continental Breakfast',
               'quantity': 8,
@@ -124,9 +124,8 @@ class _VolunteerHomeScreenState extends State<VolunteerHomeScreen> {
       });
 
       // Call API to accept donation delivery
-      await _apiService.acceptDonation(
-        donationId,
-        volunteerName: _volunteerProfile['name'],
+      await _apiService.volunteerAcceptDonation(
+        donationId: donationId,
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -538,7 +537,7 @@ class _VolunteerHomeScreenState extends State<VolunteerHomeScreen> {
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed: () =>
-                        _acceptDeliveryOpportunity(opportunity['id']),
+                        _acceptDeliveryOpportunity(opportunity['_id']),
                     icon: const Icon(Icons.delivery_dining),
                     label: const Text('ACCEPT DELIVERY'),
                     style: ElevatedButton.styleFrom(
