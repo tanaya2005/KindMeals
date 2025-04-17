@@ -130,8 +130,10 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
       });
 
       print('Accepting donation $donationId');
-      final acceptedDonation =
-          await _apiService.acceptDonation(donationId: donationId);
+      final acceptedDonation = await _apiService.acceptDonation(
+        donationId: donationId,
+        needsVolunteer: _showNeedsVolunteer,
+      );
       print('Donation accepted with ID: ${acceptedDonation['_id']}');
 
       if (mounted) {

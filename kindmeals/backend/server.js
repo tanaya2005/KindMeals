@@ -7,6 +7,15 @@ const { admin, verifyToken } = require('./firebase-admin');
 require('dotenv').config();
 const fs = require('fs');
 
+// Import models
+// const User = require('./models/User'); // This model doesn't exist
+const LiveDonation = require('./models/LiveDonation');
+const AcceptedDonation = require('./models/AcceptedDonation');
+const DirectDonor = require('./models/DirectDonor');
+const DirectRecipient = require('./models/DirectRecipient');
+const DirectVolunteer = require('./models/DirectVolunteer');
+// const FinalDonation = require('./models/FinalDonation'); // Check if this model exists
+
 // Initialize Express app
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -66,165 +75,26 @@ const upload = multer({
   { name: 'drivingLicenseImage', maxCount: 1 }
 ]);
 
+// Add a basic health check endpoint at root path
+app.get('/', (req, res) => {
+  console.log('Health check requested');
+  res.status(200).json({ status: 'ok', message: 'Server is running' });
+});
+
+// Add an API health check endpoint
+app.get('/api/health', (req, res) => {
+  console.log('API health check requested');
+  res.status(200).json({ 
+    status: 'ok', 
+    message: 'API server is running', 
+    timestamp: new Date().toISOString() 
+  });
+});
+
 // MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('Connected to MongoDB Atlas'))
   .catch(err => console.error('MongoDB connection error:', err));
-
-// Define schemas
-const directDonorSchema = new mongoose.Schema({
-  firebaseUid: { type: String, required: true, unique: true },
-  email: { type: String, required: true, unique: true },
-  profileImage: { type: String },
-  donorname: { type: String, required: true },
-  orgName: { type: String, required: true },
-  identificationId: { type: String, required: true },
-  donoraddress: { type: String, required: true },
-  donorcontact: { type: String, required: true },
-  type: { type: String, required: true },
-  donorabout: { type: String },
-  donorlocation: {
-    latitude: { type: Number },
-    longitude: { type: Number }
-  },
-  createdAt: { type: Date, default: Date.now }
-}, { timestamps: true });
-
-const directRecipientSchema = new mongoose.Schema({
-  firebaseUid: { type: String, required: true, unique: true },
-  email: { type: String, required: true, unique: true },
-  profileImage: { type: String },
-  reciname: { type: String, required: true },
-  ngoName: { type: String, required: true },
-  ngoId: { type: String, required: true },
-  reciaddress: { type: String, required: true },
-  recicontact: { type: String, required: true },
-  type: { type: String, required: true },
-  reciabout: { type: String },
-  recilocation: {
-    latitude: { type: Number },
-    longitude: { type: Number }
-  },
-  createdAt: { type: Date, default: Date.now }
-});
-
-const directVolunteerSchema = new mongoose.Schema({
-  firebaseUid: { type: String, required: true, unique: true },
-  email: { type: String, required: true, unique: true },
-  profileImage: { type: String },
-  volunteerName: { type: String, required: true },
-  aadharID: { type: String, required: true },
-  volunteeraddress: { type: String, required: true },
-  volunteercontact: { type: String, required: true },
-  volunteerabout: { type: String },
-  rating: { type: Number, default: 0 },
-  totalRatings: { type: Number, default: 0 },
-  hasVehicle: { type: Boolean, default: false },
-  vehicleDetails: {
-    vehicleType: { type: String },
-    vehicleNumber: { type: String },
-    drivingLicenseImage: { type: String }
-  },
-  volunteerlocation: {
-    latitude: { type: Number },
-    longitude: { type: Number }
-  },
-  createdAt: { type: Date, default: Date.now }
-});
-
-const liveDonationSchema = new mongoose.Schema({
-  donorId: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    required: true,
-    ref: 'DirectDonor'
-  },
-  donorName: { type: String, required: true },
-  foodName: { type: String, required: true },
-  quantity: { type: Number, required: true },
-  description: { type: String, required: true },
-  expiryDateTime: { type: Date, required: true },
-  timeOfUpload: { type: Date, default: Date.now },
-  foodType: {
-    type: String,
-    enum: ['veg', 'nonveg', 'jain'],
-    required: true,
-  },
-  imageUrl: String,
-  location: {
-    address: { type: String, required: true },
-    latitude: Number,
-    longitude: Number,
-  },
-  needsVolunteer: { type: Boolean, default: false },
-  volunteerInfo: {
-    volunteerId: { type: mongoose.Schema.Types.ObjectId, ref: 'DirectVolunteer' },
-    volunteerName: { type: String },
-    volunteerContact: { type: String },
-    assignedAt: { type: Date }
-  }
-});
-
-const acceptedDonationSchema = new mongoose.Schema({
-  originalDonationId: { type: mongoose.Schema.Types.ObjectId, ref: 'LiveDonation', required: true },
-  acceptedBy: { 
-    type: mongoose.Schema.Types.ObjectId,
-    required: true,
-    ref: 'DirectRecipient'
-  },
-  recipientName: { type: String, required: true },
-  donorId: { 
-    type: mongoose.Schema.Types.ObjectId,
-    required: true,
-    ref: 'DirectDonor'
-  },
-  donorName: { type: String, required: true },
-  acceptedAt: { type: Date, default: Date.now },
-  foodName: { type: String, required: true },
-  quantity: { type: Number, required: true },
-  description: { type: String, required: true },
-  expiryDateTime: { type: Date, required: true },
-  timeOfUpload: { type: Date },
-  foodType: {
-    type: String,
-    enum: ['veg', 'nonveg', 'jain'],
-    required: true,
-  },
-  deliveredby: { type: String, required: true },
-  feedback: { type: String, default: '' }
-});
-
-const expiredDonationSchema = new mongoose.Schema({
-  originalDonationId: { type: mongoose.Schema.Types.ObjectId, ref: 'LiveDonation' },
-  donorId: { type: mongoose.Schema.Types.ObjectId, ref: 'DirectDonor', required: true },
-  donorName: { type: String, required: true },
-  foodName: { type: String, required: true },
-  quantity: { type: Number, required: true },
-  description: { type: String, required: true },
-  expiryDateTime: { type: Date, required: true },
-  timeOfUpload: { type: Date },
-  expiredAt: { type: Date, default: Date.now },
-  foodType: {
-    type: String,
-    enum: ['veg', 'nonveg', 'jain'],
-    required: true,
-  },
-  imageUrl: String,
-  location: {
-    address: { type: String, required: true },
-    latitude: Number,
-    longitude: Number,
-  },
-  needsVolunteer: { type: Boolean, default: false },
-  status: { type: String, default: 'Expired' }
-});
-
-// Create models
-const DirectDonor = mongoose.model('DirectDonor', directDonorSchema);
-const DirectRecipient = mongoose.model('DirectRecipient', directRecipientSchema);
-const DirectVolunteer = mongoose.model('DirectVolunteer', directVolunteerSchema);
-const LiveDonation = mongoose.model('LiveDonation', liveDonationSchema);
-const AcceptedDonation = mongoose.model('AcceptedDonation', acceptedDonationSchema);
-const ExpiredDonation = mongoose.model('ExpiredDonation', expiredDonationSchema);
 
 // Firebase auth middleware
 const firebaseAuthMiddleware = async (req, res, next) => {
@@ -632,8 +502,20 @@ app.post('/api/donations/accept/:donationId', firebaseAuthMiddleware, async (req
       return res.status(400).json({ error: 'This donation has expired' });
     }
 
-    let volunteerInfo = req.body.volunteerName || "Self-pickup";
-    console.log('Volunteer info:', volunteerInfo);
+    // UPDATED LOGIC: Respect donor's original volunteer preference by default
+    // Only override if recipient explicitly provides a different preference
+    let needsVolunteer = donation.needsVolunteer; // Default to donor's setting
+    
+    // If recipient explicitly specifies a preference, use that instead
+    if (req.body.needsVolunteer !== undefined) {
+      needsVolunteer = req.body.needsVolunteer === true || req.body.needsVolunteer === 'true';
+    }
+    
+    // Set volunteerInfo based on needsVolunteer flag
+    let volunteerInfo = needsVolunteer ? "Needs volunteer" : "Self-pickup";
+    
+    console.log(`Delivery preference: original=${donation.needsVolunteer}, final=${needsVolunteer}`);
+    console.log(`Delivery by: ${volunteerInfo}`);
 
     // Create accepted donation record
     const acceptedDonation = new AcceptedDonation({
@@ -650,7 +532,19 @@ app.post('/api/donations/accept/:donationId', firebaseAuthMiddleware, async (req
       timeOfUpload: donation.timeOfUpload,
       foodType: donation.foodType,
       deliveredby: volunteerInfo,
-      feedback: "" // Initialize empty feedback
+      feedback: "", // Initialize empty feedback
+      recipientInfo: {
+        recipientId: recipient._id,
+        recipientName: recipient.reciname,
+        recipientContact: recipient.recicontact,
+        recipientAddress: recipient.reciaddress
+      },
+      volunteerInfo: {
+        volunteerId: donation.volunteerInfo?.volunteerId,
+        volunteerName: donation.volunteerInfo?.volunteerName,
+        volunteerContact: donation.volunteerInfo?.volunteerContact,
+        assignedAt: donation.volunteerInfo?.assignedAt
+      }
     });
 
     const savedAcceptedDonation = await acceptedDonation.save();
@@ -873,6 +767,94 @@ app.get('/api/volunteer/opportunities', firebaseAuthMiddleware, async (req, res)
   }
 });
 
+// NEW ENDPOINT: Get accepted donations that need volunteer delivery
+app.get('/api/volunteer/accepted-donations', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    console.log('Accepted donations for volunteer request received');
+    
+    // Ensure the user is a volunteer
+    if (req.userType !== 'volunteer') {
+      console.log('User is not a volunteer:', req.userType);
+      return res.status(403).json({ error: 'Only registered volunteers can view accepted donations' });
+    }
+
+    // Extract the volunteer data from req.user
+    const volunteer = req.user;
+    console.log('User authenticated as volunteer:', volunteer._id);
+    
+    // Find all accepted donations that need volunteer delivery
+    const acceptedDonations = await AcceptedDonation.find({
+      deliveredby: "Needs volunteer", // Look for this specific string that indicates a volunteer is needed
+      // Exclude donations already assigned to a volunteer
+      $or: [
+        { 'volunteerInfo.volunteerId': { $exists: false } },
+        { 'volunteerInfo.volunteerId': null }
+      ]
+    }).sort({ acceptedAt: -1 }); // Most recently accepted first
+    
+    console.log(`Found ${acceptedDonations.length} accepted donations that need volunteer delivery`);
+    
+    res.status(200).json(acceptedDonations);
+  } catch (err) {
+    console.error('Error getting accepted donations for volunteer:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// NEW ENDPOINT: Volunteer accepts an accepted donation for delivery
+app.post('/api/volunteer/accept-delivery/:acceptedDonationId', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    console.log('=== DEBUG: Volunteer Accept Delivery ===');
+    console.log('Request headers:', req.headers);
+    console.log('Accepted donation ID:', req.params.acceptedDonationId);
+    
+    // Check if user is a volunteer
+    if (req.userType !== 'volunteer') {
+      console.log('User is not a volunteer:', req.userType);
+      return res.status(403).json({ error: 'Only registered volunteers can accept deliveries' });
+    }
+
+    const volunteer = req.user;
+    console.log('User authenticated as volunteer:', volunteer._id);
+
+    const acceptedDonation = await AcceptedDonation.findById(req.params.acceptedDonationId);
+    if (!acceptedDonation) {
+      console.log('Accepted donation not found with ID:', req.params.acceptedDonationId);
+      return res.status(404).json({ error: 'Accepted donation not found' });
+    }
+
+    // Check if this donation needs a volunteer
+    if (acceptedDonation.deliveredby !== "Needs volunteer") {
+      console.log('This donation does not need a volunteer delivery');
+      return res.status(400).json({ error: 'This donation already has a volunteer or is marked for self-pickup' });
+    }
+
+    // Check if the donation already has a volunteer assigned
+    if (acceptedDonation.volunteerInfo && acceptedDonation.volunteerInfo.volunteerId) {
+      console.log('Donation already has a volunteer assigned');
+      return res.status(400).json({ error: 'This donation already has a volunteer assigned' });
+    }
+
+    // Update the accepted donation with volunteer info
+    acceptedDonation.deliveredby = volunteer.volunteerName;
+    acceptedDonation.volunteerInfo = {
+      volunteerId: volunteer._id,
+      volunteerName: volunteer.volunteerName,
+      volunteerContact: volunteer.volunteercontact,
+      assignedAt: new Date()
+    };
+
+    // Save the updated donation
+    const updatedDonation = await acceptedDonation.save();
+    console.log('Accepted donation updated with volunteer assignment');
+    
+    res.status(200).json(updatedDonation);
+  } catch (err) {
+    console.error('Error in volunteer delivery acceptance:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // Get volunteer donation history
 app.get('/api/volunteer/donations/history', firebaseAuthMiddleware, async (req, res) => {
   try {
@@ -987,6 +969,145 @@ app.get('/api/recipient/donations', firebaseAuthMiddleware, async (req, res) => 
     res.status(200).json(acceptedDonations);
   } catch (err) {
     console.error('Error getting recipient donations:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Get pending volunteer deliveries (accepted by recipients and waiting for volunteer)
+app.get('/api/volunteer/donations/pending', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    console.log('=== DEBUG: Volunteer Pending Donations Request ===');
+    console.log('Request headers:', req.headers);
+    
+    // Ensure the user is a volunteer
+    if (req.userType !== 'volunteer') {
+      console.log('User is not a volunteer:', req.userType);
+      return res.status(403).json({ error: 'Only registered volunteers can view pending deliveries' });
+    }
+
+    // Extract the volunteer data from req.user
+    const volunteer = req.user;
+    console.log('User authenticated as volunteer:', volunteer._id);
+    
+    // Find all accepted donations that need volunteer delivery and aren't assigned yet
+    const pendingDeliveries = await AcceptedDonation.find({
+      // Find donations where deliveredby is "Needs volunteer" (set when recipient chose to need volunteer help)
+      deliveredby: "Needs volunteer",
+      // Make sure it's not already assigned to a volunteer
+      $or: [
+        { 'volunteerInfo.volunteerId': { $exists: false } },
+        { 'volunteerInfo.volunteerId': null }
+      ]
+    }).sort({ acceptedAt: -1 }); // Most recently accepted first
+    
+    console.log(`Found ${pendingDeliveries.length} pending deliveries for volunteers`);
+    
+    res.status(200).json(pendingDeliveries);
+  } catch (err) {
+    console.error('Error getting pending deliveries for volunteer:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Simple test endpoint for pending volunteer deliveries
+app.get('/api/volunteer/test/pending', async (req, res) => {
+  try {
+    console.log('=== DEBUG: Test Volunteer Pending Donations Request ===');
+    
+    // Simple implementation that returns empty array
+    // No authentication required, just for testing
+    res.status(200).json([]);
+  } catch (err) {
+    console.error('Error in test endpoint:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Alternative endpoint for volunteer pending donations (with a simple path)
+app.get('/api/pending-volunteer-deliveries', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    console.log('==========================================');
+    console.log('=== DEBUG: Simple Volunteer Pending Deliveries Request ===');
+    console.log('==========================================');
+    console.log('Request URL:', req.url);
+    console.log('Request method:', req.method);
+    console.log('Request headers:', req.headers);
+    
+    // For this simplified endpoint, don't check the user type
+    // Just log the user information
+    console.log('User from request:', req.user ? req.user._id : 'No user');
+    console.log('User type:', req.userType || 'No user type');
+    
+    // Find all accepted donations that need volunteer delivery
+    const pendingDeliveries = await AcceptedDonation.find({
+      deliveredby: "Needs volunteer"
+    }).sort({ acceptedAt: -1 });
+    
+    console.log(`Found ${pendingDeliveries.length} pending deliveries for volunteers`);
+    
+    // Return array even if empty
+    res.status(200).json(pendingDeliveries || []);
+  } catch (err) {
+    console.error('Error getting simplified pending deliveries for volunteer:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// DEBUG ENDPOINT: No auth required, returns all pending volunteer deliveries
+app.get('/debug/volunteer/pending', async (req, res) => {
+  try {
+    console.log('==========================================');
+    console.log('=== DEBUG: NO AUTH Volunteer Pending Deliveries ===');
+    console.log('==========================================');
+    console.log('Request URL:', req.url);
+    console.log('Request method:', req.method);
+    
+    // Find all accepted donations that need volunteer delivery
+    const pendingDeliveries = await AcceptedDonation.find({
+      deliveredby: "Needs volunteer"
+    }).sort({ acceptedAt: -1 });
+    
+    console.log(`Found ${pendingDeliveries.length} pending deliveries for volunteers`);
+    
+    // Return array even if empty
+    res.status(200).json({
+      message: "Debug endpoint - No authentication required",
+      count: pendingDeliveries.length,
+      data: pendingDeliveries || []
+    });
+  } catch (err) {
+    console.error('Error in debug endpoint:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// DEBUG ENDPOINT: Update an accepted donation to need volunteer delivery
+app.get('/debug/update-donation/:id', async (req, res) => {
+  try {
+    const donationId = req.params.id;
+    console.log('==========================================');
+    console.log(`=== DEBUG: Updating donation ${donationId} to need volunteer ===`);
+    console.log('==========================================');
+    
+    // Find the donation
+    const donation = await AcceptedDonation.findById(donationId);
+    if (!donation) {
+      return res.status(404).json({ error: 'Donation not found' });
+    }
+    
+    // Update to need volunteer
+    donation.deliveredby = "Needs volunteer";
+    await donation.save();
+    
+    console.log(`Updated donation ${donationId} to need volunteer delivery`);
+    
+    // Return updated donation
+    res.status(200).json({
+      message: "Donation updated to need volunteer delivery",
+      donation: donation
+    });
+  } catch (err) {
+    console.error('Error updating donation:', err);
     res.status(400).json({ error: err.message });
   }
 });

@@ -490,7 +490,7 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
     final DateTime expiryDateTime = donation['expiryDateTime'] != null
         ? DateTime.parse(donation['expiryDateTime'])
         : DateTime.now();
-    final String expiryDate = DateFormat('MM/dd/yyyy').format(expiryDateTime);
+    DateFormat('MM/dd/yyyy').format(expiryDateTime);
 
     // Get image URL if available
     String? imageUrl;
