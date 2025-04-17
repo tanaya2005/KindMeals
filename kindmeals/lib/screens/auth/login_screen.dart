@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../services/firebase_service.dart';
 import '../dashboard/dashboard_screen.dart';
 import 'register_screen.dart';
+import 'register_volunteer_screen.dart';
 import 'forgot_password_screen.dart';
 import '../../services/api_service.dart';
 
@@ -52,28 +53,58 @@ class _LoginScreenState extends State<LoginScreen> {
           // Check profile without waiting
           final profile = await _apiService.getDirectUserProfile();
           print('Direct profile check successful: $profile');
+
+          // Store user type for redirection
+          final userType = profile['userType'] ?? '';
+          print('Detected user type: $userType');
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Login successful!'),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 2),
+                behavior: SnackBarBehavior.floating,
+                margin: EdgeInsets.all(16),
+              ),
+            );
+
+            // Redirect based on user type
+            if (userType.toLowerCase() == 'volunteer') {
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/volunteer/dashboard',
+                (route) => false,
+              );
+            } else {
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/dashboard',
+                (route) => false,
+              );
+            }
+          }
         } catch (profileError) {
           print('=== DEBUG: Direct Profile Check Failed ===');
           print('Profile check error: $profileError');
-          // Not throwing error here as this is just a check
-        }
+          // Fallback to default dashboard if profile check fails
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Login successful!'),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 2),
+                behavior: SnackBarBehavior.floating,
+                margin: EdgeInsets.all(16),
+              ),
+            );
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Login successful!'),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
-              behavior: SnackBarBehavior.floating,
-              margin: EdgeInsets.all(16),
-            ),
-          );
-
-          Navigator.pushNamedAndRemoveUntil(
-            context,
-            '/dashboard',
-            (route) => false,
-          );
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              '/dashboard',
+              (route) => false,
+            );
+          }
         }
       } catch (e) {
         if (mounted) {
@@ -295,6 +326,25 @@ class _LoginScreenState extends State<LoginScreen> {
                         );
                       },
                       child: const Text('Register'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text("Want to help people?"),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                const RegisterVolunteerScreen(),
+                          ),
+                        );
+                      },
+                      child: const Text('Register as Volunteer'),
                     ),
                   ],
                 ),

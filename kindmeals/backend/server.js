@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
-const { admin, verifyToken } = require('./firebase-admin'); // Update Firebase Admin import
+const { admin, verifyToken } = require('./firebase-admin');
 require('dotenv').config();
 const fs = require('fs');
 
@@ -31,6 +31,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+console.log('Uploads directory configured at:', path.join(__dirname, 'uploads'));
 
 // Configure Multer for file uploads
 const storage = multer.diskStorage({
@@ -61,7 +62,8 @@ const upload = multer({
   }
 }).fields([
   { name: 'profileImage', maxCount: 1 },
-  { name: 'foodImage', maxCount: 1 }
+  { name: 'foodImage', maxCount: 1 },
+  { name: 'drivingLicenseImage', maxCount: 1 }
 ]);
 
 // MongoDB Connection
@@ -149,13 +151,50 @@ const recipientSchema = new mongoose.Schema({
   }
 });
 
-const volunteerSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+// Define the direct volunteer schema
+const directVolunteerSchema = new mongoose.Schema({
+  firebaseUid: { type: String, required: true, unique: true },
+  email: { type: String, required: true, unique: true },
+  profileImage: { type: String },
   volunteerName: { type: String, required: true },
-  aadharID: { type: Number, required: true },
+  aadharID: { type: String, required: true },
   volunteeraddress: { type: String, required: true },
   volunteercontact: { type: String, required: true },
   volunteerabout: { type: String },
+  rating: { type: Number, default: 0 },
+  totalRatings: { type: Number, default: 0 },
+  hasVehicle: { type: Boolean, default: false },
+  vehicleDetails: {
+    vehicleType: { type: String },
+    vehicleNumber: { type: String },
+    drivingLicenseImage: { type: String }
+  },
+  volunteerlocation: {
+    latitude: { type: Number },
+    longitude: { type: Number }
+  },
+  createdAt: { type: Date, default: Date.now }
+});
+
+// Create the DirectVolunteer model
+const DirectVolunteer = mongoose.model('DirectVolunteer', directVolunteerSchema);
+
+const volunteerSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  volunteerName: { type: String, required: true },
+  aadharID: { type: String, required: true },
+  volunteeraddress: { type: String, required: true },
+  volunteercontact: { type: String, required: true },
+  volunteerabout: { type: String },
+  profileImage: { type: String },
+  rating: { type: Number, default: 0 },
+  totalRatings: { type: Number, default: 0 },
+  hasVehicle: { type: Boolean, default: false },
+  vehicleDetails: {
+    vehicleType: { type: String },
+    vehicleNumber: { type: String },
+    drivingLicenseImage: { type: String }
+  },
   volunteerlocation: {
     latitude: { type: Number },
     longitude: { type: Number }
@@ -182,6 +221,12 @@ const liveDonationSchema = new mongoose.Schema({
     longitude: Number,
   },
   needsVolunteer: { type: Boolean, default: false },
+  volunteerInfo: {
+    volunteerId: { type: mongoose.Schema.Types.ObjectId, ref: 'DirectVolunteer' },
+    volunteerName: { type: String },
+    volunteerContact: { type: String },
+    assignedAt: { type: Date }
+  }
 });
 
 const acceptedDonationSchema = new mongoose.Schema({
@@ -239,6 +284,9 @@ const Volunteer = mongoose.model('Volunteer', volunteerSchema);
 const LiveDonation = mongoose.model('LiveDonation', liveDonationSchema);
 const AcceptedDonation = mongoose.model('AcceptedDonation', acceptedDonationSchema);
 const ExpiredDonation = mongoose.model('ExpiredDonation', expiredDonationSchema);
+
+// Firebase admin is already initialized in firebase-admin.js
+console.log('Using Firebase Admin SDK from firebase-admin.js');
 
 // New Firebase middleware that doesn't rely on User collection
 const firebaseAuthMiddleware = async (req, res, next) => {
@@ -335,51 +383,55 @@ const authMiddleware = async (req, res, next) => {
 // Update Firebase verification to work with direct collections
 const directFirebaseAuthMiddleware = async (req, res, next) => {
   try {
-    const idToken = req.header('Authorization')?.replace('Bearer ', '');
-    if (!idToken) {
-      console.log('No authorization token provided');
-      return res.status(401).json({ error: 'No authentication token provided' });
+    const token = req.headers.authorization?.split('Bearer ')[1];
+    if (!token) {
+      return res.status(401).json({ error: 'No token provided' });
     }
 
     try {
-      // Verify the ID token using our helper function
-      const decodedToken = await verifyToken(idToken);
-      const firebaseUid = decodedToken.uid;
+      // Use the verifyToken helper
+      const decodedToken = await verifyToken(token);
+      console.log('Firebase token verified for UID:', decodedToken.uid);
+      console.log('Decoded token payload:', decodedToken);
 
-      console.log('Firebase token verified for UID:', firebaseUid);
+      // Set the Firebase user details
+      req.firebaseUid = decodedToken.uid;
+      req.firebaseEmail = decodedToken.email || '';
 
-      // Find user in DirectDonor or DirectRecipient collections
-      const donor = await DirectDonor.findOne({ firebaseUid });
-      const recipient = await DirectRecipient.findOne({ firebaseUid });
-      
-      if (!donor && !recipient) {
-        console.log('No user found with Firebase UID:', firebaseUid);
-        return res.status(401).json({ 
-          error: 'User not found',
-          message: 'Your user account was not found. Please register first.'
-        });
+      // Check if user exists in any of our collections
+      const donor = await DirectDonor.findOne({ firebaseUid: decodedToken.uid });
+      if (donor) {
+        req.user = donor;
+        req.userType = 'donor';
+        console.log('User authenticated as donor:', donor._id);
+        return next();
       }
-      
-      // Set the user type and data
-      req.user = donor || recipient;
-      req.userType = donor ? 'donor' : 'recipient';
-      req.firebaseUid = firebaseUid;
-      
-      console.log(`User authenticated as ${req.userType}:`, req.user._id);
+
+      const recipient = await DirectRecipient.findOne({ firebaseUid: decodedToken.uid });
+      if (recipient) {
+        req.user = recipient;
+        req.userType = 'recipient';
+        console.log('User authenticated as recipient:', recipient._id);
+        return next();
+      }
+
+      const volunteer = await DirectVolunteer.findOne({ firebaseUid: decodedToken.uid });
+      if (volunteer) {
+        req.user = volunteer;
+        req.userType = 'volunteer';
+        console.log('User authenticated as volunteer:', volunteer._id);
+        return next();
+      }
+
+      console.log('No user found with Firebase UID:', decodedToken.uid);
       next();
     } catch (error) {
-      console.error('Error verifying token:', error);
-      return res.status(401).json({ 
-        error: 'Authentication failed',
-        message: 'Failed to verify your authentication token. Please try logging in again.'
-      });
+      console.error('Token verification failed:', error);
+      return res.status(401).json({ error: 'Invalid token' });
     }
-  } catch (error) {
-    console.error('Error in auth middleware:', error);
-    res.status(401).json({ 
-      error: 'Not authorized',
-      message: 'You are not authorized to access this resource.'
-    });
+  } catch (err) {
+    console.error('Error in auth middleware:', err);
+    res.status(401).json({ error: 'Authentication failed' });
   }
 };
 
@@ -634,44 +686,85 @@ app.post('/api/recipient/register', authMiddleware, upload, async (req, res) => 
 });
 
 // Complete volunteer registration (after signup)
-app.post('/api/volunteer/register', authMiddleware, upload, async (req, res) => {
+app.post('/api/volunteer/register', directFirebaseAuthMiddleware, upload, async (req, res) => {
   try {
-    if (req.user.role !== 'volunteer') {
-      return res.status(403).json({ error: 'Only users with volunteer role can register as volunteers' });
+    console.log('=== DEBUG: Direct Volunteer Registration ===');
+    console.log('Request headers:', req.headers);
+    console.log('Request body:', req.body);
+    console.log('Request files:', req.files);
+    
+    if (!req.firebaseUid) {
+      console.log('ERROR: No Firebase UID provided in the request');
+      return res.status(401).json({ error: 'Authentication required' });
     }
 
-    // Check if volunteer already registered
-    const existingVolunteer = await Volunteer.findOne({ userId: req.user._id });
+    console.log('Firebase UID:', req.firebaseUid);
+    console.log('Email:', req.firebaseEmail);
+
+    // Check if volunteer already exists
+    const existingVolunteer = await DirectVolunteer.findOne({ firebaseUid: req.firebaseUid });
     if (existingVolunteer) {
-      return res.status(400).json({ error: 'Volunteer already registered' });
+      console.log('Volunteer already exists for this user');
+      return res.status(400).json({ error: 'Volunteer profile already exists for this user' });
     }
 
     // Handle profile image upload
-    const profileImage = req.files['profileImage'] ? 
+    const profileImage = req.files && req.files['profileImage'] ? 
       `/uploads/${req.files['profileImage'][0].filename}` : '';
+    
+    // Handle driving license image upload
+    const drivingLicenseImage = req.files && req.files['drivingLicenseImage'] ? 
+      `/uploads/${req.files['drivingLicenseImage'][0].filename}` : '';
 
-    // Update user with profile image if uploaded
-    if (profileImage) {
-      await User.findByIdAndUpdate(req.user._id, { profileImage });
+    console.log('Profile image:', profileImage ? 'Uploaded' : 'Not provided');
+    console.log('License image:', drivingLicenseImage ? 'Uploaded' : 'Not provided');
+
+    // Get has vehicle data
+    const hasVehicle = req.body.hasVehicle === 'true';
+    console.log('Has vehicle:', hasVehicle);
+
+    // Create and save new volunteer document with proper data validation
+    try {
+      const volunteer = new DirectVolunteer({
+        firebaseUid: req.firebaseUid,
+        email: req.body.email || req.firebaseEmail,
+        volunteerName: req.body.volunteerName,
+        aadharID: req.body.aadharID,
+        volunteeraddress: req.body.volunteeraddress,
+        volunteercontact: req.body.volunteercontact,
+        volunteerabout: req.body.volunteerabout || '',
+        profileImage,
+        hasVehicle,
+        vehicleDetails: hasVehicle ? {
+          vehicleType: req.body.vehicleType || '',
+          vehicleNumber: req.body.vehicleNumber || '',
+          drivingLicenseImage
+        } : undefined,
+        volunteerlocation: {
+          latitude: parseFloat(req.body.latitude) || 0,
+          longitude: parseFloat(req.body.longitude) || 0
+        }
+      });
+
+      console.log('Creating volunteer with data:', {
+        name: volunteer.volunteerName,
+        aadhar: volunteer.aadharID,
+        hasVehicle: volunteer.hasVehicle
+      });
+
+      const savedVolunteer = await volunteer.save();
+      console.log('Volunteer saved successfully with ID:', savedVolunteer._id);
+      
+      res.status(201).json(savedVolunteer);
+    } catch (validationError) {
+      console.error('Validation error:', validationError);
+      return res.status(400).json({ 
+        error: 'Validation failed',
+        details: validationError.message 
+      });
     }
-
-    // Create volunteer profile
-    const volunteer = new Volunteer({
-      userId: req.user._id,
-      volunteerName: req.body.volunteerName,
-      aadharID: req.body.aadharID,
-      volunteeraddress: req.body.volunteeraddress,
-      volunteercontact: req.body.volunteercontact,
-      volunteerabout: req.body.volunteerabout || '',
-      volunteerlocation: {
-        latitude: req.body.latitude || 0,
-        longitude: req.body.longitude || 0
-      }
-    });
-
-    const savedVolunteer = await volunteer.save();
-    res.status(201).json(savedVolunteer);
   } catch (err) {
+    console.error('Error in volunteer registration:', err);
     res.status(400).json({ error: err.message });
   }
 });
@@ -1094,173 +1187,69 @@ app.put('/api/volunteer/profile', authMiddleware, upload, async (req, res) => {
   }
 });
 
-// Get all available volunteer delivery opportunities
-app.get('/api/volunteer/opportunities', authMiddleware, async (req, res) => {
+// Get volunteer donation history
+app.get('/api/volunteer/donations/history', directFirebaseAuthMiddleware, async (req, res) => {
   try {
-    const volunteer = await Volunteer.findOne({ userId: req.user._id });
-    if (!volunteer) {
-      return res.status(404).json({ error: 'Volunteer not found' });
-    }
+    console.log('Volunteer history request received');
     
-    // Find donations that need volunteer delivery
-    const opportunities = await LiveDonation.find({ 
+    // Ensure the user is a volunteer
+    if (req.userType !== 'volunteer') {
+      console.log('User is not a volunteer:', req.userType);
+      return res.status(403).json({ error: 'Only registered volunteers can access their history' });
+    }
+
+    // Extract the volunteer data from req.user
+    const volunteer = req.user;
+    console.log('User authenticated as volunteer:', volunteer._id);
+    
+    // Find all accepted donations where this volunteer was involved
+    const acceptedDonations = await AcceptedDonation.find({ 
+      deliveredby: volunteer.volunteerName 
+    }).sort({ acceptedAt: -1 });
+    
+    console.log(`Found ${acceptedDonations.length} donations delivered by this volunteer`);
+    
+    res.status(200).json(acceptedDonations);
+  } catch (err) {
+    console.error('Error getting volunteer donation history:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Get volunteer delivery opportunities
+app.get('/api/volunteer/opportunities', directFirebaseAuthMiddleware, async (req, res) => {
+  try {
+    console.log('Volunteer opportunities request received');
+    
+    // Ensure the user is a volunteer
+    if (req.userType !== 'volunteer') {
+      console.log('User is not a volunteer:', req.userType);
+      return res.status(403).json({ error: 'Only registered volunteers can view delivery opportunities' });
+    }
+
+    // Extract the volunteer data from req.user
+    const volunteer = req.user;
+    console.log('User authenticated as volunteer:', volunteer._id);
+    
+    // Get current date/time
+    const currentTime = new Date();
+    
+    // Find all live donations that need a volunteer and haven't expired
+    const opportunities = await LiveDonation.find({
       needsVolunteer: true,
-      expiryDateTime: { $gt: new Date() }
-    });
+      expiryDateTime: { $gt: currentTime },
+      // Exclude donations that already have a volunteer assigned
+      $or: [
+        { 'volunteerInfo.volunteerId': { $exists: false } },
+        { 'volunteerInfo.volunteerId': null }
+      ]
+    }).sort({ expiryDateTime: 1 }); // Sort by expiry time, soonest first
+    
+    console.log(`Found ${opportunities.length} delivery opportunities for volunteers`);
     
     res.status(200).json(opportunities);
   } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-});
-
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'OK', message: 'Server is running properly' });
-});
-
-// Direct Donor Registration Route (no User record)
-app.post('/api/direct/donor/register', firebaseAuthMiddleware, upload, async (req, res) => {
-  try {
-    console.log('=== DEBUG: Direct Donor Registration ===');
-    console.log('Firebase UID:', req.firebaseUid);
-    console.log('Request Body:', req.body);
-    console.log('Has files:', !!req.files);
-    if (req.files) {
-      console.log('Files:', Object.keys(req.files));
-      if (req.files['profileImage']) {
-        console.log('Profile Image File:', req.files['profileImage'][0].filename);
-        console.log('Profile Image Path:', req.files['profileImage'][0].path);
-      }
-    }
-    
-    // Check if donor already registered
-    const existingDonor = await DirectDonor.findOne({ firebaseUid: req.firebaseUid });
-    if (existingDonor) {
-      console.log('Donor already exists with UID:', req.firebaseUid);
-      return res.status(400).json({ error: 'Donor already registered' });
-    }
-
-    // Handle profile image upload - safely check if files exist
-    let profileImage = '';
-    if (req.files && req.files['profileImage'] && req.files['profileImage'][0]) {
-      // Store the path relative to the server's root directory
-      const filename = req.files['profileImage'][0].filename;
-      profileImage = `/uploads/${filename}`;
-      console.log('Profile image path to store in DB:', profileImage);
-    }
-
-    // Create donor profile directly with Firebase UID
-    const donor = new DirectDonor({
-      firebaseUid: req.firebaseUid,
-      email: req.body.email,
-      profileImage: profileImage,
-      donorname: req.body.donorname,
-      orgName: req.body.orgName,
-      identificationId: req.body.identificationId,
-      donoraddress: req.body.donoraddress,
-      donorcontact: req.body.donorcontact,
-      type: req.body.type,
-      donorabout: req.body.donorabout || '',
-      donorlocation: {
-        latitude: req.body.latitude || 0,
-        longitude: req.body.longitude || 0
-      }
-    });
-
-    const savedDonor = await donor.save();
-    console.log('Donor registered directly with Firebase UID:', savedDonor);
-    res.status(201).json(savedDonor);
-  } catch (err) {
-    console.error('Error in direct donor registration:', err);
-    if (err.code === 11000) {
-      return res.status(400).json({ 
-        error: 'A donor with this email or ID already exists. Please check your details and try again.' 
-      });
-    }
-    res.status(400).json({ error: err.message });
-  }
-});
-
-// Direct Recipient Registration Route (no User record)
-app.post('/api/direct/recipient/register', firebaseAuthMiddleware, upload, async (req, res) => {
-  try {
-    console.log('=== DEBUG: Direct Recipient Registration ===');
-    console.log('Firebase UID:', req.firebaseUid);
-    console.log('Request Body:', req.body);
-    console.log('Has files:', !!req.files);
-    if (req.files) {
-      console.log('Files:', Object.keys(req.files));
-      if (req.files['profileImage']) {
-        console.log('Profile Image File:', req.files['profileImage'][0].filename);
-        console.log('Profile Image Path:', req.files['profileImage'][0].path);
-      }
-    }
-    
-    // Check if recipient with this Firebase UID already exists
-    const existingRecipient = await DirectRecipient.findOne({ firebaseUid: req.firebaseUid });
-    if (existingRecipient) {
-      console.log('Recipient already exists with UID:', req.firebaseUid);
-      return res.status(400).json({ error: 'Recipient already registered with this account' });
-    }
-    
-    // Validate required fields
-    const requiredFields = ['reciname', 'ngoName', 'ngoId', 'reciaddress', 'recicontact', 'type', 'email'];
-    const missingFields = [];
-    
-    for (const field of requiredFields) {
-      if (!req.body[field]) {
-        missingFields.push(field);
-      }
-    }
-    
-    if (missingFields.length > 0) {
-      console.log('Missing required fields:', missingFields);
-      return res.status(400).json({ 
-        error: `Missing required fields: ${missingFields.join(', ')}` 
-      });
-    }
-    
-    console.log('All required fields present:', Object.keys(req.body));
-
-    // Handle profile image upload - safely check if files exist
-    let profileImage = '';
-    if (req.files && req.files['profileImage'] && req.files['profileImage'][0]) {
-      // Store the path relative to the server's root directory
-      const filename = req.files['profileImage'][0].filename;
-      profileImage = `/uploads/${filename}`;
-      console.log('Profile image path to store in DB:', profileImage);
-    }
-
-    // Create recipient profile directly with Firebase UID
-    const recipient = new DirectRecipient({
-      firebaseUid: req.firebaseUid,
-      email: req.body.email,
-      profileImage: profileImage,
-      reciname: req.body.reciname,
-      ngoName: req.body.ngoName,
-      ngoId: req.body.ngoId,
-      reciaddress: req.body.reciaddress,
-      recicontact: req.body.recicontact,
-      type: req.body.type,
-      reciabout: req.body.reciabout || '',
-      recilocation: {
-        latitude: req.body.latitude || 0,
-        longitude: req.body.longitude || 0
-      }
-    });
-
-    const savedRecipient = await recipient.save();
-    console.log('Recipient registered directly with Firebase UID:', savedRecipient);
-    res.status(201).json(savedRecipient);
-  } catch (err) {
-    console.error('Error in direct recipient registration:', err);
-    if (err.code === 11000) {
-      // Handle duplicate key error
-      return res.status(400).json({ 
-        error: 'A recipient with this email or ID already exists. Please check your details and try again.' 
-      });
-    }
+    console.error('Error getting volunteer opportunities:', err);
     res.status(400).json({ error: err.message });
   }
 });
@@ -1268,356 +1257,22 @@ app.post('/api/direct/recipient/register', firebaseAuthMiddleware, upload, async
 // Get user profile from direct collections
 app.get('/api/direct/profile', directFirebaseAuthMiddleware, async (req, res) => {
   try {
+    console.log('Direct profile request received');
+    
+    // The directFirebaseAuthMiddleware already checked all collections and set userType
+    if (!req.userType) {
+      console.log('No user profile found for this Firebase user');
+      return res.status(404).json({ error: 'User profile not found' });
+    }
+    
+    console.log(`Found user in ${req.userType} collection:`, req.user._id);
+    
     res.status(200).json({
       userType: req.userType,
       profile: req.user
     });
   } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-});
-
-// Direct donor profile update
-app.put('/api/direct/donor/profile', directFirebaseAuthMiddleware, upload, async (req, res) => {
-  try {
-    if (req.userType !== 'donor') {
-      return res.status(403).json({ error: 'Only donors can update donor profiles' });
-    }
-    
-    // Handle profile image upload if provided
-    let profileImage = req.user.profileImage;
-    if (req.files && req.files['profileImage'] && req.files['profileImage'][0]) {
-      profileImage = `/uploads/${req.files['profileImage'][0].filename}`;
-    }
-
-    const updatedDonor = await DirectDonor.findByIdAndUpdate(
-      req.user._id,
-      {
-        donorname: req.body.donorname || req.user.donorname,
-        orgName: req.body.orgName || req.user.orgName,
-        donoraddress: req.body.donoraddress || req.user.donoraddress,
-        donorcontact: req.body.donorcontact || req.user.donorcontact,
-        donorabout: req.body.donorabout || req.user.donorabout,
-        profileImage: profileImage,
-        donorlocation: {
-          latitude: req.body.latitude || req.user.donorlocation.latitude,
-          longitude: req.body.longitude || req.user.donorlocation.longitude
-        }
-      },
-      { new: true }
-    );
-    
-    res.status(200).json(updatedDonor);
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-});
-
-// Direct recipient profile update
-app.put('/api/direct/recipient/profile', directFirebaseAuthMiddleware, upload, async (req, res) => {
-  try {
-    if (req.userType !== 'recipient') {
-      return res.status(403).json({ error: 'Only recipients can update recipient profiles' });
-    }
-    
-    // Handle profile image upload if provided
-    let profileImage = req.user.profileImage;
-    if (req.files && req.files['profileImage'] && req.files['profileImage'][0]) {
-      profileImage = `/uploads/${req.files['profileImage'][0].filename}`;
-    }
-
-    const updatedRecipient = await DirectRecipient.findByIdAndUpdate(
-      req.user._id,
-      {
-        reciname: req.body.reciname || req.user.reciname,
-        ngoName: req.body.ngoName || req.user.ngoName,
-        reciaddress: req.body.reciaddress || req.user.reciaddress,
-        recicontact: req.body.recicontact || req.user.recicontact,
-        reciabout: req.body.reciabout || req.user.reciabout,
-        profileImage: profileImage,
-        recilocation: {
-          latitude: req.body.latitude || req.user.recilocation.latitude,
-          longitude: req.body.longitude || req.user.recilocation.longitude
-        }
-      },
-      { new: true }
-    );
-    
-    res.status(200).json(updatedRecipient);
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-});
-
-// Direct donation create endpoint - for directdonors collection
-app.post('/api/direct/donations/create', directFirebaseAuthMiddleware, upload, async (req, res) => {
-  try {
-    console.log('Direct donation creation request received');
-    
-    // Ensure the user is a donor
-    if (req.userType !== 'donor') {
-      console.log('User is not a donor:', req.userType);
-      return res.status(403).json({ error: 'Only registered donors can create donations' });
-    }
-
-    // Extract the donor data from req.user
-    const donor = req.user;
-    console.log('User authenticated as donor:', donor._id);
-    console.log('Donor data:', { name: donor.donorname, email: donor.email });
-
-    // Handle food image upload
-    const foodImage = req.files['foodImage'] ? 
-      `/uploads/${req.files['foodImage'][0].filename}` : '';
-    
-    console.log('Food image path:', foodImage);
-
-    // Create the new donation
-    const newDonation = new LiveDonation({
-      donorId: donor._id,
-      donorName: donor.donorname,
-      foodName: req.body.foodName,
-      quantity: req.body.quantity,
-      description: req.body.description,
-      expiryDateTime: new Date(req.body.expiryDateTime),
-      timeOfUpload: new Date(),
-      foodType: req.body.foodType,
-      imageUrl: foodImage,
-      location: {
-        address: req.body.address || donor.donoraddress,
-        latitude: req.body.latitude || (donor.donorlocation ? donor.donorlocation.latitude : 0),
-        longitude: req.body.longitude || (donor.donorlocation ? donor.donorlocation.longitude : 0)
-      },
-      needsVolunteer: req.body.needsVolunteer === 'true'
-    });
-
-    console.log('Creating donation with data:', {
-      foodName: req.body.foodName,
-      quantity: req.body.quantity,
-      expiryDateTime: req.body.expiryDateTime,
-      foodType: req.body.foodType,
-    });
-
-    const savedDonation = await newDonation.save();
-    console.log('Donation saved successfully with ID:', savedDonation._id);
-    res.status(201).json(savedDonation);
-  } catch (err) {
-    console.error('Error creating donation:', err);
-    res.status(400).json({ error: err.message });
-  }
-});
-
-// Direct donation acceptance endpoint
-app.post('/api/direct/donations/accept/:donationId', directFirebaseAuthMiddleware, async (req, res) => {
-  try {
-    console.log('Direct donation acceptance request received');
-    
-    // Ensure the user is a recipient
-    if (req.userType !== 'recipient') {
-      console.log('User is not a recipient:', req.userType);
-      return res.status(403).json({ error: 'Only registered recipients can accept donations' });
-    }
-
-    // Extract the recipient data from req.user
-    const recipient = req.user;
-    console.log('User authenticated as recipient:', recipient._id);
-    console.log('Recipient data:', { name: recipient.reciname, email: recipient.email });
-
-    // Find the donation
-    const donation = await LiveDonation.findById(req.params.donationId);
-    if (!donation) {
-      return res.status(404).json({ error: 'Donation not found' });
-    }
-
-    // Check if donation has expired
-    if (new Date(donation.expiryDateTime) < new Date()) {
-      return res.status(400).json({ error: 'This donation has expired' });
-    }
-
-    let volunteerInfo = req.body.volunteerName || "Self-pickup";
-    console.log('Volunteer info:', volunteerInfo);
-
-    // Create accepted donation record
-    const acceptedDonation = new AcceptedDonation({
-      originalDonationId: donation._id,
-      acceptedBy: recipient._id,
-      recipientName: recipient.reciname,
-      donorId: donation.donorId,
-      donorName: donation.donorName,
-      acceptedAt: new Date(),
-      foodName: donation.foodName,
-      quantity: donation.quantity,
-      description: donation.description,
-      expiryDateTime: donation.expiryDateTime,
-      timeOfUpload: donation.timeOfUpload,
-      foodType: donation.foodType,
-      deliveredby: volunteerInfo,
-      feedback: "" // Initialize empty feedback
-    });
-
-    const savedAcceptedDonation = await acceptedDonation.save();
-    console.log('Accepted donation saved with ID:', savedAcceptedDonation._id);
-    
-    // Remove from live donations
-    await LiveDonation.findByIdAndDelete(req.params.donationId);
-    console.log('Original donation deleted from live donations');
-    
-    res.status(200).json(savedAcceptedDonation);
-  } catch (err) {
-    console.error('Error accepting donation:', err);
-    res.status(400).json({ error: err.message });
-  }
-});
-
-// Direct add feedback endpoint
-app.post('/api/direct/donations/feedback/:acceptedDonationId', directFirebaseAuthMiddleware, async (req, res) => {
-  try {
-    console.log('Direct feedback request received');
-    
-    // Ensure the user is a recipient
-    if (req.userType !== 'recipient') {
-      console.log('User is not a recipient:', req.userType);
-      return res.status(403).json({ error: 'Only registered recipients can provide feedback' });
-    }
-
-    // Extract the recipient data from req.user
-    const recipient = req.user;
-    console.log('User authenticated as recipient:', recipient._id);
-    
-    const acceptedDonation = await AcceptedDonation.findById(req.params.acceptedDonationId);
-    if (!acceptedDonation) {
-      return res.status(404).json({ error: 'Accepted donation not found' });
-    }
-    
-    // Verify the user is the recipient who accepted this donation
-    if (!acceptedDonation.acceptedBy.equals(recipient._id)) {
-      return res.status(403).json({ error: 'You can only provide feedback for donations you accepted' });
-    }
-
-    console.log('Adding feedback to donation:', req.params.acceptedDonationId);
-    console.log('Feedback text:', req.body.feedback);
-
-    // Update the feedback
-    acceptedDonation.feedback = req.body.feedback;
-    const updatedDonation = await acceptedDonation.save();
-    console.log('Feedback added successfully');
-    
-    res.status(200).json(updatedDonation);
-  } catch (err) {
-    console.error('Error adding feedback:', err);
-    res.status(400).json({ error: err.message });
-  }
-});
-
-// Direct get recipient donation history endpoint
-app.get('/api/direct/recipient/donations', directFirebaseAuthMiddleware, async (req, res) => {
-  try {
-    console.log('Direct recipient donations request received');
-    
-    // Ensure the user is a recipient
-    if (req.userType !== 'recipient') {
-      console.log('User is not a recipient:', req.userType);
-      return res.status(403).json({ error: 'Only registered recipients can access donation history' });
-    }
-
-    // Extract the recipient data from req.user
-    const recipient = req.user;
-    console.log('User authenticated as recipient:', recipient._id);
-    
-    // Get accepted donations by this recipient
-    const acceptedDonations = await AcceptedDonation.find({ acceptedBy: recipient._id })
-      .sort({ acceptedAt: -1 });
-    
-    // If no donations found, return empty array instead of error
-    if (!acceptedDonations || acceptedDonations.length === 0) {
-      console.log('No accepted donations found for recipient:', recipient._id);
-      return res.status(200).json([]);
-    }
-    
-    console.log('Found', acceptedDonations.length, 'accepted donations');
-    
-    res.status(200).json(acceptedDonations);
-  } catch (err) {
-    console.error('Error getting recipient donations:', err);
-    // Return empty array instead of error for better client handling
-    res.status(200).json([]);
-  }
-});
-
-// Get donor donation history with direct authentication
-app.get('/api/direct/donor/donations', directFirebaseAuthMiddleware, async (req, res) => {
-  try {
-    console.log('Direct donor donations request received');
-    
-    // Ensure the user is a donor
-    if (req.userType !== 'donor') {
-      console.log('User is not a donor:', req.userType);
-      return res.status(403).json({ error: 'Only registered donors can access donation history' });
-    }
-
-    // Extract the donor data from req.user
-    const donor = req.user;
-    console.log('User authenticated as donor:', donor._id);
-    
-    // Get live donations by this donor
-    const liveDonations = await LiveDonation.find({ donorId: donor._id })
-      .sort({ timeOfUpload: -1 });
-      
-    // Add status field to each live donation
-    const liveDonationsWithStatus = liveDonations.map(donation => {
-      const donationObj = donation.toObject();
-      donationObj.status = 'Active';
-      return donationObj;
-    });
-    
-    // Get accepted donations that were originally created by this donor
-    const acceptedDonations = await AcceptedDonation.find({ donorId: donor._id })
-      .sort({ acceptedAt: -1 });
-      
-    // Add status field to each accepted donation
-    const acceptedDonationsWithStatus = acceptedDonations.map(donation => {
-      const donationObj = donation.toObject();
-      donationObj.status = 'Accepted';
-      return donationObj;
-    });
-    
-    // Get expired donations by this donor
-    const expiredDonations = await ExpiredDonation.find({ donorId: donor._id })
-      .sort({ expiredAt: -1 });
-      
-    // Add status field to each expired donation if not already present
-    const expiredDonationsWithStatus = expiredDonations.map(donation => {
-      const donationObj = donation.toObject();
-      if (!donationObj.status) {
-        donationObj.status = 'Expired';
-      }
-      return donationObj;
-    });
-    
-    // Combine all donations into one response
-    const allDonations = {
-      active: liveDonationsWithStatus,
-      accepted: acceptedDonationsWithStatus,
-      expired: expiredDonationsWithStatus,
-      // Also provide a combined list for easier rendering in a single timeline
-      combined: [
-        ...liveDonationsWithStatus,
-        ...acceptedDonationsWithStatus,
-        ...expiredDonationsWithStatus
-      ].sort((a, b) => {
-        // Sort by creation time descending (newest first)
-        const dateA = a.timeOfUpload || a.expiredAt || a.acceptedAt;
-        const dateB = b.timeOfUpload || b.expiredAt || b.acceptedAt;
-        return new Date(dateB) - new Date(dateA);
-      })
-    };
-    
-    console.log('Active donations:', liveDonations.length);
-    console.log('Accepted donations:', acceptedDonations.length);
-    console.log('Expired donations:', expiredDonations.length);
-    
-    res.status(200).json(allDonations);
-  } catch (err) {
-    console.error('Error in donor donations API:', err);
+    console.error('Error getting direct profile:', err);
     res.status(400).json({ error: err.message });
   }
 });
