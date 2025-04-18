@@ -1,5 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kDebugMode, defaultTargetPlatform;
+import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../services/firebase_service.dart';
 import '../../services/api_service.dart';
@@ -7,6 +10,7 @@ import '../../utils/date_time_helper.dart';
 import 'volunteerhistory.dart';
 import 'volunteerprofile.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class VolunteerDashboardScreen extends StatefulWidget {
   const VolunteerDashboardScreen({super.key});
@@ -223,6 +227,250 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
           context,
           '/',
           (route) => false,
+        );
+      }
+    }
+  }
+
+  // Launch Maps with directions between origin and destination (updated to use coordinates when available)
+  Future<void> launchGoogleMapsDirections({
+    required String origin,
+    required String destination,
+    Map<String, dynamic>? coordinates,
+  }) async {
+    try {
+      // Check if we have valid coordinates from the API
+      final hasValidCoordinates = coordinates != null &&
+          coordinates['donor'] != null &&
+          coordinates['recipient'] != null &&
+          coordinates['donor']['latitude'] != null &&
+          coordinates['donor']['longitude'] != null &&
+          coordinates['recipient']['latitude'] != null &&
+          coordinates['recipient']['longitude'] != null;
+
+      if (kDebugMode) {
+        print('Using coordinates for directions: $hasValidCoordinates');
+        if (hasValidCoordinates) {
+          print(
+              'Donor coordinates: ${coordinates!['donor']['latitude']}, ${coordinates['donor']['longitude']}');
+          print(
+              'Recipient coordinates: ${coordinates['recipient']['latitude']}, ${coordinates['recipient']['longitude']}');
+        }
+      }
+
+      // Handle case where origin and destination are the same
+      if (origin == destination && !hasValidCoordinates) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Origin and destination addresses are the same. Please contact the donor or recipient for more details.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      // Try multiple approaches for launching maps
+      bool launched = false;
+
+      if (Platform.isAndroid) {
+        // Try Android-specific intent with coordinates if available
+        if (hasValidCoordinates) {
+          try {
+            final donorLat = coordinates!['donor']['latitude'];
+            final donorLng = coordinates['donor']['longitude'];
+            final recipientLat = coordinates['recipient']['latitude'];
+            final recipientLng = coordinates['recipient']['longitude'];
+
+            final String url =
+                'https://www.google.com/maps/dir/?api=1&origin=$donorLat,$donorLng&destination=$recipientLat,$recipientLng&travelmode=driving';
+            final Uri uri = Uri.parse(url);
+
+            if (kDebugMode) {
+              print('Trying Google Maps with coordinates: $url');
+            }
+
+            if (await canLaunchUrl(uri)) {
+              launched = await launchUrl(
+                uri,
+                mode: LaunchMode.externalApplication,
+              );
+            }
+          } catch (e) {
+            if (kDebugMode) {
+              print('Error with coordinates Google Maps URI: $e');
+            }
+            // If coordinates fail, we'll fall back to addresses below
+          }
+        }
+
+        // If coordinates failed or weren't available, try with addresses
+        if (!launched) {
+          // Try Android-specific intent first with geo: scheme
+          try {
+            final String geoString = 'geo:0,0?q=$destination';
+            final Uri geoUri = Uri.parse(geoString);
+
+            if (kDebugMode) {
+              print('Trying Android geo URI: $geoUri');
+            }
+
+            if (await canLaunchUrl(geoUri)) {
+              launched = await launchUrl(geoUri);
+            }
+          } catch (e) {
+            if (kDebugMode) {
+              print('Error with geo URI: $e');
+            }
+          }
+
+          // If geo URI failed, try with google maps app
+          if (!launched) {
+            try {
+              final String encodedOrigin = Uri.encodeComponent(origin);
+              final String encodedDestination =
+                  Uri.encodeComponent(destination);
+              final Uri uri = Uri.parse(
+                  'https://www.google.com/maps/dir/?api=1&origin=$encodedOrigin&destination=$encodedDestination&travelmode=driving');
+
+              if (kDebugMode) {
+                print('Trying Google Maps URI: $uri');
+              }
+
+              if (await canLaunchUrl(uri)) {
+                launched = await launchUrl(
+                  uri,
+                  mode: LaunchMode.externalApplication,
+                );
+              }
+            } catch (e) {
+              if (kDebugMode) {
+                print('Error with Google Maps URI: $e');
+              }
+            }
+          }
+        }
+      } else if (Platform.isIOS) {
+        // iOS approach - try with coordinates first if available
+        if (hasValidCoordinates) {
+          try {
+            final donorLat = coordinates!['donor']['latitude'];
+            final donorLng = coordinates['donor']['longitude'];
+            final recipientLat = coordinates['recipient']['latitude'];
+            final recipientLng = coordinates['recipient']['longitude'];
+
+            final String url =
+                'https://maps.apple.com/?saddr=$donorLat,$donorLng&daddr=$recipientLat,$recipientLng&dirflg=d';
+            final Uri uri = Uri.parse(url);
+
+            if (kDebugMode) {
+              print('Trying Apple Maps with coordinates: $url');
+            }
+
+            if (await canLaunchUrl(uri)) {
+              launched = await launchUrl(
+                uri,
+                mode: LaunchMode.externalApplication,
+              );
+            }
+          } catch (e) {
+            if (kDebugMode) {
+              print('Error with coordinates Apple Maps URI: $e');
+            }
+            // Fall back to addresses below
+          }
+        }
+
+        // If coordinates failed or weren't available, try with addresses
+        if (!launched) {
+          // iOS approach - try Apple Maps first, then Google Maps
+          try {
+            final String encodedDestination = Uri.encodeComponent(destination);
+            final Uri uri = Uri.parse(
+                'https://maps.apple.com/?q=$encodedDestination&dirflg=d');
+
+            if (kDebugMode) {
+              print('Trying Apple Maps URI: $uri');
+            }
+
+            if (await canLaunchUrl(uri)) {
+              launched = await launchUrl(
+                uri,
+                mode: LaunchMode.externalApplication,
+              );
+            }
+          } catch (e) {
+            if (kDebugMode) {
+              print('Error with Apple Maps URI: $e');
+            }
+          }
+
+          // If Apple Maps failed, try Google Maps
+          if (!launched) {
+            try {
+              final String encodedDestination =
+                  Uri.encodeComponent(destination);
+              final Uri uri =
+                  Uri.parse('comgooglemaps://?q=$encodedDestination');
+
+              if (kDebugMode) {
+                print('Trying Google Maps iOS app URI: $uri');
+              }
+
+              if (await canLaunchUrl(uri)) {
+                launched = await launchUrl(
+                  uri,
+                  mode: LaunchMode.externalApplication,
+                );
+              }
+            } catch (e) {
+              if (kDebugMode) {
+                print('Error with Google Maps iOS app URI: $e');
+              }
+            }
+          }
+        }
+      }
+
+      // Last resort - try web URL if all else failed
+      if (!launched) {
+        final String encodedDestination = Uri.encodeComponent(destination);
+        final Uri uri = Uri.parse(
+            'https://www.google.com/maps/search/?api=1&query=$encodedDestination');
+
+        if (kDebugMode) {
+          print('Trying web fallback: $uri');
+        }
+
+        if (await canLaunchUrl(uri)) {
+          launched = await launchUrl(
+            uri,
+            mode: LaunchMode.externalApplication,
+          );
+        } else {
+          throw Exception('Could not launch maps on this device');
+        }
+      }
+
+      if (!launched) {
+        throw Exception('Could not launch maps on this device');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error launching Maps: $e');
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'Could not open maps application. Please try using Google Maps manually.'),
+            action: SnackBarAction(
+              label: 'DISMISS',
+              onPressed: () {},
+            ),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -501,19 +749,25 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
   }
 
   Widget _buildDeliveryRequestCard(Map<String, dynamic> donation) {
-    // Get donor information
+    // Get donor information with improved fallbacks
     final donorInfo = donation['donorInfo'] ?? {};
-    final donorName =
-        donation['donorName'] ?? donorInfo['donorName'] ?? 'Unknown Donor';
-    final donorContact = donation['donorContact'] ??
-        donation['donorInfo']?['donorContact'] ??
+    final donorName = donorInfo['donorname'] ??
+        donorInfo['donorName'] ??
+        donation['donorName'] ??
+        'Unknown Donor';
+    final donorContact = donorInfo['donorcontact'] ??
+        donorInfo['donorContact'] ??
+        donation['donorContact'] ??
+        donation['donorcontact'] ??
         'Contact not available';
-    final donorAddress = donation['donorAddress'] ??
+    final donorAddress = donorInfo['donoraddress'] ??
+        donorInfo['donorAddress'] ??
+        donation['donorAddress'] ??
+        donation['donoraddress'] ??
         donation['location']?['address'] ??
-        donation['donorInfo']?['donorAddress'] ??
         'Address not available';
 
-    // Get recipient information
+    // Get recipient information with improved fallbacks
     final recipientInfo = donation['recipientInfo'] ?? {};
     final recipientName = recipientInfo['recipientName'] ??
         donation['recipientName'] ??
@@ -532,7 +786,10 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
     final description = donation['description'] ?? 'No description provided';
     final expiryDateTime = donation['expiryDateTime'];
     final foodType = donation['foodType']?.toString().toLowerCase() ?? '';
-    
+
+    // Get GPS coordinates for directions if available
+    final locationCoordinates = donation['locationCoordinates'];
+
     // Get food image if available
     String? imageUrl;
     if (donation['imageUrl'] != null &&
@@ -541,7 +798,8 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
     }
 
     // Food type icon and color mapping
-    final (IconData foodTypeIcon, Color foodTypeColor) = _getFoodTypeIcon(foodType);
+    final (IconData foodTypeIcon, Color foodTypeColor) =
+        _getFoodTypeIcon(foodType);
 
     // Card state management
     final ValueNotifier<bool> isExpanded = ValueNotifier<bool>(false);
@@ -626,7 +884,9 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
                                   ),
                                 ),
                                 child: Text(
-                                  foodType.isEmpty ? 'MIXED' : foodType.toUpperCase(),
+                                  foodType.isEmpty
+                                      ? 'MIXED'
+                                      : foodType.toUpperCase(),
                                   style: TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold,
@@ -691,25 +951,76 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Donor information
-                    _buildContactCard(
-                      title: 'Donor',
-                      name: donorName,
-                      contact: donorContact,
-                      address: donorAddress,
-                      iconColor: Colors.green.shade700,
-                      icon: Icons.store,
+                    _buildInfoItem(
+                      'Donor',
+                      donorName,
+                      Icons.storefront_outlined,
+                      Colors.green.shade700,
+                      [
+                        _buildInfoDetail(
+                          Icons.phone_outlined,
+                          donorContact,
+                          onTap: donorContact != 'Contact not available'
+                              ? () => _launchPhoneCall(donorContact)
+                              : null,
+                        ),
+                        _buildInfoDetail(
+                          Icons.location_on_outlined,
+                          donorAddress,
+                        ),
+                      ],
+                      phoneNumber: donorContact,
                     ),
-                    
-                    const SizedBox(height: 16),
-                    
+
+                    // Directions Button - Now directly launches Google Maps
+                    if (donorAddress != 'Address not available' &&
+                        recipientAddress != 'Address not available')
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          // Directly launch Google Maps with coordinates
+                          launchGoogleMapsDirections(
+                            origin: donorAddress,
+                            destination: recipientAddress,
+                            coordinates: locationCoordinates,
+                          );
+                        },
+                        icon: const Icon(Icons.directions),
+                        label: Text(locationCoordinates != null &&
+                                locationCoordinates['donor'] != null &&
+                                locationCoordinates['donor']['latitude'] != null
+                            ? 'Navigate with GPS Coordinates'
+                            : 'Get Directions'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue.shade600,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 8, horizontal: 12),
+                          minimumSize: const Size(double.infinity, 36),
+                        ),
+                      ),
+
+                    const SizedBox(height: 12),
+
                     // Recipient information
-                    _buildContactCard(
-                      title: 'Recipient',
-                      name: recipientName,
-                      contact: recipientContact,
-                      address: recipientAddress,
-                      iconColor: Colors.orange.shade700,
-                      icon: Icons.person,
+                    _buildInfoItem(
+                      'Recipient',
+                      recipientName,
+                      Icons.person,
+                      Colors.orange.shade700,
+                      [
+                        _buildInfoDetail(
+                          Icons.phone_outlined,
+                          recipientContact,
+                          onTap: recipientContact != 'Contact not available'
+                              ? () => _launchPhoneCall(recipientContact)
+                              : null,
+                        ),
+                        _buildInfoDetail(
+                          Icons.location_on_outlined,
+                          recipientAddress,
+                        ),
+                      ],
+                      phoneNumber: recipientContact,
                     ),
                   ],
                 ),
@@ -720,7 +1031,8 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
 
               // View Details button
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 child: Row(
                   children: [
                     // Expand/Collapse button
@@ -730,15 +1042,15 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
                           isExpanded.value = !isExpanded.value;
                         },
                         style: TextButton.styleFrom(
-                          backgroundColor: expanded 
-                              ? Colors.grey.shade100 
+                          backgroundColor: expanded
+                              ? Colors.grey.shade100
                               : Colors.blue.shade50,
                           padding: const EdgeInsets.symmetric(vertical: 10),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                             side: BorderSide(
-                              color: expanded 
-                                  ? Colors.grey.shade300 
+                              color: expanded
+                                  ? Colors.grey.shade300
                                   : Colors.blue.shade200,
                             ),
                           ),
@@ -747,20 +1059,20 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
-                              expanded 
-                                  ? Icons.keyboard_arrow_up 
+                              expanded
+                                  ? Icons.keyboard_arrow_up
                                   : Icons.keyboard_arrow_down,
                               size: 18,
-                              color: expanded 
-                                  ? Colors.grey.shade700 
+                              color: expanded
+                                  ? Colors.grey.shade700
                                   : Colors.blue.shade700,
                             ),
                             const SizedBox(width: 8),
                             Text(
                               expanded ? 'Hide Details' : 'View Details',
                               style: TextStyle(
-                                color: expanded 
-                                    ? Colors.grey.shade700 
+                                color: expanded
+                                    ? Colors.grey.shade700
                                     : Colors.blue.shade700,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -867,7 +1179,6 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
                                 height: 1.4,
                               ),
                             ),
-                            
                             if (expiryDateTime != null) ...[
                               const SizedBox(height: 16),
                               const Divider(),
@@ -926,120 +1237,63 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
     );
   }
 
-  Widget _buildContactCard({
-    required String title,
-    required String name,
-    required String contact,
-    required String address,
-    required Color iconColor,
-    required IconData icon,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  icon,
-                  size: 14,
-                  color: iconColor,
-                ),
+  Widget _buildInfoItem(String label, String value, IconData icon,
+      Color iconColor, List<Widget> details,
+      {String? phoneNumber}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              icon,
+              size: 14,
+              color: iconColor,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade700,
               ),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: iconColor,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          
-          // Contact details
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
+            ),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(left: 18),
+                    child: Text(
+                      value,
                       style: const TextStyle(
-                        fontWeight: FontWeight.w600,
                         fontSize: 14,
+                        fontWeight: FontWeight.w500,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
+                  ),
+                  if (details.isNotEmpty) ...[
                     const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.phone_outlined,
-                          size: 12,
-                          color: Colors.grey.shade600,
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            contact,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade700,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: Icon(
-                            Icons.location_on_outlined,
-                            size: 12,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            address,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade700,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
+                    ...details.map((detail) => Padding(
+                          padding: const EdgeInsets.only(
+                              left: 18, top: 2, bottom: 2),
+                          child: detail,
+                        )),
                   ],
-                ),
+                ],
               ),
+            ),
+            // Add larger call button if phone number is provided
+            if (phoneNumber != null && phoneNumber != 'Contact not available')
               Container(
                 margin: const EdgeInsets.only(left: 8),
                 decoration: BoxDecoration(
@@ -1053,9 +1307,7 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
                     size: 16,
                     color: Colors.blue.shade600,
                   ),
-                  onPressed: () {
-                    // Call functionality would go here
-                  },
+                  onPressed: () => _launchPhoneCall(phoneNumber),
                   constraints: const BoxConstraints(
                     minWidth: 32,
                     minHeight: 32,
@@ -1065,7 +1317,47 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
                   splashRadius: 20,
                 ),
               ),
-            ],
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInfoDetail(
+    IconData icon,
+    String text, {
+    double fontSize = 13,
+    VoidCallback? onTap,
+  }) {
+    // Remove onTap functionality for address entries
+    final bool isAddress = icon == Icons.location_on_outlined;
+    if (isAddress) {
+      onTap = null;
+    }
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            icon,
+            size: fontSize,
+            color: onTap != null ? Colors.blue.shade600 : Colors.grey.shade600,
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: fontSize,
+                color:
+                    onTap != null ? Colors.blue.shade600 : Colors.grey.shade700,
+                decoration: onTap != null ? TextDecoration.underline : null,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),
@@ -1079,7 +1371,7 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
       final acceptedTime = DateTime.parse(acceptedAt);
       final now = DateTime.now();
       final difference = now.difference(acceptedTime);
-      
+
       if (difference.inDays > 0) {
         return '${difference.inDays}d ago';
       } else if (difference.inHours > 0) {
@@ -1141,6 +1433,108 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
         print('Error formatting date in volunteer dashboard: $e');
       }
       return 'Unknown';
+    }
+  }
+
+  // Launch phone call intent - fixed to directly open phone app
+  void _launchPhoneCall(String phoneNumber) async {
+    try {
+      // Clean up phone number to ensure it's just digits, plus sign, and dashes
+      final cleanedNumber = phoneNumber.replaceAll(RegExp(r'[^\d\+\-]'), '');
+
+      // Create the tel: URI
+      final Uri uri = Uri.parse('tel:$cleanedNumber');
+
+      if (kDebugMode) {
+        print('Attempting to launch phone app with: $uri');
+      }
+
+      // Use launchUrl instead of canLaunch/launch for more reliable behavior
+      final bool launched = await launchUrl(uri);
+
+      if (!launched) {
+        if (kDebugMode) {
+          print('Could not launch phone app with URI: $uri');
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'Could not open phone app. Please dial $phoneNumber manually.'),
+              backgroundColor: Colors.orange,
+              action: SnackBarAction(
+                label: 'COPY',
+                onPressed: () async {
+                  await Clipboard.setData(ClipboardData(text: phoneNumber));
+                },
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error launching phone call: $e');
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not make call: $e'),
+            backgroundColor: Colors.red,
+            action: SnackBarAction(
+              label: 'COPY',
+              onPressed: () async {
+                await Clipboard.setData(ClipboardData(text: phoneNumber));
+              },
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  // Open address in maps
+  void _openMapForAddress(String address) async {
+    try {
+      final encodedAddress = Uri.encodeComponent(address);
+      final mapUrl = Platform.isIOS
+          ? 'https://maps.apple.com/?q=$encodedAddress'
+          : 'https://www.google.com/maps/search/?api=1&query=$encodedAddress';
+
+      if (await canLaunch(mapUrl)) {
+        await launch(mapUrl);
+      } else {
+        if (kDebugMode) {
+          print('Could not launch $mapUrl');
+        }
+
+        // If can't launch, copy to clipboard instead
+        await Clipboard.setData(ClipboardData(text: address));
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Address copied to clipboard'),
+              backgroundColor: Colors.blue,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error opening map: $e');
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not open map: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 }

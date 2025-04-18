@@ -42,16 +42,12 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
       // Fetch volunteer's accepted donations
       final donations = await _apiService.getVolunteerDonationHistory();
 
-      // ALSO fetch pending deliveries that need volunteer
-      final pendingDeliveries =
-          await _apiService.getAcceptedDonationsForVolunteer();
-
-      // Combine both types of donations
-      final allDonations = [...donations, ...pendingDeliveries];
+      // REMOVED: We don't want to show pending deliveries in the history view
+      // The dashboard should show pending deliveries, not the history
 
       setState(() {
-        _acceptedDonations = allDonations;
-        _filteredDonations = allDonations;
+        _acceptedDonations = donations;
+        _filteredDonations = donations;
         _isLoading = false;
       });
     } catch (e) {
@@ -166,26 +162,29 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
       imageUrl = '${ApiService.baseUrl}${donation['imageUrl']}';
     }
 
-    // Get donor and recipient details with better fallbacks
-    final donorName = donation['donorName'] ??
-        donation['donorInfo']?['donorName'] ??
+    // Get donor information with improved fallbacks
+    final donorInfo = donation['donorInfo'] ?? {};
+    final donorName = donorInfo['donorname'] ??
+        donorInfo['donorName'] ??
+        donation['donorName'] ??
         'Unknown Donor';
     final donorContact = donation['donorContact'] ??
-        donation['donorInfo']?['donorContact'] ??
+        donorInfo['donorContact'] ??
         'Contact not available';
     final donorAddress = donation['donorAddress'] ??
         donation['location']?['address'] ??
-        donation['donorInfo']?['donorAddress'] ??
+        donorInfo['donorAddress'] ??
         'Address not available';
 
+    final recipientInfo = donation['recipientInfo'] ?? {};
     final recipientName = donation['recipientName'] ??
-        donation['recipientInfo']?['recipientName'] ??
+        recipientInfo['recipientName'] ??
         'Unknown Recipient';
     final recipientContact = donation['recipientContact'] ??
-        donation['recipientInfo']?['recipientContact'] ??
+        recipientInfo['recipientContact'] ??
         'Contact not available';
     final recipientAddress = donation['recipientAddress'] ??
-        donation['recipientInfo']?['recipientAddress'] ??
+        recipientInfo['recipientAddress'] ??
         'Address not available';
 
     // Determine food type icon
@@ -720,8 +719,9 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
                               _buildFilterChip(
                                   'Last Month', Icons.date_range_outlined),
                               _buildFilterChip('Veg', Icons.eco_outlined),
-                              _buildFilterChip('Non-Veg',
-                                  FontAwesomeIcons.drumstickBite, isSmall: true),
+                              _buildFilterChip(
+                                  'Non-Veg', FontAwesomeIcons.drumstickBite,
+                                  isSmall: true),
                             ],
                           ),
                         ),
@@ -786,7 +786,8 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 8),
                             itemCount: _filteredDonations.length,
                             itemBuilder: (context, index) {
-                              return _buildDeliveryCard(_filteredDonations[index]);
+                              return _buildDeliveryCard(
+                                  _filteredDonations[index]);
                             },
                           ),
                   ),
@@ -934,23 +935,29 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
     final acceptedAt = donation['acceptedAt'] != null
         ? _formatRelativeTime(donation['acceptedAt'])
         : 'Recently';
-        
+
     final foodName = donation['foodName'] ?? 'Unknown Food';
     final description = donation['description'] ?? 'No description provided';
     final quantity = donation['quantity'] ?? 0;
     final foodType = donation['foodType']?.toString().toLowerCase() ?? '';
-    
-    // Get donor information
-    final donorName = donation['donorName'] ??
-        donation['donorInfo']?['donorName'] ??
+
+    // Get donor information with improved fallbacks
+    final donorInfo = donation['donorInfo'] ?? {};
+    final donorName = donorInfo['donorname'] ??
+        donorInfo['donorName'] ??
+        donation['donorName'] ??
         'Unknown Donor';
+
+    // Get recipient information
+    final recipientInfo = donation['recipientInfo'] ?? {};
     final recipientName = donation['recipientName'] ??
-        donation['recipientInfo']?['recipientName'] ??
+        recipientInfo['recipientName'] ??
         'Unknown Recipient';
 
     // Food type icon and color
-    final (IconData foodTypeIcon, Color foodTypeColor) = _getFoodTypeUI(foodType);
-    
+    final (IconData foodTypeIcon, Color foodTypeColor) =
+        _getFoodTypeUI(foodType);
+
     // Get food image URL
     String? imageUrl;
     if (donation['imageUrl'] != null &&
@@ -1014,9 +1021,9 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
                           ),
                         ),
                 ),
-                
+
                 const SizedBox(width: 12),
-                
+
                 // Middle - Food and delivery details
                 Expanded(
                   child: Column(
@@ -1032,17 +1039,15 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      
+
                       const SizedBox(height: 4),
-                      
+
                       // Type tag
                       Row(
                         children: [
                           Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 6, 
-                              vertical: 2
-                            ),
+                                horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
                               color: foodTypeColor.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(4),
@@ -1066,15 +1071,13 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
                               ],
                             ),
                           ),
-                          
+
                           const SizedBox(width: 8),
-                          
+
                           // Quantity
                           Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 6, 
-                              vertical: 2
-                            ),
+                                horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
                               color: Colors.blue.shade50,
                               borderRadius: BorderRadius.circular(4),
@@ -1100,9 +1103,9 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
                           ),
                         ],
                       ),
-                      
+
                       const SizedBox(height: 8),
-                      
+
                       // Donor and recipient names
                       Row(
                         children: [
@@ -1129,7 +1132,7 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
                               ],
                             ),
                           ),
-                          
+
                           // Delivery time
                           Row(
                             children: [
@@ -1156,24 +1159,19 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
               ],
             ),
           ),
-          
+
           // Divider
           Divider(color: Colors.grey.shade200, height: 1),
-          
+
           // Status badge and View Details button
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16, 
-              vertical: 12
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               children: [
                 // Status badge
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8, 
-                    vertical: 4
-                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.green.shade50,
                     borderRadius: BorderRadius.circular(16),
@@ -1197,9 +1195,9 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
                     ],
                   ),
                 ),
-                
+
                 const Spacer(),
-                
+
                 // Direct link to Full Details popup
                 TextButton.icon(
                   onPressed: () {
@@ -1231,7 +1229,7 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
       ),
     );
   }
-  
+
   (IconData, Color) _getFoodTypeUI(String foodType) {
     if (foodType == 'veg') {
       return (Icons.eco, Colors.green);
@@ -1243,14 +1241,14 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
       return (Icons.restaurant, Colors.grey.shade700);
     }
   }
-  
+
   String _formatRelativeTime(String? dateTimeStr) {
     if (dateTimeStr == null) return 'Recently';
     try {
       final dateTime = DateTime.parse(dateTimeStr).toLocal();
       final now = DateTime.now();
       final difference = now.difference(dateTime);
-      
+
       if (difference.inDays > 7) {
         // Format as date when more than a week old
         return DateFormat('d MMM').format(dateTime);
