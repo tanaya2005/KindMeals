@@ -1505,4 +1505,83 @@ class ApiService {
 
     return donations;
   }
+
+  // Get user notifications
+  Future<List<Map<String, dynamic>>> getNotifications() async {
+    try {
+      if (kDebugMode) {
+        print('Fetching user notifications...');
+      }
+
+      // Get current user
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        if (kDebugMode) {
+          print('DEBUG: No authenticated user found');
+        }
+        throw Exception('No authenticated user found');
+      }
+
+      // Get fresh token
+      await currentUser.reload();
+      final String? idToken = await currentUser.getIdToken(true);
+      if (idToken == null) {
+        throw Exception('Authentication error: Failed to get ID token');
+      }
+
+      final headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $idToken',
+      };
+
+      // Make API call
+      final response = await http.get(
+        Uri.parse('$baseUrl/notifications'),
+        headers: headers,
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to get notifications: ${response.body}');
+      }
+
+      final List<dynamic> data = jsonDecode(response.body);
+      if (kDebugMode) {
+        print('Fetched ${data.length} notifications');
+      }
+
+      return data.cast<Map<String, dynamic>>();
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error fetching notifications: $e');
+      }
+      rethrow;
+    }
+  }
+
+  // Mark notification as read
+  Future<bool> markNotificationAsRead(String notificationId) async {
+    try {
+      if (kDebugMode) {
+        print('Marking notification as read: $notificationId');
+      }
+
+      // Make API call
+      final response = await http.put(
+        Uri.parse('$baseUrl/notifications/$notificationId/mark-read'),
+        headers: await _authHeaders,
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception(
+            'Failed to mark notification as read: ${response.body}');
+      }
+
+      return true;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error marking notification as read: $e');
+      }
+      return false;
+    }
+  }
 }

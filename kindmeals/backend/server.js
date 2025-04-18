@@ -8,14 +8,14 @@ require('dotenv').config();
 const fs = require('fs');
 
 // Import models
-// const User = require('./models/User'); // This model doesn't exist
 const LiveDonation = require('./models/LiveDonation');
 const AcceptedDonation = require('./models/AcceptedDonation');
+const FinalDonation = require('./models/FinalDonation');
+const ExpiredDonation = require('./models/ExpiredDonation');
 const DirectDonor = require('./models/DirectDonor');
 const DirectRecipient = require('./models/DirectRecipient');
 const DirectVolunteer = require('./models/DirectVolunteer');
-const ExpiredDonation = require('./models/ExpiredDonation');
-// const FinalDonation = require('./models/FinalDonation'); // Check if this model exists
+const Notification = require('./models/Notification');
 
 // Initialize Express app
 const app = express();
@@ -564,7 +564,13 @@ app.post('/api/donations/accept/:donationId', firebaseAuthMiddleware, async (req
     console.log(`Delivery preference: original=${donation.needsVolunteer}, final=${needsVolunteer}`);
     console.log(`Delivery by: ${volunteerInfo}`);
 
-    // Create accepted donation record
+    // Get full donor information
+    const donor = await DirectDonor.findById(donation.donorId);
+    if (!donor) {
+      console.log('Warning: Donor not found with ID:', donation.donorId);
+    }
+
+    // Create accepted donation record with enhanced donor info
     const acceptedDonation = new AcceptedDonation({
       originalDonationId: donation._id,
       acceptedBy: recipient._id,
@@ -578,8 +584,16 @@ app.post('/api/donations/accept/:donationId', firebaseAuthMiddleware, async (req
       expiryDateTime: donation.expiryDateTime,
       timeOfUpload: donation.timeOfUpload,
       foodType: donation.foodType,
+      imageUrl: donation.imageUrl,
       deliveredby: volunteerInfo,
       feedback: "", // Initialize empty feedback
+      // Enhanced donor info
+      donorInfo: {
+        donorId: donation.donorId,
+        donorName: donation.donorName,
+        donorContact: donor ? donor.donorcontact : '',
+        donorAddress: donation.location && donation.location.address ? donation.location.address : (donor ? donor.donoraddress : '')
+      },
       recipientInfo: {
         recipientId: recipient._id,
         recipientName: recipient.reciname,
@@ -895,6 +909,56 @@ app.post('/api/volunteer/accept-delivery/:acceptedDonationId', firebaseAuthMiddl
     const updatedDonation = await acceptedDonation.save();
     console.log('Accepted donation updated with volunteer assignment');
     
+    // Create notification for donor
+    try {
+      const donorNotification = {
+        userId: acceptedDonation.donorId,
+        userType: 'donor',
+        title: 'Volunteer Assigned',
+        message: `${volunteer.volunteerName} has accepted to deliver your donation "${acceptedDonation.foodName}" to the recipient.`,
+        type: 'volunteer_assigned',
+        relatedDonationId: acceptedDonation._id,
+        isRead: false,
+        createdAt: new Date()
+      };
+      
+      // Add to notifications collection if it exists, otherwise log
+      if (mongoose.connection.models['Notification']) {
+        await mongoose.connection.models['Notification'].create(donorNotification);
+        console.log('Donor notification created');
+      } else {
+        console.log('Would create donor notification:', donorNotification);
+      }
+    } catch (notificationErr) {
+      console.error('Error creating donor notification:', notificationErr);
+      // Continue execution even if notification fails
+    }
+    
+    // Create notification for recipient
+    try {
+      const recipientNotification = {
+        userId: acceptedDonation.acceptedBy,
+        userType: 'recipient',
+        title: 'Volunteer Assigned',
+        message: `${volunteer.volunteerName} has accepted to deliver your requested donation "${acceptedDonation.foodName}".`,
+        type: 'volunteer_assigned',
+        relatedDonationId: acceptedDonation._id,
+        isRead: false,
+        createdAt: new Date()
+      };
+      
+      // Add to notifications collection if it exists, otherwise log
+      if (mongoose.connection.models['Notification']) {
+        await mongoose.connection.models['Notification'].create(recipientNotification);
+        console.log('Recipient notification created');
+      } else {
+        console.log('Would create recipient notification:', recipientNotification);
+      }
+    } catch (notificationErr) {
+      console.error('Error creating recipient notification:', notificationErr);
+      // Continue execution even if notification fails
+    }
+    
     res.status(200).json(updatedDonation);
   } catch (err) {
     console.error('Error in volunteer delivery acceptance:', err);
@@ -918,13 +982,42 @@ app.get('/api/volunteer/donations/history', firebaseAuthMiddleware, async (req, 
     console.log('User authenticated as volunteer:', volunteer._id);
     
     // Find all accepted donations where this volunteer was involved
-    const acceptedDonations = await AcceptedDonation.find({ 
-      deliveredby: volunteer.volunteerName 
-    }).sort({ acceptedAt: -1 });
+    let acceptedDonations = await AcceptedDonation.find({ 
+      // Only show donations where the volunteer is actually assigned or the deliveredby field has the volunteer's name
+      $or: [
+        { deliveredby: volunteer.volunteerName },
+        { 'volunteerInfo.volunteerId': volunteer._id }
+      ]
+    })
+    .sort({ acceptedAt: -1 });
     
     console.log(`Found ${acceptedDonations.length} donations delivered by this volunteer`);
     
-    res.status(200).json(acceptedDonations);
+    // Enhance donor information if needed
+    const enhancedDonations = await Promise.all(acceptedDonations.map(async (donation) => {
+      const donationObj = donation.toObject();
+      
+      // If donor info is missing, try to fetch it
+      if (!donationObj.donorInfo || !donationObj.donorInfo.donorContact) {
+        try {
+          const donor = await DirectDonor.findById(donationObj.donorId);
+          if (donor) {
+            donationObj.donorInfo = {
+              donorId: donor._id,
+              donorName: donor.donorName,
+              donorContact: donor.donorcontact,
+              donorAddress: donor.donoraddress
+            };
+          }
+        } catch (err) {
+          console.log(`Error fetching donor info for donation ${donationObj._id}:`, err);
+        }
+      }
+      
+      return donationObj;
+    }));
+    
+    res.status(200).json(enhancedDonations);
   } catch (err) {
     console.error('Error getting volunteer donation history:', err);
     res.status(400).json({ error: err.message });
@@ -1049,7 +1142,87 @@ app.get('/api/volunteer/donations/pending', firebaseAuthMiddleware, async (req, 
     
     console.log(`Found ${pendingDeliveries.length} pending deliveries for volunteers`);
     
-    res.status(200).json(pendingDeliveries);
+    // Enhanced: Populate donor and recipient information, especially coordinates
+    const enhancedDeliveries = await Promise.all(pendingDeliveries.map(async (donation) => {
+      const donationObj = donation.toObject();
+      
+      // Initialize location coordinates in the response
+      if (!donationObj.locationCoordinates) {
+        donationObj.locationCoordinates = {
+          donor: { latitude: null, longitude: null },
+          recipient: { latitude: null, longitude: null }
+        };
+      }
+      
+      // Check if donor info is missing or incomplete
+      const hasDonorContactInfo = donationObj.donorInfo && 
+                                 (donationObj.donorInfo.donorContact || donationObj.donorInfo.donorcontact);
+      const hasDonorAddressInfo = donationObj.donorInfo && 
+                                 (donationObj.donorInfo.donorAddress || donationObj.donorInfo.donoraddress);
+      
+      // Get donor info including coordinates
+      try {
+        console.log(`Fetching complete donor info for donation: ${donationObj._id}`);
+        // Find the donor to get complete information
+        const donor = await DirectDonor.findById(donationObj.donorId);
+        if (donor) {
+          // Make sure donorInfo exists
+          if (!donationObj.donorInfo) {
+            donationObj.donorInfo = {};
+          }
+          
+          // Add donor details to ensure both camelCase and lowercase field names are provided
+          donationObj.donorInfo.donorName = donor.donorname;
+          donationObj.donorInfo.donorname = donor.donorname;
+          donationObj.donorInfo.donorContact = donor.donorcontact;
+          donationObj.donorInfo.donorcontact = donor.donorcontact;
+          donationObj.donorInfo.donorAddress = donor.donoraddress;
+          donationObj.donorInfo.donoraddress = donor.donoraddress;
+          
+          // Store donor coordinates for the Google Maps directions
+          if (donor.donorlocation && donor.donorlocation.latitude && donor.donorlocation.longitude) {
+            donationObj.locationCoordinates.donor.latitude = donor.donorlocation.latitude;
+            donationObj.locationCoordinates.donor.longitude = donor.donorlocation.longitude;
+          }
+          
+          console.log(`Enhanced donor info for donation: ${donationObj._id}`);
+        }
+      } catch (err) {
+        console.log(`Error enhancing donor info for donation ${donationObj._id}:`, err);
+      }
+      
+      // Get recipient info including coordinates
+      try {
+        console.log(`Fetching complete recipient info for donation: ${donationObj._id}`);
+        // Find the recipient to get complete information
+        const recipient = await DirectRecipient.findById(donationObj.acceptedBy);
+        if (recipient) {
+          // Make sure recipientInfo exists
+          if (!donationObj.recipientInfo) {
+            donationObj.recipientInfo = {};
+          }
+          
+          // Add recipient details
+          donationObj.recipientInfo.recipientName = recipient.reciname;
+          donationObj.recipientInfo.recipientContact = recipient.recicontact;
+          donationObj.recipientInfo.recipientAddress = recipient.reciaddress;
+          
+          // Store recipient coordinates for the Google Maps directions
+          if (recipient.recilocation && recipient.recilocation.latitude && recipient.recilocation.longitude) {
+            donationObj.locationCoordinates.recipient.latitude = recipient.recilocation.latitude;
+            donationObj.locationCoordinates.recipient.longitude = recipient.recilocation.longitude;
+          }
+          
+          console.log(`Enhanced recipient info for donation: ${donationObj._id}`);
+        }
+      } catch (err) {
+        console.log(`Error enhancing recipient info for donation ${donationObj._id}:`, err);
+      }
+      
+      return donationObj;
+    }));
+    
+    res.status(200).json(enhancedDeliveries);
   } catch (err) {
     console.error('Error getting pending deliveries for volunteer:', err);
     res.status(400).json({ error: err.message });
@@ -1092,8 +1265,88 @@ app.get('/api/pending-volunteer-deliveries', firebaseAuthMiddleware, async (req,
     
     console.log(`Found ${pendingDeliveries.length} pending deliveries for volunteers`);
     
+    // Enhanced: Populate donor and recipient information, especially coordinates
+    const enhancedDeliveries = await Promise.all(pendingDeliveries.map(async (donation) => {
+      const donationObj = donation.toObject();
+      
+      // Initialize location coordinates in the response
+      if (!donationObj.locationCoordinates) {
+        donationObj.locationCoordinates = {
+          donor: { latitude: null, longitude: null },
+          recipient: { latitude: null, longitude: null }
+        };
+      }
+      
+      // Check if donor info is missing or incomplete
+      const hasDonorContactInfo = donationObj.donorInfo && 
+                                 (donationObj.donorInfo.donorContact || donationObj.donorInfo.donorcontact);
+      const hasDonorAddressInfo = donationObj.donorInfo && 
+                                 (donationObj.donorInfo.donorAddress || donationObj.donorInfo.donoraddress);
+      
+      // Get donor info including coordinates
+      try {
+        console.log(`Fetching complete donor info for donation: ${donationObj._id}`);
+        // Find the donor to get complete information
+        const donor = await DirectDonor.findById(donationObj.donorId);
+        if (donor) {
+          // Make sure donorInfo exists
+          if (!donationObj.donorInfo) {
+            donationObj.donorInfo = {};
+          }
+          
+          // Add donor details to ensure both camelCase and lowercase field names are provided
+          donationObj.donorInfo.donorName = donor.donorname;
+          donationObj.donorInfo.donorname = donor.donorname;
+          donationObj.donorInfo.donorContact = donor.donorcontact;
+          donationObj.donorInfo.donorcontact = donor.donorcontact;
+          donationObj.donorInfo.donorAddress = donor.donoraddress;
+          donationObj.donorInfo.donoraddress = donor.donoraddress;
+          
+          // Store donor coordinates for the Google Maps directions
+          if (donor.donorlocation && donor.donorlocation.latitude && donor.donorlocation.longitude) {
+            donationObj.locationCoordinates.donor.latitude = donor.donorlocation.latitude;
+            donationObj.locationCoordinates.donor.longitude = donor.donorlocation.longitude;
+          }
+          
+          console.log(`Enhanced donor info for donation: ${donationObj._id}`);
+        }
+      } catch (err) {
+        console.log(`Error enhancing donor info for donation ${donationObj._id}:`, err);
+      }
+      
+      // Get recipient info including coordinates
+      try {
+        console.log(`Fetching complete recipient info for donation: ${donationObj._id}`);
+        // Find the recipient to get complete information
+        const recipient = await DirectRecipient.findById(donationObj.acceptedBy);
+        if (recipient) {
+          // Make sure recipientInfo exists
+          if (!donationObj.recipientInfo) {
+            donationObj.recipientInfo = {};
+          }
+          
+          // Add recipient details
+          donationObj.recipientInfo.recipientName = recipient.reciname;
+          donationObj.recipientInfo.recipientContact = recipient.recicontact;
+          donationObj.recipientInfo.recipientAddress = recipient.reciaddress;
+          
+          // Store recipient coordinates for the Google Maps directions
+          if (recipient.recilocation && recipient.recilocation.latitude && recipient.recilocation.longitude) {
+            donationObj.locationCoordinates.recipient.latitude = recipient.recilocation.latitude;
+            donationObj.locationCoordinates.recipient.longitude = recipient.recilocation.longitude;
+          }
+          
+          console.log(`Enhanced recipient info for donation: ${donationObj._id}`);
+        }
+      } catch (err) {
+        console.log(`Error enhancing recipient info for donation ${donationObj._id}:`, err);
+      }
+      
+      return donationObj;
+    }));
+    
     // Return array even if empty
-    res.status(200).json(pendingDeliveries || []);
+    res.status(200).json(enhancedDeliveries || []);
   } catch (err) {
     console.error('Error getting simplified pending deliveries for volunteer:', err);
     res.status(400).json({ error: err.message });
@@ -1155,6 +1408,69 @@ app.get('/debug/update-donation/:id', async (req, res) => {
     });
   } catch (err) {
     console.error('Error updating donation:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Get user notifications
+app.get('/api/notifications', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    console.log('=== DEBUG: Get User Notifications ===');
+    
+    // Get user info from middleware
+    const userId = req.user._id;
+    const userType = req.userType;
+    
+    console.log(`Getting notifications for ${userType} with ID: ${userId}`);
+    
+    // Fetch notifications for this user
+    const notifications = await Notification.find({
+      userId: userId,
+      userType: userType
+    })
+    .sort({ createdAt: -1 }) // Newest first
+    .limit(50);  // Limit to 50 most recent notifications
+    
+    console.log(`Found ${notifications.length} notifications`);
+    
+    res.status(200).json(notifications);
+  } catch (err) {
+    console.error('Error getting notifications:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Mark notification as read
+app.put('/api/notifications/:notificationId/mark-read', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    console.log('=== DEBUG: Mark Notification Read ===');
+    console.log('Notification ID:', req.params.notificationId);
+    
+    // Get user info from middleware
+    const userId = req.user._id;
+    
+    // Find the notification
+    const notification = await Notification.findById(req.params.notificationId);
+    
+    if (!notification) {
+      return res.status(404).json({ error: 'Notification not found' });
+    }
+    
+    // Verify the notification belongs to this user
+    if (notification.userId.toString() !== userId.toString()) {
+      console.log('Unauthorized: Notification does not belong to this user');
+      return res.status(403).json({ error: 'Unauthorized: This notification does not belong to you' });
+    }
+    
+    // Update as read
+    notification.isRead = true;
+    await notification.save();
+    
+    console.log('Notification marked as read');
+    
+    res.status(200).json({ success: true, notification });
+  } catch (err) {
+    console.error('Error marking notification as read:', err);
     res.status(400).json({ error: err.message });
   }
 });

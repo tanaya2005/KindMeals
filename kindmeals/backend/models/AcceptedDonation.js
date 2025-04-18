@@ -25,8 +25,15 @@ const acceptedDonationSchema = new mongoose.Schema({
     enum: ['veg', 'nonveg', 'jain'],
     required: true,
   },
+  imageUrl: String,
   deliveredby: { type: String, required: true },
   feedback: { type: String, default: '' },
+  donorInfo: {
+    donorId: { type: mongoose.Schema.Types.ObjectId, ref: 'DirectDonor' },
+    donorName: { type: String },
+    donorContact: { type: String },
+    donorAddress: { type: String }
+  },
   recipientInfo: {
     recipientId: { type: mongoose.Schema.Types.ObjectId, ref: 'DirectRecipient' },
     recipientName: { type: String },
