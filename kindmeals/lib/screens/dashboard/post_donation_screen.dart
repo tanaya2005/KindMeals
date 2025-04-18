@@ -6,6 +6,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../config/api_config.dart';
 import 'package:flutter/foundation.dart';
 import '../../utils/date_time_helper.dart';
+import '../../services/location_service.dart';
+import 'package:geolocator/geolocator.dart';
 
 class PostDonationScreen extends StatefulWidget {
   const PostDonationScreen({super.key});
@@ -30,6 +32,9 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
   bool _isUserDonor = false;
   bool _isCheckingUserType = true;
   String _errorMessage = '';
+  double? _latitude;
+  double? _longitude;
+  bool _isGettingLocation = false;
 
   final List<String> _foodTypes = ['veg', 'nonveg', 'jain'];
 
@@ -64,6 +69,24 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
           userProfile['profile'] != null &&
           userProfile['profile'].containsKey('_id')) {
         print('DEBUG: MongoDB ID: ${userProfile['profile']['_id']}');
+
+        // If the user has a stored location, use that as the default
+        if (userProfile['profile'].containsKey('latitude') &&
+            userProfile['profile'].containsKey('longitude')) {
+          setState(() {
+            _latitude = userProfile['profile']['latitude'];
+            _longitude = userProfile['profile']['longitude'];
+            if (kDebugMode) {
+              print('Using stored location: $_latitude, $_longitude');
+            }
+          });
+        }
+
+        // If the user has a stored address, use that as the default
+        if (userProfile['profile'].containsKey('address') &&
+            userProfile['profile']['address'] != null) {
+          _addressController.text = userProfile['profile']['address'];
+        }
       } else {
         print('WARNING: MongoDB ID not found in profile data');
       }
@@ -121,6 +144,67 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
           backgroundColor: Colors.red,
         ),
       );
+    }
+  }
+
+  Future<void> _getLocation() async {
+    setState(() {
+      _isGettingLocation = true;
+    });
+
+    try {
+      final position = await LocationService.getCurrentLocation();
+      if (position != null) {
+        setState(() {
+          _latitude = position.latitude;
+          _longitude = position.longitude;
+        });
+
+        // Attempt to get the address from coordinates
+        final address = await LocationService.getAddressFromCoordinates(
+            position.latitude, position.longitude);
+        if (address != null && address.isNotEmpty) {
+          setState(() {
+            _addressController.text = address;
+          });
+
+          if (kDebugMode) {
+            print('Address updated: $address');
+          }
+        } else {
+          if (kDebugMode) {
+            print('Could not get address from coordinates');
+          }
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'Could not get your location. Please ensure location services are enabled.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error getting location: $e');
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isGettingLocation = false;
+        });
+      }
     }
   }
 
@@ -195,6 +279,28 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
         return;
       }
 
+      // If we have an address but no coordinates, try to get coordinates from the address
+      if (_latitude == null && _addressController.text.isNotEmpty) {
+        try {
+          final coords = await LocationService.getCoordinatesFromAddress(
+              _addressController.text);
+          if (coords != null) {
+            setState(() {
+              _latitude = coords['latitude'];
+              _longitude = coords['longitude'];
+            });
+            if (kDebugMode) {
+              print('Coordinates from address: $_latitude, $_longitude');
+            }
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            print('Could not get coordinates from address: $e');
+          }
+          // Continue without coordinates
+        }
+      }
+
       setState(() {
         _isLoading = true;
       });
@@ -227,6 +333,8 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
           address: _addressController.text,
           needsVolunteer: _needsVolunteer,
           foodImage: _foodImage,
+          latitude: _latitude,
+          longitude: _longitude,
         );
 
         setState(() {
@@ -606,6 +714,20 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
+                          suffixIcon: IconButton(
+                            icon: _isGettingLocation
+                                ? SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.green,
+                                    ),
+                                  )
+                                : Icon(Icons.my_location, color: Colors.green),
+                            onPressed: _isGettingLocation ? null : _getLocation,
+                            tooltip: 'Get Current Location',
+                          ),
                         ),
                         validator: (value) {
                           if (value == null || value.isEmpty) {
@@ -614,6 +736,18 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
                           return null;
                         },
                       ),
+                      if (_latitude != null && _longitude != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4.0, left: 8.0),
+                          child: Text(
+                            'Location: ${_latitude!.toStringAsFixed(6)}, ${_longitude!.toStringAsFixed(6)}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ),
                       const SizedBox(height: 16),
                       _buildDateTimeField(),
                       const SizedBox(height: 16),

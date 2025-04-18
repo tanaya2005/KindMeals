@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import '../utils/date_time_helper.dart';
+import '../services/location_service.dart';
 
 class ApiService {
   static const String baseUrl = ApiConfig.apiBaseUrl;
@@ -1465,5 +1466,43 @@ class ApiService {
       }
       rethrow;
     }
+  }
+
+  // Get recipient donations with distance information for volunteers
+  Future<List<Map<String, dynamic>>> getRecipientDonationsWithDistance() async {
+    final donations = await getRecipientDonations();
+
+    // Get volunteer's current location
+    final currentPosition = await LocationService.getCurrentLocation();
+
+    if (currentPosition != null) {
+      // Calculate distance for each donation
+      return donations.map((donation) {
+        final Map<String, dynamic> donationWithDistance = Map.from(donation);
+
+        // Check if donation has location data
+        if (donation.containsKey('latitude') &&
+            donation.containsKey('longitude') &&
+            donation['latitude'] != null &&
+            donation['longitude'] != null) {
+          final double distance = LocationService.calculateDistance(
+              currentPosition.latitude,
+              currentPosition.longitude,
+              donation['latitude'],
+              donation['longitude']);
+
+          donationWithDistance['distance'] = distance;
+          donationWithDistance['distanceText'] =
+              '${distance.toStringAsFixed(1)} km';
+        } else {
+          donationWithDistance['distance'] = null;
+          donationWithDistance['distanceText'] = 'Unknown distance';
+        }
+
+        return donationWithDistance;
+      }).toList();
+    }
+
+    return donations;
   }
 }

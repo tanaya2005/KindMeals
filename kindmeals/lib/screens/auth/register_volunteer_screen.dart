@@ -3,6 +3,9 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../../services/firebase_service.dart';
 import '../../services/api_service.dart';
+import '../../services/location_service.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:flutter/foundation.dart';
 
 class RegisterVolunteerScreen extends StatefulWidget {
   const RegisterVolunteerScreen({super.key});
@@ -31,6 +34,9 @@ class _RegisterVolunteerScreenState extends State<RegisterVolunteerScreen> {
   bool _obscurePassword = true;
   bool _hasVehicle = false;
   String _vehicleType = 'Bike';
+  double? _latitude;
+  double? _longitude;
+  bool _isGettingLocation = false;
   final List<String> _vehicleTypes = ['Bike', 'Scooter', 'Car', 'Other'];
 
   Future<void> _pickImage(bool isProfileImage) async {
@@ -47,8 +53,90 @@ class _RegisterVolunteerScreenState extends State<RegisterVolunteerScreen> {
     }
   }
 
+  Future<void> _getLocation() async {
+    setState(() {
+      _isGettingLocation = true;
+    });
+
+    try {
+      final position = await LocationService.getCurrentLocation();
+      if (position != null) {
+        setState(() {
+          _latitude = position.latitude;
+          _longitude = position.longitude;
+        });
+
+        // Attempt to get the address from coordinates
+        final address = await LocationService.getAddressFromCoordinates(
+            position.latitude, position.longitude);
+        if (address != null && address.isNotEmpty) {
+          setState(() {
+            _addressController.text = address;
+          });
+
+          if (kDebugMode) {
+            print('Address updated: $address');
+          }
+        } else {
+          if (kDebugMode) {
+            print('Could not get address from coordinates');
+          }
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'Could not get your location. Please ensure location services are enabled.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error getting location: $e');
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isGettingLocation = false;
+        });
+      }
+    }
+  }
+
   Future<void> _register() async {
     if (_formKey.currentState!.validate()) {
+      // If we have an address but no coordinates, try to get coordinates from the address
+      if (_latitude == null && _addressController.text.isNotEmpty) {
+        try {
+          final coords = await LocationService.getCoordinatesFromAddress(
+              _addressController.text);
+          if (coords != null) {
+            setState(() {
+              _latitude = coords['latitude'];
+              _longitude = coords['longitude'];
+            });
+            if (kDebugMode) {
+              print('Coordinates from address: $_latitude, $_longitude');
+            }
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            print('Could not get coordinates from address: $e');
+          }
+        }
+      }
+
       setState(() {
         _isLoading = true;
       });
@@ -82,6 +170,8 @@ class _RegisterVolunteerScreenState extends State<RegisterVolunteerScreen> {
           vehicleType: _hasVehicle ? _vehicleType : null,
           vehicleNumber: _hasVehicle ? _vehicleNumberController.text : null,
           drivingLicenseImage: _hasVehicle ? _drivingLicenseImage : null,
+          latitude: _latitude,
+          longitude: _longitude,
         );
 
         if (mounted) {
@@ -278,6 +368,20 @@ class _RegisterVolunteerScreenState extends State<RegisterVolunteerScreen> {
                   decoration: InputDecoration(
                     labelText: 'Address',
                     prefixIcon: const Icon(Icons.home),
+                    suffixIcon: IconButton(
+                      icon: _isGettingLocation
+                          ? SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.green,
+                              ),
+                            )
+                          : Icon(Icons.my_location, color: Colors.green),
+                      onPressed: _isGettingLocation ? null : _getLocation,
+                      tooltip: 'Get Current Location',
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
@@ -290,6 +394,18 @@ class _RegisterVolunteerScreenState extends State<RegisterVolunteerScreen> {
                     return null;
                   },
                 ),
+                if (_latitude != null && _longitude != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4.0, left: 8.0),
+                    child: Text(
+                      'Location: ${_latitude!.toStringAsFixed(6)}, ${_longitude!.toStringAsFixed(6)}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _aboutController,
