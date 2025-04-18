@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import '../../services/api_service.dart';
 import '../../config/api_config.dart';
+import '../../utils/date_time_helper.dart';
 
 class DonationDetailScreen extends StatefulWidget {
   final Map<String, dynamic> donation;
@@ -385,12 +386,20 @@ class _DonationDetailScreenState extends State<DonationDetailScreen> {
   }
 
   String _formatDateTime(String dateTimeStr) {
-    final dateTime = DateTime.parse(dateTimeStr);
-    final day = dateTime.day.toString().padLeft(2, '0');
-    final month = dateTime.month.toString().padLeft(2, '0');
-    final hour = dateTime.hour.toString().padLeft(2, '0');
-    final minute = dateTime.minute.toString().padLeft(2, '0');
+    if (kDebugMode) {
+      print('===== FORMATTING DATE IN DONATION DETAIL =====');
+      print('Input date string from API: $dateTimeStr');
+      final rawDateTime = DateTime.parse(dateTimeStr);
+      print(
+          'Parsed as DateTime (raw): $rawDateTime, isUTC: ${rawDateTime.isUtc}');
+      final localDateTime = rawDateTime.toLocal();
+      print('Converted to local (IST): $localDateTime');
+      final formattedTime = DateTimeHelper.formatAPIDateTime24Hour(dateTimeStr);
+      print('Formatted for display: $formattedTime');
+      print('===========================================');
+    }
 
-    return '$day/$month/${dateTime.year} $hour:$minute';
+    // Use the DateTimeHelper to ensure consistent IST timezone handling
+    return DateTimeHelper.formatAPIDateTime24Hour(dateTimeStr);
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../services/firebase_service.dart';
 import '../../services/api_service.dart';
+import '../../utils/date_time_helper.dart';
 import 'volunteerhistory.dart';
 import 'volunteerprofile.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -572,15 +573,36 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
       }
     }
 
+    // Get donor information - try to extract from all possible places in the API response
+    final donorInfo = donation['donorInfo'] ?? {};
+    final donorName =
+        donation['donorName'] ?? donorInfo['donorName'] ?? 'Unknown Donor';
+    final donorContact = donation['donorContact'] ??
+        donation['donorInfo']?['donorContact'] ??
+        'Contact not available';
+    final donorAddress = donation['donorAddress'] ??
+        donation['location']?['address'] ??
+        donation['donorInfo']?['donorAddress'] ??
+        'Address not available';
+
     // Get recipient information with enhanced null safety
     final recipientInfo = donation['recipientInfo'] ?? {};
     final recipientName = recipientInfo['recipientName'] ??
         donation['recipientName'] ??
         'Unknown Recipient';
-    final recipientContact =
-        recipientInfo['recipientContact'] ?? 'Contact not available';
-    final recipientAddress =
-        recipientInfo['recipientAddress'] ?? 'Address not available';
+    final recipientContact = recipientInfo['recipientContact'] ??
+        donation['recipientContact'] ??
+        'Contact not available';
+    final recipientAddress = recipientInfo['recipientAddress'] ??
+        donation['recipientAddress'] ??
+        'Address not available';
+
+    // Get food image if available
+    String? imageUrl;
+    if (donation['imageUrl'] != null &&
+        donation['imageUrl'].toString().isNotEmpty) {
+      imageUrl = '${ApiService.baseUrl}${donation['imageUrl']}';
+    }
 
     // Food type icon and color with null safety
     IconData foodTypeIcon = Icons.restaurant;
@@ -605,6 +627,7 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Food header section
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -661,6 +684,33 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
               ],
             ),
           ),
+
+          // Food image if available
+          if (imageUrl != null)
+            Container(
+              height: 150,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+              ),
+              child: Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  if (kDebugMode) {
+                    print('Error loading food image: $error');
+                  }
+                  return Center(
+                    child: Icon(
+                      Icons.image_not_supported,
+                      color: Colors.grey.shade400,
+                      size: 50,
+                    ),
+                  );
+                },
+              ),
+            ),
+
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -671,7 +721,17 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
                 _buildInfoRow(
                   Icons.person,
                   'Donor Name',
-                  donation['donorName'] ?? 'Unknown Donor',
+                  donorName,
+                ),
+                _buildInfoRow(
+                  Icons.phone,
+                  'Contact',
+                  donorContact,
+                ),
+                _buildInfoRow(
+                  Icons.location_on,
+                  'Address',
+                  donorAddress,
                 ),
 
                 const SizedBox(height: 16),
@@ -698,10 +758,39 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
 
                 // Food Information
                 _buildSectionTitle('Food Details'),
+                Row(
+                  children: [
+                    Icon(
+                      foodTypeIcon,
+                      size: 16,
+                      color: foodTypeColor,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${foodType.toUpperCase()} • Quantity: ${donation['quantity'] ?? 0}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: foodTypeColor,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
                 Text(
                   donation['description'] ?? 'No description provided',
                   style: TextStyle(color: Colors.grey.shade800),
                 ),
+
+                // Expiry information
+                if (donation['expiryDateTime'] != null) ...[
+                  const SizedBox(height: 12),
+                  _buildInfoRow(
+                    Icons.access_time,
+                    'Expires On',
+                    _formatDateTime(donation['expiryDateTime']),
+                  ),
+                ],
 
                 const SizedBox(height: 24),
 
@@ -777,5 +866,39 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
         ],
       ),
     );
+  }
+
+  // Helper method to format date time in IST
+  String _formatDateTime(String? dateTimeStr) {
+    if (dateTimeStr == null) return 'Unknown';
+    try {
+      if (kDebugMode) {
+        print('===== FORMATTING DATE IN VOLUNTEER DASHBOARD =====');
+        print('Input date string from API: $dateTimeStr');
+      }
+
+      // Parse the string to a DateTime object and convert to local time (IST)
+      final dateTime = DateTimeHelper.parseToIST(dateTimeStr);
+
+      if (kDebugMode) {
+        print('Parsed to IST DateTime: $dateTime');
+        print('Formatting using DateTimeHelper.formatDateTime');
+      }
+
+      // Format using DateTimeHelper to ensure consistent display
+      final formatted = DateTimeHelper.formatDateTime(dateTime);
+
+      if (kDebugMode) {
+        print('Final formatted output: $formatted');
+        print('===========================================');
+      }
+
+      return formatted;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error formatting date in volunteer dashboard: $e');
+      }
+      return 'Unknown';
+    }
   }
 }

@@ -14,6 +14,7 @@ const AcceptedDonation = require('./models/AcceptedDonation');
 const DirectDonor = require('./models/DirectDonor');
 const DirectRecipient = require('./models/DirectRecipient');
 const DirectVolunteer = require('./models/DirectVolunteer');
+const ExpiredDonation = require('./models/ExpiredDonation');
 // const FinalDonation = require('./models/FinalDonation'); // Check if this model exists
 
 // Initialize Express app
@@ -23,6 +24,30 @@ const PORT = process.env.PORT || 5000;
 // Set timezone to India Standard Time (IST)
 process.env.TZ = 'Asia/Kolkata';
 console.log(`Server timezone set to: ${process.env.TZ} (${new Date().toString()})`);
+
+// Configure Mongoose to use the correct timezone for dates
+mongoose.set('toJSON', {
+  virtuals: true,
+  transform: (doc, converted) => {
+    if (converted.expiryDateTime) {
+      // Ensure expiryDateTime is in the correct timezone
+      const date = new Date(converted.expiryDateTime);
+      converted.expiryDateTime = date.toISOString();
+    }
+    if (converted.timeOfUpload) {
+      // Ensure timeOfUpload is in the correct timezone
+      const date = new Date(converted.timeOfUpload);
+      converted.timeOfUpload = date.toISOString();
+    }
+    if (converted.acceptedAt) {
+      // Ensure acceptedAt is in the correct timezone
+      const date = new Date(converted.acceptedAt);
+      converted.acceptedAt = date.toISOString();
+    }
+    // Handle any other date fields as needed
+    return converted;
+  }
+});
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -423,14 +448,33 @@ app.post('/api/donations/create', firebaseAuthMiddleware, upload, async (req, re
     
     console.log('Food image:', foodImage ? 'Uploaded' : 'Not provided');
 
+    // Print timezone information for debugging
+    console.log('Current timezone:', process.env.TZ);
+    console.log('Current server time:', new Date().toString());
+    console.log('Current server time (ISO):', new Date().toISOString());
+    
+    // Parse and correct the expiry date time from the request
+    console.log('Input expiryDateTime from client:', req.body.expiryDateTime);
+    let expiryDateTime;
+    try {
+      // Parse the date directly - it will be interpreted in the server's timezone (IST)
+      expiryDateTime = new Date(req.body.expiryDateTime);
+      console.log('Parsed expiryDateTime (server local time):', expiryDateTime.toString());
+      console.log('Parsed expiryDateTime (ISO format):', expiryDateTime.toISOString());
+    } catch (e) {
+      console.error('Error parsing date:', e);
+      expiryDateTime = new Date(); // Default to current time if parsing fails
+      expiryDateTime.setHours(expiryDateTime.getHours() + 1); // Default expiry 1 hour from now
+    }
+
     const newDonation = new LiveDonation({
       donorId: donor._id,
       donorName: donor.donorname,
       foodName: req.body.foodName,
       quantity: req.body.quantity,
       description: req.body.description,
-      expiryDateTime: new Date(req.body.expiryDateTime),
-      timeOfUpload: new Date(),
+      expiryDateTime: expiryDateTime,
+      timeOfUpload: new Date(), // Current time in server's timezone (IST)
       foodType: req.body.foodType,
       imageUrl: foodImage,
       location: {
@@ -444,11 +488,14 @@ app.post('/api/donations/create', firebaseAuthMiddleware, upload, async (req, re
     console.log('Creating donation with data:', {
       foodName: newDonation.foodName,
       quantity: newDonation.quantity,
-      expiryDateTime: newDonation.expiryDateTime
+      expiryDateTime: newDonation.expiryDateTime,
+      expiryDateTimeISO: newDonation.expiryDateTime.toISOString()
     });
 
     const savedDonation = await newDonation.save();
     console.log('Donation saved successfully with ID:', savedDonation._id);
+    console.log('Saved expiryDateTime:', savedDonation.expiryDateTime);
+    console.log('Saved expiryDateTime (ISO):', savedDonation.expiryDateTime.toISOString());
     
     res.status(201).json(savedDonation);
   } catch (err) {
