@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../config/api_config.dart';
 import '../../utils/date_time_helper.dart';
+import '../../services/location_service.dart';
 import 'package:intl/intl.dart';
 
 class RecipientHistoryScreen extends StatefulWidget {
@@ -18,6 +19,8 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
   List<Map<String, dynamic>> _filteredDonations = [];
   bool _isLoading = true;
   String _errorMessage = '';
+  bool _showDistance = false;
+  bool _isGettingLocation = false;
 
   // Filter variables
   String _selectedTimeFilter = 'All';
@@ -44,13 +47,17 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
       });
 
       print('Fetching recipient donation history...');
-      final donations = await _apiService.getRecipientDonations();
+
+      // Use the version with distance information
+      final donations = await _apiService.getRecipientDonationsWithDistance();
       print('Fetched ${donations.length} accepted donations');
 
       setState(() {
         _acceptedDonations = donations;
         _applyFilters(); // Apply any active filters
         _isLoading = false;
+        _showDistance = donations.any((donation) =>
+            donation.containsKey('distance') && donation['distance'] != null);
       });
     } catch (e) {
       print('Error fetching accepted donations: $e');
@@ -72,6 +79,56 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
         // Initialize with empty list to prevent null errors
         _acceptedDonations = [];
       });
+    }
+  }
+
+  Future<void> _refreshWithLocation() async {
+    setState(() {
+      _isGettingLocation = true;
+    });
+
+    try {
+      final position = await LocationService.getCurrentLocation();
+      if (position != null) {
+        await _fetchAcceptedDonations();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'Location updated. Donations refreshed with distance information.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'Could not get your location. Please ensure location services are enabled.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error getting location: $e');
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating location: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isGettingLocation = false;
+        });
+      }
     }
   }
 
@@ -195,6 +252,21 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
         foregroundColor: Colors.white,
         elevation: 2,
         actions: [
+          if (_showDistance)
+            IconButton(
+              icon: _isGettingLocation
+                  ? SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.my_location),
+              onPressed: _isGettingLocation ? null : _refreshWithLocation,
+              tooltip: 'Update Location',
+            ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _fetchAcceptedDonations,
@@ -481,6 +553,7 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
     final String donorName = donation['donorName'] ?? 'Anonymous';
     final String deliveredBy = donation['deliveredby'] ?? 'Self-pickup';
     final String feedback = donation['feedback'] ?? '';
+    final double? distance = donation['distance'];
 
     // Format dates using DateTimeHelper to ensure IST timezone
     final DateTime acceptedAt = donation['acceptedAt'] != null
@@ -758,6 +831,33 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
                     ),
                   ],
                 ),
+
+                // Show distance information if available (useful for volunteers)
+                if (distance != null) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(Icons.map, color: accentGreen, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Distance: ${distance.toStringAsFixed(1)} km',
+                          style: TextStyle(
+                            color: distance > 10
+                                ? Colors.red[700]
+                                : Colors.grey[800],
+                            fontWeight: distance > 10
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+
                 const SizedBox(height: 16),
                 // Feedback section
                 if (feedback.isNotEmpty) ...[
