@@ -116,7 +116,6 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
           _deliveryOpportunities = [];
         });
 
-        // Show error message only if mounted
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -315,17 +314,6 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
           selectedItemColor: Colors.green,
           elevation: 8,
         ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: () {
-            // Refresh available donations
-            setState(() {
-              _isLoading = true;
-            });
-            _loadData();
-          },
-          backgroundColor: Colors.green,
-          child: const Icon(Icons.refresh),
-        ),
       ),
     );
   }
@@ -342,7 +330,7 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   Row(
                     children: [
@@ -356,31 +344,6 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
                         ),
                       ),
                     ],
-                  ),
-                  TextButton.icon(
-                    onPressed: () async {
-                      // Force refresh with debug info
-                      if (kDebugMode) {
-                        print(
-                            'DEBUG: Force refreshing volunteer opportunities...');
-
-                        // Check current user and auth state
-                        final user = FirebaseAuth.instance.currentUser;
-                        if (user != null) {
-                          print(
-                              'DEBUG: Current user: ${user.uid}, ${user.email}');
-                          print('DEBUG: Token: ${await user.getIdToken(true)}');
-                        } else {
-                          print('DEBUG: No user is signed in!');
-                        }
-                      }
-                      _loadData();
-                    },
-                    icon: const Icon(Icons.refresh, size: 16),
-                    label: const Text('Refresh'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.green,
-                    ),
                   ),
                 ],
               ),
@@ -422,16 +385,6 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              ElevatedButton.icon(
-                                onPressed: _loadData,
-                                icon: const Icon(Icons.refresh),
-                                label: const Text('Refresh'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.green,
-                                  foregroundColor: Colors.white,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
                               OutlinedButton.icon(
                                 onPressed: _navigateToVolunteerHistory,
                                 icon: const Icon(Icons.history),
@@ -548,32 +501,7 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
   }
 
   Widget _buildDeliveryRequestCard(Map<String, dynamic> donation) {
-    // Calculate time since acceptance with null safety
-    String acceptedTime = 'Recently';
-    if (donation['acceptedAt'] != null) {
-      try {
-        final acceptedAt = DateTime.parse(donation['acceptedAt']);
-        final now = DateTime.now();
-        final difference = now.difference(acceptedAt);
-
-        if (difference.inDays > 0) {
-          acceptedTime = '${difference.inDays} days ago';
-        } else if (difference.inHours > 0) {
-          acceptedTime = '${difference.inHours} hours ago';
-        } else if (difference.inMinutes > 0) {
-          acceptedTime = '${difference.inMinutes} minutes ago';
-        } else {
-          acceptedTime = 'Just now';
-        }
-      } catch (e) {
-        if (kDebugMode) {
-          print('Error parsing date: $e');
-        }
-        acceptedTime = 'Recently';
-      }
-    }
-
-    // Get donor information - try to extract from all possible places in the API response
+    // Get donor information
     final donorInfo = donation['donorInfo'] ?? {};
     final donorName =
         donation['donorName'] ?? donorInfo['donorName'] ?? 'Unknown Donor';
@@ -585,7 +513,7 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
         donation['donorInfo']?['donorAddress'] ??
         'Address not available';
 
-    // Get recipient information with enhanced null safety
+    // Get recipient information
     final recipientInfo = donation['recipientInfo'] ?? {};
     final recipientName = recipientInfo['recipientName'] ??
         donation['recipientName'] ??
@@ -597,6 +525,14 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
         donation['recipientAddress'] ??
         'Address not available';
 
+    // Other donation details
+    final acceptedTime = _getAcceptedTimeString(donation['acceptedAt']);
+    final foodName = donation['foodName'] ?? 'Food Donation';
+    final quantity = donation['quantity'] ?? 0;
+    final description = donation['description'] ?? 'No description provided';
+    final expiryDateTime = donation['expiryDateTime'];
+    final foodType = donation['foodType']?.toString().toLowerCase() ?? '';
+    
     // Get food image if available
     String? imageUrl;
     if (donation['imageUrl'] != null &&
@@ -604,268 +540,574 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
       imageUrl = '${ApiService.baseUrl}${donation['imageUrl']}';
     }
 
-    // Food type icon and color with null safety
-    IconData foodTypeIcon = Icons.restaurant;
-    Color foodTypeColor = Colors.grey.shade700;
+    // Food type icon and color mapping
+    final (IconData foodTypeIcon, Color foodTypeColor) = _getFoodTypeIcon(foodType);
 
-    final foodType = donation['foodType']?.toString().toLowerCase() ?? '';
-    if (foodType == 'veg') {
-      foodTypeIcon = Icons.eco;
-      foodTypeColor = Colors.green;
-    } else if (foodType == 'nonveg') {
-      foodTypeIcon = FontAwesomeIcons.drumstickBite;
-      foodTypeColor = Colors.red;
-    } else if (foodType == 'jain') {
-      foodTypeIcon = Icons.spa;
-      foodTypeColor = Colors.green.shade800;
-    }
+    // Card state management
+    final ValueNotifier<bool> isExpanded = ValueNotifier<bool>(false);
 
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Food header section
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.green.shade50,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12),
-                topRight: Radius.circular(12),
+    return ValueListenableBuilder<bool>(
+      valueListenable: isExpanded,
+      builder: (context, expanded, _) {
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.green.shade200, width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.06),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
               ),
-            ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  backgroundColor: Colors.green.shade100,
-                  child: Icon(foodTypeIcon, color: foodTypeColor),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Food Header
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    topRight: Radius.circular(16),
+                  ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Food type icon
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: foodTypeColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        foodTypeIcon,
+                        color: foodTypeColor,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Food name and details
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            foodName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: foodTypeColor.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                    color: foodTypeColor.withOpacity(0.3),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Text(
+                                  foodType.isEmpty ? 'MIXED' : foodType.toUpperCase(),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: foodTypeColor,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.shade50,
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                    color: Colors.blue.shade200,
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.people_alt_outlined,
+                                      size: 10,
+                                      color: Colors.blue.shade700,
+                                    ),
+                                    const SizedBox(width: 2),
+                                    Text(
+                                      "$quantity servings",
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w500,
+                                        color: Colors.blue.shade700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Spacer(),
+                              Text(
+                                acceptedTime,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Donor & Recipient Information Section
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Donor information
+                    _buildContactCard(
+                      title: 'Donor',
+                      name: donorName,
+                      contact: donorContact,
+                      address: donorAddress,
+                      iconColor: Colors.green.shade700,
+                      icon: Icons.store,
+                    ),
+                    
+                    const SizedBox(height: 16),
+                    
+                    // Recipient information
+                    _buildContactCard(
+                      title: 'Recipient',
+                      name: recipientName,
+                      contact: recipientContact,
+                      address: recipientAddress,
+                      iconColor: Colors.orange.shade700,
+                      icon: Icons.person,
+                    ),
+                  ],
+                ),
+              ),
+
+              // Divider
+              Divider(height: 1, color: Colors.grey.shade200),
+
+              // View Details button
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  children: [
+                    // Expand/Collapse button
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () {
+                          isExpanded.value = !isExpanded.value;
+                        },
+                        style: TextButton.styleFrom(
+                          backgroundColor: expanded 
+                              ? Colors.grey.shade100 
+                              : Colors.blue.shade50,
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            side: BorderSide(
+                              color: expanded 
+                                  ? Colors.grey.shade300 
+                                  : Colors.blue.shade200,
+                            ),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              expanded 
+                                  ? Icons.keyboard_arrow_up 
+                                  : Icons.keyboard_arrow_down,
+                              size: 18,
+                              color: expanded 
+                                  ? Colors.grey.shade700 
+                                  : Colors.blue.shade700,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              expanded ? 'Hide Details' : 'View Details',
+                              style: TextStyle(
+                                color: expanded 
+                                    ? Colors.grey.shade700 
+                                    : Colors.blue.shade700,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Expanded section with food details
+              if (expanded)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(16),
+                      bottomRight: Radius.circular(16),
+                    ),
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        donation['foodName'] ?? 'Food Donation',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                      // Food image if available
+                      if (imageUrl != null)
+                        Container(
+                          height: 180,
+                          width: double.infinity,
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: Image.network(
+                            imageUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                height: 180,
+                                color: Colors.grey.shade200,
+                                child: Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.image_not_supported,
+                                        color: Colors.grey.shade400,
+                                        size: 40,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Image not available',
+                                        style: TextStyle(
+                                          color: Colors.grey.shade500,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
                         ),
-                      ),
-                      Text(
-                        'Accepted $acceptedTime',
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 12,
+
+                      // Food description
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade200),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.description_outlined,
+                                  size: 18,
+                                  color: Colors.blue.shade700,
+                                ),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'Food Description',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              description,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey.shade800,
+                                height: 1.4,
+                              ),
+                            ),
+                            
+                            if (expiryDateTime != null) ...[
+                              const SizedBox(height: 16),
+                              const Divider(),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.schedule,
+                                    size: 16,
+                                    color: Colors.red.shade700,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Expires on: ${_formatDateTime(expiryDateTime)}',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 14,
+                                      color: Colors.red.shade700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
                         ),
                       ),
                     ],
                   ),
                 ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade100,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '${donation['quantity'] ?? 0} servings',
-                    style: TextStyle(
-                      color: Colors.blue.shade700,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
+
+              // Accept Button
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                child: ElevatedButton.icon(
+                  onPressed: donation['_id'] != null
+                      ? () => _acceptDeliveryOpportunity(donation['_id'])
+                      : null,
+                  icon: const Icon(Icons.delivery_dining),
+                  label: const Text('ACCEPT DELIVERY'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green.shade600,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
                     ),
+                    elevation: 0,
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
+        );
+      },
+    );
+  }
 
-          // Food image if available
-          if (imageUrl != null)
-            Container(
-              height: 150,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade200,
+  Widget _buildContactCard({
+    required String title,
+    required String name,
+    required String contact,
+    required String address,
+    required Color iconColor,
+    required IconData icon,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: iconColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  icon,
+                  size: 14,
+                  color: iconColor,
+                ),
               ),
-              child: Image.network(
-                imageUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  if (kDebugMode) {
-                    print('Error loading food image: $error');
-                  }
-                  return Center(
-                    child: Icon(
-                      Icons.image_not_supported,
-                      color: Colors.grey.shade400,
-                      size: 50,
-                    ),
-                  );
-                },
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: iconColor,
+                ),
               ),
-            ),
-
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Donor Information
-                _buildSectionTitle('From Donor'),
-                _buildInfoRow(
-                  Icons.person,
-                  'Donor Name',
-                  donorName,
-                ),
-                _buildInfoRow(
-                  Icons.phone,
-                  'Contact',
-                  donorContact,
-                ),
-                _buildInfoRow(
-                  Icons.location_on,
-                  'Address',
-                  donorAddress,
-                ),
-
-                const SizedBox(height: 16),
-
-                // Recipient Information
-                _buildSectionTitle('To Recipient'),
-                _buildInfoRow(
-                  Icons.person_outline,
-                  'Recipient',
-                  recipientName,
-                ),
-                _buildInfoRow(
-                  Icons.phone,
-                  'Contact',
-                  recipientContact,
-                ),
-                _buildInfoRow(
-                  Icons.location_on,
-                  'Address',
-                  recipientAddress,
-                ),
-
-                const SizedBox(height: 16),
-
-                // Food Information
-                _buildSectionTitle('Food Details'),
-                Row(
+            ],
+          ),
+          const SizedBox(height: 10),
+          
+          // Contact details
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      foodTypeIcon,
-                      size: 16,
-                      color: foodTypeColor,
-                    ),
-                    const SizedBox(width: 8),
                     Text(
-                      '${foodType.toUpperCase()} • Quantity: ${donation['quantity'] ?? 0}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
+                      name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
                         fontSize: 14,
-                        color: foodTypeColor,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.phone_outlined,
+                          size: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            contact,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade700,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Icon(
+                            Icons.location_on_outlined,
+                            size: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            address,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade700,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  donation['description'] ?? 'No description provided',
-                  style: TextStyle(color: Colors.grey.shade800),
+              ),
+              Container(
+                margin: const EdgeInsets.only(left: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.grey.shade200),
                 ),
-
-                // Expiry information
-                if (donation['expiryDateTime'] != null) ...[
-                  const SizedBox(height: 12),
-                  _buildInfoRow(
-                    Icons.access_time,
-                    'Expires On',
-                    _formatDateTime(donation['expiryDateTime']),
+                child: IconButton(
+                  icon: Icon(
+                    Icons.call,
+                    size: 16,
+                    color: Colors.blue.shade600,
                   ),
-                ],
-
-                const SizedBox(height: 24),
-
-                // Accept Button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: donation['_id'] != null
-                        ? () => _acceptDeliveryOpportunity(donation['_id'])
-                        : null,
-                    icon: const Icon(Icons.delivery_dining),
-                    label: const Text('ACCEPT DELIVERY REQUEST'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
+                  onPressed: () {
+                    // Call functionality would go here
+                  },
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
                   ),
+                  iconSize: 16,
+                  padding: const EdgeInsets.all(8),
+                  splashRadius: 20,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Text(
-        title,
-        style: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.bold,
-          color: Colors.green.shade800,
-        ),
-      ),
-    );
+  // Helper method to format time since acceptance
+  String _getAcceptedTimeString(String? acceptedAt) {
+    if (acceptedAt == null) return 'Recently';
+    try {
+      final acceptedTime = DateTime.parse(acceptedAt);
+      final now = DateTime.now();
+      final difference = now.difference(acceptedTime);
+      
+      if (difference.inDays > 0) {
+        return '${difference.inDays}d ago';
+      } else if (difference.inHours > 0) {
+        return '${difference.inHours}h ago';
+      } else if (difference.inMinutes > 0) {
+        return '${difference.inMinutes}m ago';
+      } else {
+        return 'Just now';
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error parsing date: $e');
+      }
+      return 'Recently';
+    }
   }
 
-  Widget _buildInfoRow(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 16, color: Colors.grey.shade600),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 12,
-                  ),
-                ),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+  // Helper function to get food type icon and color
+  (IconData, Color) _getFoodTypeIcon(String foodType) {
+    if (foodType == 'veg') {
+      return (Icons.eco, Colors.green.shade600);
+    } else if (foodType == 'nonveg') {
+      return (FontAwesomeIcons.drumstickBite, Colors.red.shade600);
+    } else if (foodType == 'jain') {
+      return (Icons.spa, Colors.green.shade800);
+    } else {
+      return (Icons.restaurant, Colors.grey.shade700);
+    }
   }
 
   // Helper method to format date time in IST

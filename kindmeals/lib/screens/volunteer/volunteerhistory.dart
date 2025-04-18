@@ -566,136 +566,227 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Delivery History'),
-        backgroundColor: Colors.green,
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadHistoryData,
-          ),
-        ],
-      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadHistoryData,
-              child: Column(
-                children: [
-                  // Search bar
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText: 'Search deliveries...',
-                        prefixIcon: const Icon(Icons.search),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(30),
-                          borderSide: BorderSide(color: Colors.grey.shade300),
+          : NestedScrollView(
+              headerSliverBuilder: (context, innerBoxIsScrolled) {
+                return [
+                  // App Bar with Hero Animation and Gradient
+                  SliverAppBar(
+                    expandedHeight: 120,
+                    floating: true,
+                    pinned: true,
+                    elevation: 0,
+                    backgroundColor: Colors.transparent,
+                    flexibleSpace: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.green.shade700,
+                            Colors.green.shade500,
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
-                        contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                        filled: true,
-                        fillColor: Colors.grey.shade100,
                       ),
-                      onChanged: _searchDonations,
-                    ),
-                  ),
-
-                  // Filter chips
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      children: [
-                        _buildFilterChip('All'),
-                        _buildFilterChip('Last Week'),
-                        _buildFilterChip('Last Month'),
-                        _buildFilterChip('Veg'),
-                        _buildFilterChip('Non-Veg'),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  // Results count
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      children: [
-                        Icon(Icons.history,
-                            size: 16, color: Colors.grey.shade600),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Showing ${_filteredDonations.length} deliveries',
+                      child: FlexibleSpaceBar(
+                        title: const Text(
+                          'Your Deliveries',
                           style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
+                        ),
+                        background: Stack(
+                          children: [
+                            // Background pattern
+                            Positioned.fill(
+                              child: Opacity(
+                                opacity: 0.1,
+                                child: Image.network(
+                                  'https://cdn.pixabay.com/photo/2016/12/26/17/28/pattern-1932656_1280.jpg',
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                            // Content
+                            Positioned(
+                              bottom: 60,
+                              left: 20,
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.delivery_dining,
+                                          size: 16,
+                                          color: Colors.green.shade700,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '${_acceptedDonations.length} Deliveries',
+                                          style: TextStyle(
+                                            color: Colors.green.shade700,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    actions: [
+                      IconButton(
+                        icon: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.refresh, size: 20),
+                        ),
+                        onPressed: _loadHistoryData,
+                      ),
+                    ],
+                  ),
+                ];
+              },
+              body: Column(
+                children: [
+                  // Search and filter section
+                  Container(
+                    color: Colors.white,
+                    padding: const EdgeInsets.only(
+                        top: 16, left: 16, right: 16, bottom: 8),
+                    child: Column(
+                      children: [
+                        // Modern search bar
+                        TextField(
+                          controller: _searchController,
+                          decoration: InputDecoration(
+                            hintText: 'Search deliveries...',
+                            hintStyle: TextStyle(
+                              color: Colors.grey.shade400,
+                              fontSize: 14,
+                            ),
+                            prefixIcon: Icon(
+                              Icons.search,
+                              color: Colors.grey.shade500,
+                              size: 20,
+                            ),
+                            filled: true,
+                            fillColor: Colors.grey.shade100,
+                            contentPadding: EdgeInsets.zero,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide:
+                                  BorderSide(color: Colors.green.shade200),
+                            ),
+                          ),
+                          onChanged: _searchDonations,
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Enhanced filter chips
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              _buildFilterChip(
+                                  'All', Icons.all_inclusive_outlined),
+                              _buildFilterChip(
+                                  'Last Week', Icons.calendar_today_outlined),
+                              _buildFilterChip(
+                                  'Last Month', Icons.date_range_outlined),
+                              _buildFilterChip('Veg', Icons.eco_outlined),
+                              _buildFilterChip('Non-Veg',
+                                  FontAwesomeIcons.drumstickBite, isSmall: true),
+                            ],
                           ),
                         ),
                       ],
                     ),
                   ),
 
-                  const SizedBox(height: 8),
+                  // Results count
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border(
+                        bottom: BorderSide(
+                          color: Colors.grey.shade200,
+                          width: 1,
+                        ),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.history_rounded,
+                            size: 14, color: Colors.grey.shade600),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Showing ${_filteredDonations.length} deliveries',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const Spacer(),
+                        // Sort dropdown
+                        Row(
+                          children: [
+                            Icon(Icons.sort,
+                                size: 14, color: Colors.grey.shade700),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Recent first',
+                              style: TextStyle(
+                                color: Colors.grey.shade700,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            Icon(Icons.arrow_drop_down,
+                                size: 18, color: Colors.grey.shade700),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
 
                   // List of deliveries
                   Expanded(
                     child: _filteredDonations.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.history_toggle_off,
-                                  size: 80,
-                                  color: Colors.grey.shade400,
-                                ),
-                                const SizedBox(height: 20),
-                                Text(
-                                  'No delivery history found',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  _acceptedDonations.isEmpty
-                                      ? 'Start accepting donations from the dashboard'
-                                      : 'Try changing your filters',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey.shade500,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: 24),
-                                if (_acceptedDonations.isEmpty)
-                                  ElevatedButton.icon(
-                                    onPressed: _navigateToDashboard,
-                                    icon: const Icon(Icons.home),
-                                    label: const Text('Go to Dashboard'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.green,
-                                      foregroundColor: Colors.white,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          )
+                        ? _buildEmptyState()
                         : ListView.builder(
-                            padding: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.symmetric(vertical: 8),
                             itemCount: _filteredDonations.length,
                             itemBuilder: (context, index) {
-                              return InkWell(
-                                onTap: () => _showDeliveryDetails(
-                                    _filteredDonations[index]),
-                                child: _buildDonationHistoryCard(
-                                    _filteredDonations[index]),
-                              );
+                              return _buildDeliveryCard(_filteredDonations[index]);
                             },
                           ),
                   ),
@@ -713,75 +804,143 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
         },
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.home),
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
             label: 'Dashboard',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.history),
+            icon: Icon(Icons.history_outlined),
+            activeIcon: Icon(Icons.history),
             label: 'History',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.person),
+            icon: Icon(Icons.person_outline),
+            activeIcon: Icon(Icons.person),
             label: 'Profile',
           ),
         ],
-        selectedItemColor: Colors.green,
-        elevation: 8,
+        selectedItemColor: Colors.green.shade700,
+        unselectedItemColor: Colors.grey.shade600,
+        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500),
+        type: BottomNavigationBarType.fixed,
+        elevation: 16,
       ),
     );
   }
 
-  Widget _buildFilterChip(String label) {
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.delivery_dining_outlined,
+              size: 60,
+              color: Colors.grey.shade400,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'No delivery history found',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey.shade700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: Text(
+              _acceptedDonations.isEmpty
+                  ? 'Start accepting donations from the dashboard'
+                  : 'Try changing your search filters',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade500,
+                height: 1.4,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 32),
+          if (_acceptedDonations.isEmpty)
+            ElevatedButton.icon(
+              onPressed: _navigateToDashboard,
+              icon: const Icon(Icons.dashboard),
+              label: const Text('Go to Dashboard'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green.shade600,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChip(String label, IconData icon, {bool isSmall = false}) {
     final isSelected = _filterCriteria == label;
 
     return Container(
-      margin: const EdgeInsets.only(right: 8),
+      margin: const EdgeInsets.only(right: 10),
       child: FilterChip(
+        avatar: Icon(
+          icon,
+          size: isSmall ? 12 : 16,
+          color: isSelected ? Colors.green.shade700 : Colors.grey.shade600,
+        ),
         label: Text(label),
+        labelStyle: TextStyle(
+          fontSize: 13,
+          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+          color: isSelected ? Colors.green.shade700 : Colors.grey.shade700,
+        ),
         selected: isSelected,
         onSelected: (selected) {
           _filterDonations(label);
         },
-        backgroundColor: Colors.grey.shade100,
-        selectedColor: Colors.green.shade100,
-        checkmarkColor: Colors.green.shade700,
-        labelStyle: TextStyle(
-          color: isSelected ? Colors.green.shade700 : Colors.grey.shade700,
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        selectedColor: Colors.green.shade50,
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(50),
+          side: BorderSide(
+            color: isSelected ? Colors.green.shade200 : Colors.grey.shade300,
+            width: 1,
+          ),
         ),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        visualDensity: const VisualDensity(horizontal: 0, vertical: -2),
+        elevation: 0,
+        pressElevation: 0,
       ),
     );
   }
 
-  Widget _buildDonationHistoryCard(Map<String, dynamic> donation) {
+  Widget _buildDeliveryCard(Map<String, dynamic> donation) {
     // Format dates
     final acceptedAt = donation['acceptedAt'] != null
-        ? _formatDateTimeIST(donation['acceptedAt'])
-        : 'Unknown date';
-
-    // Determine food type icon
-    IconData foodTypeIcon = Icons.restaurant;
-    Color foodTypeColor = Colors.grey;
-
-    if (donation['foodType'] == 'veg') {
-      foodTypeIcon = Icons.eco;
-      foodTypeColor = Colors.green;
-    } else if (donation['foodType'] == 'nonveg') {
-      foodTypeIcon = FontAwesomeIcons.drumstickBite;
-      foodTypeColor = Colors.red;
-    } else if (donation['foodType'] == 'jain') {
-      foodTypeIcon = Icons.spa;
-      foodTypeColor = Colors.green.shade800;
-    }
-
-    // Get food image URL
-    String? imageUrl;
-    if (donation['imageUrl'] != null &&
-        donation['imageUrl'].toString().isNotEmpty) {
-      imageUrl = '${ApiService.baseUrl}${donation['imageUrl']}';
-    }
-
-    // Get donor and recipient details
+        ? _formatRelativeTime(donation['acceptedAt'])
+        : 'Recently';
+        
+    final foodName = donation['foodName'] ?? 'Unknown Food';
+    final description = donation['description'] ?? 'No description provided';
+    final quantity = donation['quantity'] ?? 0;
+    final foodType = donation['foodType']?.toString().toLowerCase() ?? '';
+    
+    // Get donor information
     final donorName = donation['donorName'] ??
         donation['donorInfo']?['donorName'] ??
         'Unknown Donor';
@@ -789,75 +948,248 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
         donation['recipientInfo']?['recipientName'] ??
         'Unknown Recipient';
 
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+    // Food type icon and color
+    final (IconData foodTypeIcon, Color foodTypeColor) = _getFoodTypeUI(foodType);
+    
+    // Get food image URL
+    String? imageUrl;
+    if (donation['imageUrl'] != null &&
+        donation['imageUrl'].toString().isNotEmpty) {
+      imageUrl = '${ApiService.baseUrl}${donation['imageUrl']}';
+    }
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.green.shade200, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Status header
+          // Card Header
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.green.shade50,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12),
-                topRight: Radius.circular(12),
-              ),
-            ),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CircleAvatar(
-                  backgroundColor: Colors.green.shade100,
-                  child: Icon(
-                    Icons.restaurant,
-                    color: Colors.green.shade700,
+                // Left side - Food image or icon
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(12),
                   ),
+                  clipBehavior: Clip.antiAlias,
+                  child: imageUrl != null
+                      ? Image.network(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              color: foodTypeColor.withOpacity(0.1),
+                              child: Icon(
+                                foodTypeIcon,
+                                color: foodTypeColor,
+                                size: 26,
+                              ),
+                            );
+                          },
+                        )
+                      : Container(
+                          color: foodTypeColor.withOpacity(0.1),
+                          child: Icon(
+                            foodTypeIcon,
+                            color: foodTypeColor,
+                            size: 26,
+                          ),
+                        ),
                 ),
+                
                 const SizedBox(width: 12),
+                
+                // Middle - Food and delivery details
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Food name
                       Text(
-                        donorName,
+                        foodName,
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      Text(
-                        'Accepted on $acceptedAt',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                        ),
+                      
+                      const SizedBox(height: 4),
+                      
+                      // Type tag
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6, 
+                              vertical: 2
+                            ),
+                            decoration: BoxDecoration(
+                              color: foodTypeColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  foodTypeIcon,
+                                  size: 10,
+                                  color: foodTypeColor,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  foodType.toUpperCase(),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: foodTypeColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          
+                          const SizedBox(width: 8),
+                          
+                          // Quantity
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6, 
+                              vertical: 2
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.people_outline,
+                                  size: 10,
+                                  color: Colors.blue.shade700,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '$quantity servings',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.blue.shade700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      
+                      const SizedBox(height: 8),
+                      
+                      // Donor and recipient names
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.storefront_outlined,
+                                  size: 12,
+                                  color: Colors.grey.shade500,
+                                ),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    donorName,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade700,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          
+                          // Delivery time
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.schedule,
+                                size: 12,
+                                color: Colors.grey.shade500,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                acceptedAt,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
+              ],
+            ),
+          ),
+          
+          // Divider
+          Divider(color: Colors.grey.shade200, height: 1),
+          
+          // Status badge and View Details button
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16, 
+              vertical: 12
+            ),
+            child: Row(
+              children: [
+                // Status badge
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8, 
+                    vertical: 4
+                  ),
                   decoration: BoxDecoration(
-                    color: Colors.green.shade100,
-                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(16),
                   ),
                   child: Row(
                     children: [
                       Icon(
                         Icons.check_circle,
-                        size: 14,
+                        size: 12,
                         color: Colors.green.shade700,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         'Delivered',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 11,
                           fontWeight: FontWeight.bold,
                           color: Colors.green.shade700,
                         ),
@@ -865,206 +1197,78 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
                     ],
                   ),
                 ),
-              ],
-            ),
-          ),
-
-          // Food image if available
-          if (imageUrl != null)
-            Container(
-              height: 150,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade200,
-              ),
-              child: Image.network(
-                imageUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  if (kDebugMode) {
-                    print('Error loading food image: $error');
-                  }
-                  return Center(
-                    child: Icon(
-                      Icons.image_not_supported,
-                      color: Colors.grey.shade400,
-                      size: 50,
-                    ),
-                  );
-                },
-              ),
-            ),
-
-          const SizedBox(height: 16),
-
-          // Food details
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(foodTypeIcon, size: 16, color: foodTypeColor),
-                      const SizedBox(width: 8),
-                      Text(
-                        donation['foodType']?.toString().toUpperCase() ??
-                            'FOOD',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: foodTypeColor,
-                        ),
-                      ),
-                      const Spacer(),
-                      Icon(Icons.people, size: 14, color: Colors.blue.shade700),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Served ${donation['quantity']}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.blue.shade700,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    donation['foodName'] ?? 'Unknown Food',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    donation['description'] ?? 'No description provided',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade700,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Expiry information
-          if (donation['expiryDateTime'] != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.access_time,
+                
+                const Spacer(),
+                
+                // Direct link to Full Details popup
+                TextButton.icon(
+                  onPressed: () {
+                    _showDeliveryDetails(donation);
+                  },
+                  icon: const Icon(
+                    Icons.arrow_forward_ios,
                     size: 14,
-                    color: Colors.grey.shade600,
+                    color: Colors.blue,
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Expired: ${_formatDateTimeIST(donation['expiryDateTime'])}',
+                  label: const Text(
+                    'View Details',
                     style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
+                      color: Colors.blue,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 13,
                     ),
                   ),
-                ],
-              ),
-            ),
-
-          const SizedBox(height: 12),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: Divider(),
-          ),
-          const SizedBox(height: 8),
-
-          // Donor and recipient info
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                Expanded(
-                  flex: 1,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'DONOR',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        donorName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  flex: 1,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'RECIPIENT',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        recipientName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    minimumSize: const Size(0, 36),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                 ),
               ],
             ),
-          ),
-
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              TextButton.icon(
-                onPressed: () => _showDeliveryDetails(donation),
-                icon: Icon(Icons.info_outline,
-                    size: 16, color: Colors.green.shade700),
-                label: Text(
-                  'View Details',
-                  style: TextStyle(color: Colors.green.shade700),
-                ),
-                style: TextButton.styleFrom(
-                  padding: EdgeInsets.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-              ),
-            ],
           ),
         ],
       ),
     );
+  }
+  
+  (IconData, Color) _getFoodTypeUI(String foodType) {
+    if (foodType == 'veg') {
+      return (Icons.eco, Colors.green);
+    } else if (foodType == 'nonveg') {
+      return (FontAwesomeIcons.drumstickBite, Colors.red);
+    } else if (foodType == 'jain') {
+      return (Icons.spa, Colors.green.shade800);
+    } else {
+      return (Icons.restaurant, Colors.grey.shade700);
+    }
+  }
+  
+  String _formatRelativeTime(String? dateTimeStr) {
+    if (dateTimeStr == null) return 'Recently';
+    try {
+      final dateTime = DateTime.parse(dateTimeStr).toLocal();
+      final now = DateTime.now();
+      final difference = now.difference(dateTime);
+      
+      if (difference.inDays > 7) {
+        // Format as date when more than a week old
+        return DateFormat('d MMM').format(dateTime);
+      } else if (difference.inDays > 0) {
+        return '${difference.inDays}d ago';
+      } else if (difference.inHours > 0) {
+        return '${difference.inHours}h ago';
+      } else if (difference.inMinutes > 0) {
+        return '${difference.inMinutes}m ago';
+      } else {
+        return 'Just now';
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error formatting relative time: $e');
+      }
+      return 'Recently';
+    }
   }
 
   // Helper method to format date time in IST
