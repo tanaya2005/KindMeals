@@ -715,12 +715,11 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
       imageUrl = donation['foodImage'];
     }
 
-    print('DEBUG: Donation image URL: $imageUrl');
-
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(15),
+        side: BorderSide(color: _mediumGreen, width: 1.5),
       ),
       elevation: 4,
       shadowColor: _mediumGreen.withOpacity(0.5),
@@ -749,21 +748,45 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                     ),
                     child: Image.network(
                       ApiConfig.getImageUrl(imageUrl),
-                      height: 200,
+                      height: 180,
                       width: double.infinity,
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) {
-                        print('Error loading image: $error');
-                        print(
-                            'Image URL attempted: ${ApiConfig.getImageUrl(imageUrl)}');
                         return Container(
-                          height: 200,
+                          height: 180,
                           width: double.infinity,
-                          color: _lightGreen,
-                          child: Icon(
-                            Icons.fastfood,
-                            size: 50,
-                            color: _primaryGreen,
+                          decoration: BoxDecoration(
+                            color: _lightGreen,
+                            gradient: LinearGradient(
+                              colors: [
+                                _lightGreen, 
+                                _mediumGreen.withOpacity(0.3)
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                foodType.toLowerCase() == 'veg' 
+                                    ? Icons.eco 
+                                    : foodType.toLowerCase() == 'jain'
+                                        ? Icons.spa
+                                        : Icons.fastfood,
+                                size: 60,
+                                color: _primaryGreen,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'No image available',
+                                style: TextStyle(
+                                  color: _primaryGreen,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
                           ),
                         );
                       },
@@ -778,11 +801,36 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                       borderRadius: const BorderRadius.vertical(
                         top: Radius.circular(15),
                       ),
+                      gradient: LinearGradient(
+                        colors: [
+                          _lightGreen, 
+                          _mediumGreen.withOpacity(0.3)
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
                     ),
-                    child: Icon(
-                      Icons.restaurant,
-                      size: 60,
-                      color: _primaryGreen,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          foodType.toLowerCase() == 'veg' 
+                              ? Icons.eco 
+                              : foodType.toLowerCase() == 'jain'
+                                  ? Icons.spa
+                                  : Icons.fastfood,
+                          size: 60,
+                          color: _primaryGreen,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'No image available',
+                          style: TextStyle(
+                            color: _primaryGreen,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
 
@@ -798,6 +846,13 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                         color: Colors.orange[100],
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(color: Colors.orange),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -830,6 +885,13 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                         color: Colors.red[100],
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(color: Colors.red),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -857,23 +919,19 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                 children: [
                   Row(
                     children: [
-                      Expanded(
-                        child: Text(
-                          foodName,
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
                           color: foodTypeBgColor,
                           borderRadius: BorderRadius.circular(15),
+                          boxShadow: [
+                            BoxShadow(
+                              color: foodTypeColor.withOpacity(0.2),
+                              blurRadius: 2,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
                         ),
                         child: Text(
                           foodType.toUpperCase(),
@@ -884,9 +942,22 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                           ),
                         ),
                       ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          foodName,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.3,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                   Row(
                     children: [
                       Icon(Icons.restaurant, color: _primaryGreen, size: 18),
@@ -901,38 +972,117 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    description,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
+                  const SizedBox(height: 12),
+                  GestureDetector(
+                    onTap: () {
+                      if (description.length > 80) {
+                        showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('Description'),
+                            content: SingleChildScrollView(
+                              child: Text(
+                                description,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[600],
+                                  height: 1.3,
+                                ),
+                              ),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('Close'),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                    },
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Description:',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[800],
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          description.length > 80
+                              ? '${description.substring(0, 80)}...'
+                              : description,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                            height: 1.3,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (description.length > 80)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              'Tap to read more',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: _primaryGreen,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 16),
-                  const Divider(height: 1),
+                  Container(
+                    height: 1,
+                    color: Colors.grey[200],
+                  ),
                   const SizedBox(height: 16),
 
                   // Donation details
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.person, color: Colors.blue, size: 18),
-                      const SizedBox(width: 8),
+                      CircleAvatar(
+                        radius: 20,
+                        backgroundColor: Colors.blue[50],
+                        child: Icon(Icons.person, color: Colors.blue[700], size: 20),
+                      ),
+                      const SizedBox(width: 12),
                       Expanded(
-                        child: Text(
-                          'Donated by: $donorName',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 13,
-                          ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              donorName,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Donor',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   Row(
                     children: [
                       Icon(Icons.location_on, color: _primaryGreen, size: 18),
@@ -942,8 +1092,9 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                           address,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
+                            color: Colors.grey[700],
                           ),
                         ),
                       ),
@@ -961,7 +1112,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                           'Expires: $expiryDate',
                           style: TextStyle(
                             fontSize: 13,
-                            color: isExpiringSoon ? Colors.red : null,
+                            color: isExpiringSoon ? Colors.red : Colors.grey[700],
                             fontWeight: isExpiringSoon ? FontWeight.bold : null,
                           ),
                         ),
@@ -970,46 +1121,38 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Action buttons
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      OutlinedButton.icon(
-                        onPressed: () => _acceptDonation(donation['_id']),
-                        icon: const Icon(Icons.check_circle),
-                        label: const Text('Accept'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: _primaryGreen,
-                          side: BorderSide(color: _primaryGreen),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                        ),
-                      ),
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => DonationDetailScreen(
-                                donation: donation,
-                                onDonationAccepted: widget.onDonationAccepted,
-                              ),
+                  // Only View Details button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => DonationDetailScreen(
+                              donation: donation,
+                              onDonationAccepted: widget.onDonationAccepted,
                             ),
-                          );
-                        },
-                        icon: const Icon(Icons.visibility),
-                        label: const Text('View Details'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _primaryGreen,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
                           ),
+                        );
+                      },
+                      icon: const Icon(Icons.visibility),
+                      label: const Text('VIEW DETAILS'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _primaryGreen,
+                        foregroundColor: Colors.white,
+                        elevation: 2,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        textStyle: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1,
                         ),
                       ),
-                    ],
+                    ),
                   ),
                 ],
               ),

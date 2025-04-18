@@ -18,6 +18,8 @@ class _DonorHistoryScreenState extends State<DonorHistoryScreen> {
   bool _isLoading = true;
   String _errorMessage = '';
   String _selectedFilter = 'All';
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
 
   // Filter options
   final List<String> _filterOptions = ['All', 'Active', 'Accepted', 'Expired'];
@@ -26,6 +28,12 @@ class _DonorHistoryScreenState extends State<DonorHistoryScreen> {
   void initState() {
     super.initState();
     _fetchDonorDonations();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchDonorDonations() async {
@@ -70,15 +78,38 @@ class _DonorHistoryScreenState extends State<DonorHistoryScreen> {
   void _applyFilter(String filter) {
     setState(() {
       _selectedFilter = filter;
+      _filterDonations();
+    });
+  }
 
-      if (filter == 'All') {
-        _filteredDonations = List.from(_donations);
-      } else {
-        _filteredDonations = _donations.where((donation) {
-          final status = donation['status'] ?? 'Active';
-          return status == filter;
-        }).toList();
-      }
+  void _filterDonations() {
+    List<Map<String, dynamic>> result = List.from(_donations);
+    
+    // Apply status filter if not 'All'
+    if (_selectedFilter != 'All') {
+      result = result.where((donation) {
+        final status = donation['status'] ?? 'Active';
+        return status == _selectedFilter;
+      }).toList();
+    }
+    
+    // Apply search query if not empty
+    if (_searchQuery.isNotEmpty) {
+      result = result.where((donation) {
+        final foodName = (donation['foodName'] ?? '').toString().toLowerCase();
+        return foodName.contains(_searchQuery.toLowerCase());
+      }).toList();
+    }
+    
+    setState(() {
+      _filteredDonations = result;
+    });
+  }
+
+  void _onSearchChanged(String query) {
+    setState(() {
+      _searchQuery = query;
+      _filterDonations();
     });
   }
 
@@ -101,7 +132,17 @@ class _DonorHistoryScreenState extends State<DonorHistoryScreen> {
           ),
         ],
       ),
-      body: _buildBody(),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: Colors.green))
+          : Column(
+              children: [
+                _buildSearchBar(),
+                _buildFilterChips(),
+                Expanded(
+                  child: _buildBody(),
+                ),
+              ],
+            ),
     );
   }
 
@@ -184,14 +225,7 @@ class _DonorHistoryScreenState extends State<DonorHistoryScreen> {
       );
     }
 
-    return Column(
-      children: [
-        _buildFilterChips(),
-        Expanded(
-          child: _buildDonationsList(),
-        ),
-      ],
-    );
+    return _buildDonationsList();
   }
 
   Widget _buildFilterChips() {
@@ -254,7 +288,9 @@ class _DonorHistoryScreenState extends State<DonorHistoryScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              'No $_selectedFilter donations found',
+              _searchQuery.isEmpty
+                ? 'No $_selectedFilter donations found'
+                : 'No results found for "$_searchQuery"',
               style: const TextStyle(fontSize: 16, color: Colors.grey),
             ),
           ],
@@ -272,6 +308,37 @@ class _DonorHistoryScreenState extends State<DonorHistoryScreen> {
           final donation = _filteredDonations[index];
           return _buildDonationCard(donation);
         },
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: Colors.white,
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          hintText: 'Search food by name...',
+          prefixIcon: const Icon(Icons.search, color: Colors.green),
+          suffixIcon: _searchQuery.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear, color: Colors.grey),
+                  onPressed: () {
+                    _searchController.clear();
+                    _onSearchChanged('');
+                  },
+                )
+              : null,
+          filled: true,
+          fillColor: Colors.grey.shade100,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          contentPadding: const EdgeInsets.symmetric(vertical: 12),
+        ),
+        onChanged: _onSearchChanged,
       ),
     );
   }
@@ -499,11 +566,57 @@ class _DonorHistoryScreenState extends State<DonorHistoryScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  description,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
+                GestureDetector(
+                  onTap: () {
+                    if (description.length > 80) {
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Description'),
+                          content: SingleChildScrollView(
+                            child: Text(
+                              description,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Close'),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                  },
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        description.length > 80
+                            ? '${description.substring(0, 80)}...'
+                            : description,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      if (description.length > 80)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            'Tap to read more',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.blue.shade600,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 16),
