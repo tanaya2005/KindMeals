@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
+import '../utils/date_time_helper.dart';
 
 class ApiService {
   static const String baseUrl = ApiConfig.apiBaseUrl;
@@ -468,11 +469,27 @@ class ApiService {
       // Add auth header
       request.headers['Authorization'] = 'Bearer $idToken';
 
+      // Convert local DateTime to ISO string for API submission
+      // This preserves the user-selected time
+      String formattedDateTime = DateTimeHelper.toISOString(expiryDateTime);
+
+      // Log the time information for debugging
+      if (kDebugMode) {
+        print('===== DONATION TIME DEBUG =====');
+        print('Original local expiryDateTime: ${expiryDateTime.toString()}');
+        print('Formatted ISO expiryDateTime for API: $formattedDateTime');
+        print('Current time (local): ${DateTime.now().toString()}');
+        print('Current time (UTC): ${DateTime.now().toUtc().toString()}');
+        print(
+            'Current time (UTC ISO): ${DateTime.now().toUtc().toIso8601String()}');
+        print('================================');
+      }
+
       // Add text fields
       request.fields['foodName'] = foodName;
       request.fields['quantity'] = quantity.toString();
       request.fields['description'] = description;
-      request.fields['expiryDateTime'] = expiryDateTime.toIso8601String();
+      request.fields['expiryDateTime'] = formattedDateTime;
       request.fields['foodType'] = foodType;
       request.fields['address'] = address;
       request.fields['needsVolunteer'] = needsVolunteer.toString();
@@ -518,7 +535,24 @@ class ApiService {
         throw Exception('Failed to create donation: ${response.body}');
       }
 
-      return jsonDecode(response.body);
+      // Parse the response
+      final responseData = jsonDecode(response.body);
+
+      // Debug the returned dates
+      if (kDebugMode && responseData != null) {
+        if (responseData['expiryDateTime'] != null) {
+          print('Response expiryDateTime: ${responseData['expiryDateTime']}');
+
+          // Parse the returned date and display in local time
+          final returnedDate = DateTime.parse(responseData['expiryDateTime']);
+          print(
+              'Parsed response expiryDateTime (UTC): ${returnedDate.toString()}');
+          print(
+              'Parsed response expiryDateTime (Local): ${returnedDate.toLocal().toString()}');
+        }
+      }
+
+      return responseData;
     } catch (e) {
       if (kDebugMode) {
         print('Error creating donation: $e');

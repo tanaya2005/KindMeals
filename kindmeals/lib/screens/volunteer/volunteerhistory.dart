@@ -146,15 +146,62 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
 
   void _showDeliveryDetails(Map<String, dynamic> donation) {
     // Format dates
-    final dateFormat = DateFormat('MMM dd, yyyy - hh:mm a');
     final acceptedAt = donation['acceptedAt'] != null
-        ? dateFormat.format(DateTime.parse(donation['acceptedAt']))
+        ? _formatDateTimeIST(donation['acceptedAt'])
+        : 'Unknown date';
+
+    final expiryDateTime = donation['expiryDateTime'] != null
+        ? _formatDateTimeIST(donation['expiryDateTime'])
         : 'Unknown date';
 
     // Estimate delivery stats (for demonstration)
     final deliveryTime = '25 minutes';
     final distanceTraveled = '3.8 km';
     final carbonSaved = '0.76 kg';
+
+    // Get food image URL
+    String? imageUrl;
+    if (donation['imageUrl'] != null &&
+        donation['imageUrl'].toString().isNotEmpty) {
+      imageUrl = '${ApiService.baseUrl}${donation['imageUrl']}';
+    }
+
+    // Get donor and recipient details with better fallbacks
+    final donorName = donation['donorName'] ??
+        donation['donorInfo']?['donorName'] ??
+        'Unknown Donor';
+    final donorContact = donation['donorContact'] ??
+        donation['donorInfo']?['donorContact'] ??
+        'Contact not available';
+    final donorAddress = donation['donorAddress'] ??
+        donation['location']?['address'] ??
+        donation['donorInfo']?['donorAddress'] ??
+        'Address not available';
+
+    final recipientName = donation['recipientName'] ??
+        donation['recipientInfo']?['recipientName'] ??
+        'Unknown Recipient';
+    final recipientContact = donation['recipientContact'] ??
+        donation['recipientInfo']?['recipientContact'] ??
+        'Contact not available';
+    final recipientAddress = donation['recipientAddress'] ??
+        donation['recipientInfo']?['recipientAddress'] ??
+        'Address not available';
+
+    // Determine food type icon
+    IconData foodTypeIcon = Icons.restaurant;
+    Color foodTypeColor = Colors.grey;
+
+    if (donation['foodType'] == 'veg') {
+      foodTypeIcon = Icons.eco;
+      foodTypeColor = Colors.green;
+    } else if (donation['foodType'] == 'nonveg') {
+      foodTypeIcon = FontAwesomeIcons.drumstickBite;
+      foodTypeColor = Colors.red;
+    } else if (donation['foodType'] == 'jain') {
+      foodTypeIcon = Icons.spa;
+      foodTypeColor = Colors.green.shade800;
+    }
 
     showModalBottomSheet(
       context: context,
@@ -194,6 +241,36 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
                 ),
               ),
             ),
+
+            // Food image if available
+            if (imageUrl != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Container(
+                  height: 150,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Center(
+                          child: Icon(
+                            Icons.image_not_supported,
+                            color: Colors.grey.shade400,
+                            size: 50,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
 
             // Delivery info
             Expanded(
@@ -290,9 +367,11 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
                         _buildDetailRow(
                             'Food Name', donation['foodName'] ?? 'Unknown'),
                         _buildDetailRow('Food Type',
-                            (donation['foodType'] ?? 'Unknown').toUpperCase()),
+                            (donation['foodType'] ?? 'Unknown').toUpperCase(),
+                            icon: foodTypeIcon, iconColor: foodTypeColor),
                         _buildDetailRow('Quantity',
                             '${donation['quantity'] ?? 0} servings'),
+                        _buildDetailRow('Expires On', expiryDateTime),
                         _buildDetailRow(
                             'Description',
                             donation['description'] ??
@@ -307,12 +386,9 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
                       'Donor Information',
                       Icons.person,
                       [
-                        _buildDetailRow(
-                            'Name', donation['donorName'] ?? 'Unknown'),
-                        _buildDetailRow('Contact',
-                            donation['donorContact'] ?? 'Not available'),
-                        _buildDetailRow('Address',
-                            donation['donorAddress'] ?? 'Not available'),
+                        _buildDetailRow('Name', donorName),
+                        _buildDetailRow('Contact', donorContact),
+                        _buildDetailRow('Address', donorAddress),
                       ],
                     ),
 
@@ -323,12 +399,9 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
                       'Recipient Information',
                       Icons.person_outline,
                       [
-                        _buildDetailRow(
-                            'Name', donation['recipientName'] ?? 'Unknown'),
-                        _buildDetailRow('Contact',
-                            donation['recipientContact'] ?? 'Not available'),
-                        _buildDetailRow('Address',
-                            donation['recipientAddress'] ?? 'Not available'),
+                        _buildDetailRow('Name', recipientName),
+                        _buildDetailRow('Contact', recipientContact),
+                        _buildDetailRow('Address', recipientAddress),
                       ],
                     ),
 
@@ -454,7 +527,8 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
+  Widget _buildDetailRow(String label, String value,
+      {IconData? icon, Color? iconColor}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Column(
@@ -468,11 +542,21 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
             ),
           ),
           const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 16,
-            ),
+          Row(
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 16, color: iconColor ?? Colors.grey),
+                const SizedBox(width: 8),
+              ],
+              Expanded(
+                child: Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -671,9 +755,8 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
 
   Widget _buildDonationHistoryCard(Map<String, dynamic> donation) {
     // Format dates
-    final dateFormat = DateFormat('MMM dd, yyyy - hh:mm a');
     final acceptedAt = donation['acceptedAt'] != null
-        ? dateFormat.format(DateTime.parse(donation['acceptedAt']))
+        ? _formatDateTimeIST(donation['acceptedAt'])
         : 'Unknown date';
 
     // Determine food type icon
@@ -691,21 +774,44 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
       foodTypeColor = Colors.green.shade800;
     }
 
+    // Get food image URL
+    String? imageUrl;
+    if (donation['imageUrl'] != null &&
+        donation['imageUrl'].toString().isNotEmpty) {
+      imageUrl = '${ApiService.baseUrl}${donation['imageUrl']}';
+    }
+
+    // Get donor and recipient details
+    final donorName = donation['donorName'] ??
+        donation['donorInfo']?['donorName'] ??
+        'Unknown Donor';
+    final recipientName = donation['recipientName'] ??
+        donation['recipientInfo']?['recipientName'] ??
+        'Unknown Recipient';
+
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Status header
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.green.shade50,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(12),
+                topRight: Radius.circular(12),
+              ),
+            ),
+            child: Row(
               children: [
                 CircleAvatar(
-                  backgroundColor: Colors.green.shade50,
+                  backgroundColor: Colors.green.shade100,
                   child: Icon(
                     Icons.restaurant,
                     color: Colors.green.shade700,
@@ -717,7 +823,7 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        donation['donorName'] ?? 'Unknown Donor',
+                        donorName,
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
@@ -761,8 +867,40 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+          ),
+
+          // Food image if available
+          if (imageUrl != null)
             Container(
+              height: 150,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+              ),
+              child: Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  if (kDebugMode) {
+                    print('Error loading food image: $error');
+                  }
+                  return Center(
+                    child: Icon(
+                      Icons.image_not_supported,
+                      color: Colors.grey.shade400,
+                      size: 50,
+                    ),
+                  );
+                },
+              ),
+            ),
+
+          const SizedBox(height: 16),
+
+          // Food details
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.grey.shade100,
@@ -817,10 +955,42 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 12),
-            const Divider(),
-            const SizedBox(height: 8),
-            Row(
+          ),
+
+          // Expiry information
+          if (donation['expiryDateTime'] != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.access_time,
+                    size: 14,
+                    color: Colors.grey.shade600,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Expired: ${_formatDateTimeIST(donation['expiryDateTime'])}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          const SizedBox(height: 12),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: Divider(),
+          ),
+          const SizedBox(height: 8),
+
+          // Donor and recipient info
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
               children: [
                 Expanded(
                   flex: 1,
@@ -836,7 +1006,7 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        donation['donorName'] ?? 'Unknown',
+                        donorName,
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                         ),
@@ -860,7 +1030,7 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        donation['recipientName'] ?? 'Unknown',
+                        recipientName,
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                         ),
@@ -872,27 +1042,42 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
                 ),
               ],
             ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton.icon(
-                  onPressed: () => _showDeliveryDetails(donation),
-                  icon: Icon(Icons.info_outline,
-                      size: 16, color: Colors.green.shade700),
-                  label: Text(
-                    'View Details',
-                    style: TextStyle(color: Colors.green.shade700),
-                  ),
-                  style: TextButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
+          ),
+
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton.icon(
+                onPressed: () => _showDeliveryDetails(donation),
+                icon: Icon(Icons.info_outline,
+                    size: 16, color: Colors.green.shade700),
+                label: Text(
+                  'View Details',
+                  style: TextStyle(color: Colors.green.shade700),
                 ),
-              ],
-            ),
-          ],
-        ),
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
+  }
+
+  // Helper method to format date time in IST
+  String _formatDateTimeIST(String? dateTimeStr) {
+    if (dateTimeStr == null) return 'Unknown';
+    try {
+      final dateTime = DateTime.parse(dateTimeStr).toLocal();
+      return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error formatting date: $e');
+      }
+      return 'Unknown';
+    }
   }
 }

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../../services/api_service.dart';
 import '../../config/api_config.dart';
 import 'donation_detail_screen.dart';
+import '../../utils/date_time_helper.dart';
 
 class ViewDonationsScreen extends StatefulWidget {
   final VoidCallback? onDonationAccepted;
@@ -677,8 +679,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
     final DateTime expiryDateTime = donation['expiryDateTime'] != null
         ? DateTime.parse(donation['expiryDateTime'])
         : DateTime.now();
-    final String expiryDate =
-        '${expiryDateTime.day}/${expiryDateTime.month}/${expiryDateTime.year} at ${expiryDateTime.hour}:${expiryDateTime.minute.toString().padLeft(2, '0')}';
+    final String expiryDate = DateTimeHelper.formatDateTime(expiryDateTime);
 
     // Calculate time remaining
     final Duration timeRemaining = expiryDateTime.difference(DateTime.now());

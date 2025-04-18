@@ -4,6 +4,8 @@ import 'dart:io';
 import '../../services/api_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../config/api_config.dart';
+import 'package:flutter/foundation.dart';
+import '../../utils/date_time_helper.dart';
 
 class PostDonationScreen extends StatefulWidget {
   const PostDonationScreen({super.key});
@@ -137,15 +139,33 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
       );
 
       if (time != null) {
+        // Create DateTime object in local time (which should match IST on the device)
+        final newDateTime = DateTime(
+          date.year,
+          date.month,
+          date.day,
+          time.hour,
+          time.minute,
+        );
+
         setState(() {
-          _expiryDateTime = DateTime(
-            date.year,
-            date.month,
-            date.day,
-            time.hour,
-            time.minute,
-          );
+          _expiryDateTime = newDateTime;
         });
+
+        if (kDebugMode) {
+          print('====== SELECTED DATETIME DEBUG ======');
+          print('Selected date/time (local): $_expiryDateTime');
+          print('Current time (local): ${DateTime.now()}');
+          // Calculate the offset from current time
+          final difference = _expiryDateTime!.difference(DateTime.now());
+          print(
+              'Time difference from now: ${difference.inHours}h ${difference.inMinutes % 60}m');
+          // For debugging purposes, also show in UTC
+          print('Selected date/time (UTC): ${_expiryDateTime!.toUtc()}');
+          print(
+              'ISO8601 string for API: ${DateTimeHelper.toISOString(_expiryDateTime!)}');
+          print('==================================');
+        }
       }
     }
   }
@@ -595,16 +615,7 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
                         },
                       ),
                       const SizedBox(height: 16),
-                      ListTile(
-                        title: const Text('Expiry Date & Time'),
-                        subtitle: Text(
-                          _expiryDateTime != null
-                              ? '${_expiryDateTime!.day.toString().padLeft(2, '0')}/${_expiryDateTime!.month.toString().padLeft(2, '0')}/${_expiryDateTime!.year} ${_expiryDateTime!.hour.toString().padLeft(2, '0')}:${_expiryDateTime!.minute.toString().padLeft(2, '0')}'
-                              : 'Not set',
-                        ),
-                        leading: const Icon(Icons.access_time),
-                        onTap: _selectDateTime,
-                      ),
+                      _buildDateTimeField(),
                       const SizedBox(height: 16),
                       SwitchListTile(
                         title: const Text('Need Volunteer for Delivery'),
@@ -639,6 +650,83 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
                 ),
               ),
             ),
+    );
+  }
+
+  Widget _buildDateTimeField() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 15),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Expiry Date & Time *',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[700],
+            ),
+          ),
+          const SizedBox(height: 8),
+          InkWell(
+            onTap: _selectDateTime,
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.calendar_today,
+                    size: 18,
+                    color: Colors.grey[600],
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _expiryDateTime != null
+                          ? DateTimeHelper.formatDateTime(_expiryDateTime!)
+                          : 'Select expiry date and time',
+                      style: TextStyle(
+                        color: _expiryDateTime != null
+                            ? Colors.black87
+                            : Colors.grey[600],
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    Icons.arrow_drop_down,
+                    color: Colors.grey[600],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_expiryDateTime != null) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(
+                  Icons.access_time,
+                  size: 16,
+                  color: Colors.grey[600],
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Local time: ${_expiryDateTime!.hour}:${_expiryDateTime!.minute.toString().padLeft(2, '0')}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
     );
   }
 

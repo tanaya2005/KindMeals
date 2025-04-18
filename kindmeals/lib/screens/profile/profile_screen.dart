@@ -506,7 +506,6 @@
 //   }
 // }
 
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -576,7 +575,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       } catch (directError) {
         if (kDebugMode) {
           print(
-            'Error loading profile with direct API, falling back: $directError');
+              'Error loading profile with direct API, falling back: $directError');
         }
         // Fall back to the old API
       }
@@ -954,12 +953,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       radius: 60,
                                       backgroundImage: _profileImage != null
                                           ? FileImage(_profileImage!)
-                                          : (_userData?['profileImage'] != null &&
+                                          : (_userData?['profileImage'] !=
+                                                      null &&
                                                   _userData!['profileImage']
                                                       .toString()
                                                       .isNotEmpty)
-                                              ? NetworkImage(ApiConfig.getImageUrl(
-                                                  _userData!['profileImage']))
+                                              ? NetworkImage(
+                                                      ApiConfig.getImageUrl(
+                                                          _userData![
+                                                              'profileImage']))
                                                   as ImageProvider
                                               : null,
                                       backgroundColor: Colors.white,
@@ -987,7 +989,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         shape: BoxShape.circle,
                                         boxShadow: [
                                           BoxShadow(
-                                            color: Colors.black.withOpacity(0.2),
+                                            color:
+                                                Colors.black.withOpacity(0.2),
                                             spreadRadius: 1,
                                             blurRadius: 5,
                                           ),

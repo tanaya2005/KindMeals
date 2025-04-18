@@ -43,8 +43,7 @@ class _VolunteerProfileScreenState extends State<VolunteerProfileScreen> {
         setState(() {
           _volunteerProfile = {
             'name': userProfile['profile']['volunteerName'] ?? 'Unknown',
-            'avatar': userProfile['profile']['profileImage'] ??
-                'assets/images/volunteer1.jpg',
+            'avatar': userProfile['profile']['profileImage'] ?? '',
             'deliveries': userProfile['profile']['totalRatings'] ?? 0,
             'rating': userProfile['profile']['rating'] ?? 0.0,
             'status': _isAvailable ? 'Available' : 'Unavailable',
@@ -57,6 +56,9 @@ class _VolunteerProfileScreenState extends State<VolunteerProfileScreen> {
                 userProfile['profile']['volunteerabout'] ?? 'No bio available',
             'hasVehicle': userProfile['profile']['hasVehicle'] ?? false,
             'vehicleDetails': userProfile['profile']['vehicleDetails'] ?? {},
+            'aadharID': userProfile['profile']['aadharID'] ?? '',
+            'volunteerlocation': userProfile['profile']['volunteerlocation'] ??
+                {'latitude': 0.0, 'longitude': 0.0},
           };
         });
       } else {

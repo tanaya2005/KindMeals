@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../config/api_config.dart';
+import '../../utils/date_time_helper.dart';
 import 'package:intl/intl.dart';
 
 class RecipientHistoryScreen extends StatefulWidget {
@@ -480,17 +482,19 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
     final String deliveredBy = donation['deliveredby'] ?? 'Self-pickup';
     final String feedback = donation['feedback'] ?? '';
 
-    // Format dates
+    // Format dates using DateTimeHelper to ensure IST timezone
     final DateTime acceptedAt = donation['acceptedAt'] != null
-        ? DateTime.parse(donation['acceptedAt'])
+        ? DateTimeHelper.parseToIST(donation['acceptedAt'])
         : DateTime.now();
-    final String acceptedDate = DateFormat('MM/dd/yyyy').format(acceptedAt);
-    final String acceptedTime = DateFormat('hh:mm a').format(acceptedAt);
+    final String acceptedDate = DateTimeHelper.formatDate(acceptedAt);
+    final String acceptedTime = DateTimeHelper.formatTime(acceptedAt);
 
     final DateTime expiryDateTime = donation['expiryDateTime'] != null
-        ? DateTime.parse(donation['expiryDateTime'])
+        ? DateTimeHelper.parseToIST(donation['expiryDateTime'])
         : DateTime.now();
-    DateFormat('MM/dd/yyyy').format(expiryDateTime);
+
+    // Just prepare the expiry date in case we need it
+    DateTimeHelper.formatDate(expiryDateTime);
 
     // Get image URL if available
     String? imageUrl;
