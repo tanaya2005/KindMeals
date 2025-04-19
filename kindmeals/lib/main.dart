@@ -1,19 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
 import 'screens/auth/register_volunteer_screen.dart';
 import 'screens/dashboard/dashboard_screen.dart';
 import 'screens/volunteer/volunteer_dashboard.dart';
+import 'screens/charity/charity_list_screen.dart';
 import 'dart:developer' as developer;
 import 'services/firebase_service.dart';
 import 'services/api_service.dart';
+import 'utils/env_config.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
+    // Load environment variables
+    await dotenv.load(fileName: '.env');
+    developer.log('Environment variables loaded successfully');
+
+    // Validate environment variables
+    if (!EnvConfig.validateEnvironment()) {
+      developer
+          .log('Warning: Some required environment variables are not set!');
+    }
+
     // Initialize Firebase only if it hasn't been initialized yet
     if (Firebase.apps.isEmpty) {
       developer.log('Initializing Firebase...');
@@ -23,7 +36,7 @@ void main() async {
       developer.log('Firebase already initialized');
     }
   } catch (e) {
-    developer.log('Error initializing Firebase: $e', error: e);
+    developer.log('Error during initialization: $e', error: e);
     rethrow;
   }
 
@@ -111,6 +124,7 @@ class _KindMealsAppState extends State<KindMealsApp> {
         '/register/volunteer': (context) => const RegisterVolunteerScreen(),
         '/dashboard': (context) => const DashboardScreen(),
         '/volunteer/dashboard': (context) => const VolunteerDashboardScreen(),
+        '/charities': (context) => const CharityListScreen(),
       },
       onGenerateRoute: (settings) {
         // Handle any undefined routes by going to the welcome screen if not signed in

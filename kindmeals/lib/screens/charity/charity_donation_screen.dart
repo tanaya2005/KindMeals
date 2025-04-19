@@ -7,6 +7,10 @@ import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'donation_history_screen.dart';
 import '../../utils/image_helper.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'dart:convert';
+import '../../services/charity_service.dart';
+import '../../utils/env_config.dart';
 
 class CharityDonationScreen extends StatefulWidget {
   final Map<String, dynamic> charity;
@@ -77,23 +81,7 @@ class _CharityDonationScreenState extends State<CharityDonationScreen> {
   }
 
   void _handlePaymentSuccess(PaymentSuccessResponse response) async {
-    // Show processing dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return const AlertDialog(
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('Processing your donation...'),
-            ],
-          ),
-        );
-      },
-    );
+    _showProcessingDialog('Processing your donation...');
 
     try {
       if (kDebugMode) {
@@ -114,10 +102,7 @@ class _CharityDonationScreenState extends State<CharityDonationScreen> {
         paymentId: response.paymentId ?? 'unknown',
       );
 
-      // Close the processing dialog if still showing
-      if (Navigator.canPop(context)) {
-        Navigator.pop(context);
-      }
+      _dismissDialogIfShowing();
 
       if (mounted) {
         _showSuccessDialog(result);
@@ -127,10 +112,7 @@ class _CharityDonationScreenState extends State<CharityDonationScreen> {
         print('Error processing donation: $e');
       }
 
-      // Close the processing dialog if still showing
-      if (Navigator.canPop(context)) {
-        Navigator.pop(context);
-      }
+      _dismissDialogIfShowing();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -347,28 +329,11 @@ class _CharityDonationScreenState extends State<CharityDonationScreen> {
       _isProcessing = true;
     });
 
-    // Show a processing dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return const AlertDialog(
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('Initializing payment...'),
-            ],
-          ),
-        );
-      },
-    );
+    _showProcessingDialog('Initializing payment...');
 
-    // Create order options with more detailed information
     final currencyFormatter = NumberFormat('#,##0.00');
     final options = {
-      'key': 'rzp_test_1DP5mmOlF5G5ag', // Replace with your Razorpay key
+      'key': EnvConfig.getRazorpayKeyId(),
       'amount': (_selectedAmount * 100).round(), // Razorpay amount is in paise
       'name': 'KindMeals',
       'description':
@@ -397,8 +362,7 @@ class _CharityDonationScreenState extends State<CharityDonationScreen> {
     };
 
     try {
-      // Close the processing dialog before opening Razorpay
-      Navigator.pop(context);
+      _dismissDialogIfShowing();
 
       // Open the Razorpay payment sheet
       _razorpay.open(options);
@@ -412,10 +376,7 @@ class _CharityDonationScreenState extends State<CharityDonationScreen> {
         print('Error opening Razorpay: $e');
       }
 
-      // Close the processing dialog if still open
-      if (Navigator.canPop(context)) {
-        Navigator.pop(context);
-      }
+      _dismissDialogIfShowing();
 
       setState(() {
         _isProcessing = false;
@@ -427,6 +388,33 @@ class _CharityDonationScreenState extends State<CharityDonationScreen> {
           backgroundColor: Colors.red,
         ),
       );
+    }
+  }
+
+  // Helper method to show a processing dialog
+  void _showProcessingDialog(String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(message),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // Helper method to dismiss dialog if showing
+  void _dismissDialogIfShowing() {
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
     }
   }
 

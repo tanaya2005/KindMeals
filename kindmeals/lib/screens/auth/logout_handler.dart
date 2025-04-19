@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../screens/welcome_screen.dart';
+import '../../screens/auth/login_screen.dart';
 import '../../services/firebase_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -26,10 +26,10 @@ class LogoutHandler {
         Navigator.of(context, rootNavigator: true).pop();
       }
 
-      // Navigate to welcome screen and clear navigation stack
+      // Navigate to login screen and clear navigation stack
       if (context.mounted) {
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
           (route) => false,
         );
       }
