@@ -14,8 +14,6 @@ import '../../services/api_service.dart';
 import 'view_donations_screen.dart';
 import 'volunteers_screen.dart';
 import '../notifications/notification_screen.dart';
-import '../charity/charity_donation_screen.dart';
-import '../charity/charity_listing_screen.dart';
 import 'package:flutter/foundation.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -174,7 +172,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           if (mounted) {
             Navigator.pushNamedAndRemoveUntil(
               context,
-              '/',
+              '/login',
               (route) => false,
             );
           }
@@ -430,31 +428,34 @@ class _HomeScreenState extends State<_HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Welcome Header with Gradient
-            _buildWelcomeHeader(),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Welcome Header with Gradient
+              _buildWelcomeHeader(),
 
-            // Featured Carousel
-            _buildCarousel(),
+              // Featured Carousel
+              _buildCarousel(),
 
-            // Volunteer Leaderboard Section
-            _buildVolunteerLeaderboard(),
+              // Volunteer Leaderboard Section
+              _buildVolunteerLeaderboard(),
 
-            // Donor Leaderboard Section
-            _buildDonorLeaderboard(),
+              // Donor Leaderboard Section
+              _buildDonorLeaderboard(),
 
-            // Reviews Section
-            _buildReviews(),
+              // Reviews Section
+              _buildReviews(),
 
-            // Charity Donation Section
-            _buildCharitySection(),
+              // Charity Donation Section
+              _buildCharitySection(),
 
-            // Footer with Social Links
-            _buildFooter(),
-          ],
+              // Footer with Social Links
+              _buildFooter(),
+            ],
+          ),
         ),
       ),
     );
@@ -463,7 +464,7 @@ class _HomeScreenState extends State<_HomeScreen> {
   Widget _buildWelcomeHeader() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 60, 20, 30),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -1137,93 +1138,108 @@ class _HomeScreenState extends State<_HomeScreen> {
 
   Widget _buildCharitySection() {
     return Container(
-      padding: const EdgeInsets.all(20),
-      color: Colors.green.shade50,
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(
-                Icons.volunteer_activism,
-                size: 24,
-                color: Colors.green.shade700,
-              ),
-              const SizedBox(width: 10),
               const Text(
-                'Donate for a Cause',
+                'Support a Cause',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
               ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pushNamed(context, '/charities');
+                },
+                child: Row(
+                  children: [
+                    Text(
+                      'View All',
+                      style: TextStyle(
+                        color: Colors.green.shade600,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      size: 14,
+                      color: Colors.green.shade600,
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Support our charitable initiative to help those in need',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade700,
-            ),
-          ),
-          const SizedBox(height: 20),
-          FutureBuilder<Map<String, dynamic>>(
-            future: _apiService.getCharity(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(20.0),
-                    child: CircularProgressIndicator(),
-                  ),
-                );
-              } else if (snapshot.hasError) {
-                return Center(
-                  child: Text(
-                    'Failed to load charity info: ${snapshot.error}',
-                    style: TextStyle(color: Colors.red.shade700),
-                  ),
-                );
-              } else if (!snapshot.hasData) {
-                return const Center(
-                  child: Text('No charity information available at the moment'),
-                );
-              }
-
-              // Use the charity data from the API
-              final charity = snapshot.data!;
-
-              return _buildCharityCard(charity);
-            },
-          ),
-          const SizedBox(height: 15),
-          Align(
-            alignment: Alignment.center,
-            child: TextButton.icon(
-              onPressed: () {
-                // Navigate to charity donation screen with the single charity
-                _apiService.getCharity().then((charity) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          CharityDonationScreen(charity: charity),
-                    ),
-                  );
-                });
-              },
-              icon: Icon(
-                Icons.volunteer_activism,
-                size: 16,
-                color: Colors.green.shade700,
-              ),
-              label: Text(
-                'Donate Now',
-                style: TextStyle(
-                  color: Colors.green.shade700,
-                  fontWeight: FontWeight.w600,
+          const SizedBox(height: 16),
+          Container(
+            height: 180,
+            decoration: BoxDecoration(
+              color: Colors.green.shade50,
+              borderRadius: BorderRadius.circular(12),
+              image: const DecorationImage(
+                image: AssetImage('assets/images/charity_bg.jpg'),
+                fit: BoxFit.cover,
+                colorFilter: ColorFilter.mode(
+                  Color.fromRGBO(0, 0, 0, 0.3),
+                  BlendMode.darken,
                 ),
+              ),
+            ),
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.volunteer_activism,
+                    color: Colors.white,
+                    size: 50,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Donate to Charity',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Support organizations that feed the hungry',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/charities');
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.green,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text(
+                      'Donate Now',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -1232,174 +1248,18 @@ class _HomeScreenState extends State<_HomeScreen> {
     );
   }
 
-  Widget _buildCharityCard(Map<String, dynamic> charity) {
-    final Color accentColor = Colors.orange.shade700;
-
+  Widget _buildSocialIcon(IconData icon) {
     return Container(
-      width: double.infinity,
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 6,
-            offset: const Offset(0, 3),
-          ),
-        ],
+        color: Colors.white.withOpacity(0.2),
+        shape: BoxShape.circle,
       ),
-      child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => CharityDonationScreen(charity: charity),
-            ),
-          );
-        },
-        borderRadius: BorderRadius.circular(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Charity image
-            ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
-              ),
-              child: Image.network(
-                charity['imageUrl'] ?? 'https://via.placeholder.com/280x140',
-                height: 200,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    height: 200,
-                    width: double.infinity,
-                    color: Colors.grey.shade200,
-                    child: Icon(
-                      Icons.image_not_supported,
-                      color: Colors.grey.shade400,
-                      size: 40,
-                    ),
-                  );
-                },
-              ),
-            ),
-
-            // Charity content
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Charity badge
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: accentColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      charity['category'] ?? 'Charity',
-                      style: TextStyle(
-                        color: accentColor,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  // Charity name
-                  Text(
-                    charity['name'] ?? 'KindMeals Community Fund',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  // Description
-                  Text(
-                    charity['description'] ??
-                        'Help us support food rescue operations and feed those in need.',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade700,
-                      height: 1.3,
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // Impact section
-                  if (charity['impactDescription'] != null)
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.green.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.green.shade100),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(Icons.volunteer_activism,
-                              color: Colors.green.shade700, size: 18),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              charity['impactDescription'],
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey.shade800,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                  const SizedBox(height: 16),
-
-                  // Donate button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                CharityDonationScreen(charity: charity),
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: accentColor,
-                        foregroundColor: Colors.white,
-                        textStyle: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Text('DONATE NOW'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+      child: Icon(
+        icon,
+        color: Colors.white,
+        size: 24,
       ),
     );
   }
@@ -1449,29 +1309,13 @@ class _HomeScreenState extends State<_HomeScreen> {
           ),
           const SizedBox(height: 10),
           Text(
-            ' 2025 KindMeals. All rights reserved.',
+            '© 2025 KindMeals. All rights reserved.',
             style: TextStyle(
               color: Colors.white.withOpacity(0.6),
               fontSize: 12,
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildSocialIcon(IconData icon) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
-        shape: BoxShape.circle,
-      ),
-      child: Icon(
-        icon,
-        color: Colors.white,
-        size: 24,
       ),
     );
   }

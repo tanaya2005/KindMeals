@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'dart:developer' as developer;
+import 'package:flutter/foundation.dart';
 
 class FirebaseService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -212,6 +213,23 @@ class FirebaseService {
     } catch (e) {
       developer.log('Error registering user role: $e');
       throw Exception('Failed to register user role: $e');
+    }
+  }
+
+  // Get the current user's ID token
+  Future<String?> getIdToken() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        // Force refresh to ensure token is up-to-date
+        return await user.getIdToken(true);
+      }
+      return null;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error getting ID token: $e');
+      }
+      return null;
     }
   }
 }

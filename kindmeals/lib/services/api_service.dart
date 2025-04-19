@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import '../utils/date_time_helper.dart';
 import '../services/location_service.dart';
+import '../services/charity_service.dart';
 
 class ApiService {
   static const String baseUrl = ApiConfig.apiBaseUrl;
@@ -1683,8 +1684,9 @@ class ApiService {
     }
   }
 
-  // Process charity donation with Razorpay integration
+  // Use the dedicated CharityService for charity-related operations
   Future<Map<String, dynamic>> processDonation({
+    required String charityId,
     required double amount,
     required String name,
     required String email,
@@ -1693,62 +1695,20 @@ class ApiService {
     required String paymentMethod,
     required bool requestTaxBenefits,
     required String paymentId,
-    required String charityId, // Razorpay payment ID
   }) async {
-    try {
-      // In a real app, this would be a POST request to your server
-      final response = await http.post(
-        Uri.parse('$baseUrl/donations/charity'),
-        headers: await _authHeaders,
-        body: jsonEncode({
-          'amount': amount,
-          'name': name,
-          'email': email,
-          'phone': phone,
-          'panCard': panCard,
-          'paymentMethod': paymentMethod,
-          'requestTaxBenefits': requestTaxBenefits,
-          'paymentId': paymentId,
-          'charityId': charityId,
-          'timestamp': DateTime.now().toIso8601String(),
-        }),
-      );
-
-      if (kDebugMode) {
-        print(
-            'Charity donation response: ${response.statusCode} | ${response.body}');
-      }
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return jsonDecode(response.body);
-      } else {
-        // For development/demo purposes, simulate success even if backend fails
-        if (kDebugMode) {
-          print('Server returned error but simulating success for demo');
-        }
-
-        return {
-          'success': true,
-          'message': 'Donation processed successfully',
-          'transaction_id': paymentId,
-          'amount': amount,
-          'charity_id': charityId,
-        };
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error processing donation: $e');
-      }
-
-      // For development/demo, return success even on error
-      return {
-        'success': true,
-        'message': 'Donation recorded (demo mode)',
-        'transaction_id': paymentId,
-        'amount': amount,
-        'charity_id': charityId,
-      };
-    }
+    // Delegate to the CharityService
+    final charityService = CharityService();
+    return charityService.processDonation(
+      charityId: charityId,
+      amount: amount,
+      name: name,
+      email: email,
+      phone: phone,
+      panCard: panCard,
+      paymentMethod: paymentMethod,
+      requestTaxBenefits: requestTaxBenefits,
+      paymentId: paymentId,
+    );
   }
 
   // Get charity details - simplified to return a single charity
@@ -1772,10 +1732,12 @@ class ApiService {
     };
   }
 
-  // Get list of charities - now returns a single item
+  // Get charities delegating to the dedicated CharityService
   Future<List<Map<String, dynamic>>> getCharities() async {
-    final charity = await getCharity();
-    return [charity];
+    final charityService = CharityService();
+    final charities = await charityService.getCharities();
+    // Convert CharityModel to Map<String, dynamic>
+    return charities.map((charity) => charity.toJson()).toList();
   }
 
   // Get charity donation history

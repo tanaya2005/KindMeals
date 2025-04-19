@@ -225,7 +225,7 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
       if (mounted) {
         Navigator.pushNamedAndRemoveUntil(
           context,
-          '/',
+          '/login',
           (route) => false,
         );
       }
@@ -503,7 +503,7 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
           if (mounted) {
             Navigator.pushNamedAndRemoveUntil(
               context,
-              '/',
+              '/login',
               (route) => false,
             );
           }
