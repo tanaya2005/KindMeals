@@ -13,6 +13,7 @@ import '../../services/firebase_service.dart';
 import '../../services/api_service.dart';
 import 'view_donations_screen.dart';
 import 'volunteers_screen.dart';
+import '../notifications/notification_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -335,8 +336,6 @@ class _HomeScreenState extends State<_HomeScreen> {
             // Donor Leaderboard Section
             _buildDonorLeaderboard(),
 
-            _buildVolunteerDashboardButton(),
-
             // Reviews Section
             _buildReviews(),
 
@@ -401,23 +400,6 @@ class _HomeScreenState extends State<_HomeScreen> {
                           color: Colors.white,
                         ),
                       ),
-                      const SizedBox(width: 10),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.amber,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Text(
-                          'DONATE',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
                     ],
                   ),
                 ],
@@ -428,10 +410,20 @@ class _HomeScreenState extends State<_HomeScreen> {
                   color: Colors.white.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(
-                  Icons.notifications_none_rounded,
-                  color: Colors.white,
-                  size: 26,
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const NotificationScreen(),
+                      ),
+                    );
+                  },
+                  child: const Icon(
+                    Icons.notifications_none_rounded,
+                    color: Colors.white,
+                    size: 26,
+                  ),
                 ),
               ),
             ],
@@ -890,51 +882,6 @@ class _HomeScreenState extends State<_HomeScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  // Add this new method to your _HomeScreenState class, right after _buildDonorLeaderboard()
-  Widget _buildVolunteerDashboardButton() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: ElevatedButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const VolunteersScreen(),
-            ),
-          );
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.green.shade700,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 15),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-          elevation: 5,
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.volunteer_activism_rounded,
-              size: 24,
-              color: Colors.white,
-            ),
-            const SizedBox(width: 12),
-            const Text(
-              'GO TO VOLUNTEER DASHBOARD',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
