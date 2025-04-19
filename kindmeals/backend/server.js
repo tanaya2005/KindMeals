@@ -909,6 +909,20 @@ app.post('/api/volunteer/accept-delivery/:acceptedDonationId', firebaseAuthMiddl
     const updatedDonation = await acceptedDonation.save();
     console.log('Accepted donation updated with volunteer assignment');
     
+    // Increment volunteer's delivery count
+    try {
+      // Find the volunteer and increment their delivery count
+      const updatedVolunteer = await DirectVolunteer.findByIdAndUpdate(
+        volunteer._id,
+        { $inc: { deliveries: 1 } }, // Increment deliveries field by 1
+        { new: true } // Return the updated document
+      );
+      console.log(`Incremented delivery count for volunteer ${volunteer.volunteerName} to ${updatedVolunteer.deliveries}`);
+    } catch (updateErr) {
+      console.error('Error updating volunteer delivery count:', updateErr);
+      // Continue execution even if the update fails
+    }
+    
     // Create notification for donor
     try {
       const donorNotification = {
@@ -1471,6 +1485,157 @@ app.put('/api/notifications/:notificationId/mark-read', firebaseAuthMiddleware, 
     res.status(200).json({ success: true, notification });
   } catch (err) {
     console.error('Error marking notification as read:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// NEW ENDPOINT: Get top volunteers for leaderboard
+app.get('/api/volunteers/leaderboard', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+    
+    // Get volunteers sorted by total ratings (deliveries completed)
+    const volunteers = await DirectVolunteer.find({})
+      .sort({ totalRatings: -1 })
+      .limit(limit)
+      .select('volunteerName profileImage totalRatings rating');
+    
+    console.log(`Found ${volunteers.length} top volunteers`);
+    
+    res.status(200).json(volunteers);
+  } catch (err) {
+    console.error('Error getting top volunteers:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// NEW ENDPOINT: Get top donors for leaderboard
+app.get('/api/donors/leaderboard', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+    console.log('=== DEBUG: Fetching top donors for leaderboard ===');
+    
+    // First, count donations for each donor across all collections
+    // Count Live Donations
+    const liveDonations = await LiveDonation.aggregate([
+      { $group: { _id: '$donorId', count: { $sum: 1 } } }
+    ]);
+    
+    // Count Accepted Donations
+    const acceptedDonations = await AcceptedDonation.aggregate([
+      { $group: { _id: '$donorId', count: { $sum: 1 } } }
+    ]);
+    
+    // Count Expired Donations
+    const expiredDonations = await ExpiredDonation.aggregate([
+      { $group: { _id: '$donorId', count: { $sum: 1 } } }
+    ]);
+    
+    // Count Final Donations
+    const finalDonations = await FinalDonation.aggregate([
+      { $group: { _id: '$donorId', count: { $sum: 1 } } }
+    ]);
+    
+    // Combine all donor counts
+    const donorCounts = {};
+    
+    // Helper function to add counts to the combined object
+    const addCounts = (donationArray) => {
+      donationArray.forEach(item => {
+        if (!donorCounts[item._id]) {
+          donorCounts[item._id] = 0;
+        }
+        donorCounts[item._id] += item.count;
+      });
+    };
+    
+    // Add all donation counts
+    addCounts(liveDonations);
+    addCounts(acceptedDonations);
+    addCounts(expiredDonations);
+    addCounts(finalDonations);
+    
+    console.log(`Combined donation counts for ${Object.keys(donorCounts).length} donors`);
+    
+    // Convert to array and sort by count
+    const sortedDonors = Object.entries(donorCounts)
+      .map(([donorId, count]) => ({ donorId, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, limit);
+    
+    // Fetch donor details for each donor
+    const donorsWithDetails = await Promise.all(sortedDonors.map(async (donor) => {
+      try {
+        const donorDetails = await DirectDonor.findById(donor.donorId);
+        if (donorDetails) {
+          return {
+            _id: donor.donorId,
+            donationCount: donor.count,
+            donorname: donorDetails.donorname,
+            orgName: donorDetails.orgName,
+            profileImage: donorDetails.profileImage
+          };
+        } else {
+          return {
+            _id: donor.donorId,
+            donationCount: donor.count,
+            donorname: 'Unknown Donor',
+            orgName: '',
+            profileImage: null
+          };
+        }
+      } catch (err) {
+        console.error(`Error fetching details for donor ${donor.donorId}:`, err);
+        return {
+          _id: donor.donorId,
+          donationCount: donor.count,
+          donorname: 'Unknown Donor',
+          orgName: '',
+          profileImage: null
+        };
+      }
+    }));
+    
+    console.log(`Returning ${donorsWithDetails.length} top donors`);
+    
+    res.status(200).json(donorsWithDetails);
+  } catch (err) {
+    console.error('Error getting top donors:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// NEW ENDPOINT: Get donation statistics
+app.get('/api/donations/statistics', async (req, res) => {
+  try {
+    // Count total donations in different collections
+    const liveDonations = await LiveDonation.countDocuments({});
+    const acceptedDonations = await AcceptedDonation.countDocuments({});
+    const expiredDonations = await ExpiredDonation.countDocuments({});
+    const finalDonations = await FinalDonation.countDocuments({});
+    
+    // Count total volunteers and donors
+    const volunteerCount = await DirectVolunteer.countDocuments({});
+    const donorCount = await DirectDonor.countDocuments({});
+    const recipientCount = await DirectRecipient.countDocuments({});
+    
+    // Calculate meals saved (assuming each donation serves multiple people)
+    const totalMealsSaved = finalDonations * 10; // Assuming each donation serves 10 people on average
+    
+    // Return statistics
+    res.status(200).json({
+      totalDonations: liveDonations + acceptedDonations + expiredDonations + finalDonations,
+      liveDonations,
+      acceptedDonations,
+      expiredDonations,
+      finalDonations,
+      volunteerCount,
+      donorCount,
+      recipientCount,
+      totalMealsSaved
+    });
+  } catch (err) {
+    console.error('Error getting donation statistics:', err);
     res.status(400).json({ error: err.message });
   }
 });

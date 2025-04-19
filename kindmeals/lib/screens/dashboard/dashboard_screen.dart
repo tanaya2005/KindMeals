@@ -14,6 +14,9 @@ import '../../services/api_service.dart';
 import 'view_donations_screen.dart';
 import 'volunteers_screen.dart';
 import '../notifications/notification_screen.dart';
+import '../charity/charity_donation_screen.dart';
+import '../charity/charity_listing_screen.dart';
+import 'package:flutter/foundation.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -207,6 +210,13 @@ class _HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<_HomeScreen> {
   int _currentCarouselIndex = 0;
+  bool _isLoadingLeaderboards = false;
+  final _apiService = ApiService();
+
+  // These will be populated with real data from API
+  List<Map<String, dynamic>> _volunteerLeaderboard = [];
+  List<Map<String, dynamic>> _donorLeaderboard = [];
+
   final List<Map<String, dynamic>> _carouselItems = [
     {
       'image': 'assets/images/food1.jpg',
@@ -234,59 +244,35 @@ class _HomeScreenState extends State<_HomeScreen> {
     },
   ];
 
-  final List<Map<String, dynamic>> _volunteerLeaderboard = [
+  // Charity donation options
+  final List<Map<String, dynamic>> _charityOptions = [
     {
-      'name': 'Sarah Johnson',
-      'donations': 32,
-      'avatar': 'assets/images/volunteer1.jpg',
+      'title': 'Feed a Child',
+      'description': 'Provide nutritious meals to underprivileged children',
+      'amount': '₹500',
+      'image': 'assets/images/food1.jpg',
+      'impact': 'Feeds 10 children for a day',
     },
     {
-      'name': 'Michael Chen',
-      'donations': 28,
-      'avatar': 'assets/images/volunteer2.jpg',
+      'title': 'Support a Family',
+      'description': 'Help a family with groceries for a month',
+      'amount': '₹2000',
+      'image': 'assets/images/food2.jpg',
+      'impact': 'Provides essential groceries for a family of 4',
     },
     {
-      'name': 'Priya Patel',
-      'donations': 25,
-      'avatar': 'assets/images/volunteer3.jpg',
+      'title': 'Sponsor a Community Kitchen',
+      'description': 'Help run a community kitchen for a day',
+      'amount': '₹5000',
+      'image': 'assets/images/food3.jpg',
+      'impact': 'Serves over 100 meals to those in need',
     },
     {
-      'name': 'David Wilson',
-      'donations': 22,
-      'avatar': 'assets/images/volunteer4.jpg',
-    },
-    {
-      'name': 'Emma Garcia',
-      'donations': 19,
-      'avatar': 'assets/images/volunteer5.jpg',
-    },
-  ];
-
-  final List<Map<String, dynamic>> _donorLeaderboard = [
-    {
-      'name': 'Restaurant A',
-      'meals': 145,
-      'avatar': 'assets/images/restaurant1.jpg',
-    },
-    {
-      'name': 'Cafe B',
-      'meals': 128,
-      'avatar': 'assets/images/restaurant2.jpg',
-    },
-    {
-      'name': 'Hotel C',
-      'meals': 112,
-      'avatar': 'assets/images/restaurant3.jpg',
-    },
-    {
-      'name': 'Bakery D',
-      'meals': 98,
-      'avatar': 'assets/images/restaurant4.jpg',
-    },
-    {
-      'name': 'Catering E',
-      'meals': 87,
-      'avatar': 'assets/images/restaurant5.jpg',
+      'title': 'Emergency Food Relief',
+      'description': 'Support emergency food distribution in crisis areas',
+      'amount': '₹1000',
+      'image': 'assets/images/food4.jpg',
+      'impact': 'Provides emergency rations for 5 families',
     },
   ];
 
@@ -318,6 +304,130 @@ class _HomeScreenState extends State<_HomeScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _fetchLeaderboardData();
+  }
+
+  Future<void> _fetchLeaderboardData() async {
+    if (mounted) {
+      setState(() {
+        _isLoadingLeaderboards = true;
+      });
+    }
+
+    try {
+      // Fetch top volunteers
+      final volunteers = await _apiService.getTopVolunteers(limit: 5);
+      if (volunteers.isNotEmpty && mounted) {
+        setState(() {
+          _volunteerLeaderboard = volunteers.map((volunteer) {
+            return {
+              'name': volunteer['volunteerName'] ?? 'Volunteer',
+              'donations': volunteer['totalRatings'] ?? 0,
+              'avatar': volunteer['profileImage'] != null &&
+                      volunteer['profileImage'].toString().isNotEmpty
+                  ? volunteer['profileImage']
+                  : 'assets/images/volunteer1.jpg',
+            };
+          }).toList();
+        });
+      }
+
+      // Fetch top donors with debugging
+      final donors = await _apiService.getTopDonors(limit: 5);
+      if (kDebugMode) {
+        print('==== DEBUG: FETCHED TOP DONORS DATA ====');
+        print('Donors data length: ${donors.length}');
+        for (var donor in donors) {
+          print('Donor data: $donor');
+        }
+      }
+
+      if (donors.isNotEmpty && mounted) {
+        setState(() {
+          _donorLeaderboard = donors.map((donor) {
+            return {
+              'name': donor['donorname'] ??
+                  donor['donorName'] ??
+                  donor['orgName'] ??
+                  'Donor',
+              'meals': donor['donationCount'] ?? 0,
+              'avatar': donor['profileImage'] != null &&
+                      donor['profileImage'].toString().isNotEmpty
+                  ? donor['profileImage']
+                  : 'assets/images/restaurant1.jpg',
+            };
+          }).toList();
+
+          if (kDebugMode) {
+            print('Transformed donor leaderboard:');
+            for (var donor in _donorLeaderboard) {
+              print('${donor['name']}: ${donor['meals']} meals');
+            }
+          }
+        });
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error fetching leaderboard data: $e');
+      }
+      // If API fails, we'll use default data
+    } finally {
+      // If no data was fetched, use some default placeholder data
+      if (_volunteerLeaderboard.isEmpty && mounted) {
+        setState(() {
+          _volunteerLeaderboard = [
+            {
+              'name': 'Sarah Johnson',
+              'donations': 32,
+              'avatar': 'assets/images/volunteer1.jpg',
+            },
+            {
+              'name': 'Michael Chen',
+              'donations': 28,
+              'avatar': 'assets/images/volunteer2.jpg',
+            },
+            {
+              'name': 'Priya Patel',
+              'donations': 25,
+              'avatar': 'assets/images/volunteer3.jpg',
+            },
+          ];
+        });
+      }
+
+      if (_donorLeaderboard.isEmpty && mounted) {
+        setState(() {
+          _donorLeaderboard = [
+            {
+              'name': 'Green Bistro',
+              'meals': 210,
+              'avatar': 'assets/images/restaurant1.jpg',
+            },
+            {
+              'name': 'Fresh Harvest',
+              'meals': 185,
+              'avatar': 'assets/images/restaurant2.jpg',
+            },
+            {
+              'name': 'Spice Garden',
+              'meals': 150,
+              'avatar': 'assets/images/restaurant3.jpg',
+            },
+          ];
+        });
+      }
+
+      if (mounted) {
+        setState(() {
+          _isLoadingLeaderboards = false;
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SingleChildScrollView(
@@ -338,6 +448,9 @@ class _HomeScreenState extends State<_HomeScreen> {
 
             // Reviews Section
             _buildReviews(),
+
+            // Charity Donation Section
+            _buildCharitySection(),
 
             // Footer with Social Links
             _buildFooter(),
@@ -1018,6 +1131,275 @@ class _HomeScreenState extends State<_HomeScreen> {
             },
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCharitySection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      color: Colors.green.shade50,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.volunteer_activism,
+                size: 24,
+                color: Colors.green.shade700,
+              ),
+              const SizedBox(width: 10),
+              const Text(
+                'Donate for a Cause',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Support our charitable initiative to help those in need',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade700,
+            ),
+          ),
+          const SizedBox(height: 20),
+          FutureBuilder<Map<String, dynamic>>(
+            future: _apiService.getCharity(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(20.0),
+                    child: CircularProgressIndicator(),
+                  ),
+                );
+              } else if (snapshot.hasError) {
+                return Center(
+                  child: Text(
+                    'Failed to load charity info: ${snapshot.error}',
+                    style: TextStyle(color: Colors.red.shade700),
+                  ),
+                );
+              } else if (!snapshot.hasData) {
+                return const Center(
+                  child: Text('No charity information available at the moment'),
+                );
+              }
+
+              // Use the charity data from the API
+              final charity = snapshot.data!;
+
+              return _buildCharityCard(charity);
+            },
+          ),
+          const SizedBox(height: 15),
+          Align(
+            alignment: Alignment.center,
+            child: TextButton.icon(
+              onPressed: () {
+                // Navigate to charity donation screen with the single charity
+                _apiService.getCharity().then((charity) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          CharityDonationScreen(charity: charity),
+                    ),
+                  );
+                });
+              },
+              icon: Icon(
+                Icons.volunteer_activism,
+                size: 16,
+                color: Colors.green.shade700,
+              ),
+              label: Text(
+                'Donate Now',
+                style: TextStyle(
+                  color: Colors.green.shade700,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCharityCard(Map<String, dynamic> charity) {
+    final Color accentColor = Colors.orange.shade700;
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 6,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => CharityDonationScreen(charity: charity),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Charity image
+            ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
+              ),
+              child: Image.network(
+                charity['imageUrl'] ?? 'https://via.placeholder.com/280x140',
+                height: 200,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    height: 200,
+                    width: double.infinity,
+                    color: Colors.grey.shade200,
+                    child: Icon(
+                      Icons.image_not_supported,
+                      color: Colors.grey.shade400,
+                      size: 40,
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            // Charity content
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Charity badge
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: accentColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      charity['category'] ?? 'Charity',
+                      style: TextStyle(
+                        color: accentColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // Charity name
+                  Text(
+                    charity['name'] ?? 'KindMeals Community Fund',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // Description
+                  Text(
+                    charity['description'] ??
+                        'Help us support food rescue operations and feed those in need.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey.shade700,
+                      height: 1.3,
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Impact section
+                  if (charity['impactDescription'] != null)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.green.shade100),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.volunteer_activism,
+                              color: Colors.green.shade700, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              charity['impactDescription'],
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey.shade800,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  const SizedBox(height: 16),
+
+                  // Donate button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                CharityDonationScreen(charity: charity),
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: accentColor,
+                        foregroundColor: Colors.white,
+                        textStyle: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text('DONATE NOW'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

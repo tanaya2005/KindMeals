@@ -1,621 +1,6 @@
-// import 'package:flutter/material.dart';
-// import 'package:carousel_slider/carousel_slider.dart';
-
-// // Demo data for volunteers
-// final List<Map<String, dynamic>> demoVolunteers = [
-//   {
-//     'name': 'Emma Thompson',
-//     'since': '2023',
-//     'rating': 4.8,
-//     'avatar': 'https://via.placeholder.com/150',
-//     'donations': 47,
-//   },
-//   {
-//     'name': 'James Wilson',
-//     'since': '2022',
-//     'rating': 4.6,
-//     'avatar': 'https://via.placeholder.com/150',
-//     'donations': 63,
-//   },
-//   {
-//     'name': 'Sarah Johnson',
-//     'since': '2023',
-//     'rating': 4.9,
-//     'avatar': 'https://via.placeholder.com/150',
-//     'donations': 32,
-//   },
-//   {
-//     'name': 'Michael Chen',
-//     'since': '2021',
-//     'rating': 4.7,
-//     'avatar': 'https://via.placeholder.com/150',
-//     'donations': 78,
-//   },
-//   {
-//     'name': 'Olivia Rodriguez',
-//     'since': '2022',
-//     'rating': 4.5,
-//     'avatar': 'https://via.placeholder.com/150',
-//     'donations': 41,
-//   },
-//   {
-//     'name': 'William Davis',
-//     'since': '2023',
-//     'rating': 4.4,
-//     'avatar': 'https://via.placeholder.com/150',
-//     'donations': 28,
-//   },
-//   {
-//     'name': 'Lisa Kumar',
-//     'since': '2021',
-//     'rating': 4.9,
-//     'avatar': 'https://via.placeholder.com/150',
-//     'donations': 85,
-//   },
-// ];
-
-// // Motivational quotes for carousel
-// final List<Map<String, dynamic>> motivationalContent = [
-//   {
-//     'image': 'assets/images/food1.jpg',
-//     'quote': 'Be the change you wish to see in the world.',
-//     'author': 'Mahatma Gandhi',
-//     'color': Colors.green,
-//   },
-//   {
-//     'image': 'assets/images/food2.jpg',
-//     'quote': 'Alone we can do so little; together we can do so much.',
-//     'author': 'Helen Keller',
-//     'color': Colors.blue,
-//   },
-//   {
-//     'image': 'assets/images/food3.jpg',
-//     'quote': 'The best way to find yourself is to lose yourself in the service of others.',
-//     'author': 'Mahatma Gandhi',
-//     'color': Colors.orange,
-//   },
-//   {
-//     'image': 'assets/images/food4.jpg',
-//     'quote': 'We make a living by what we get, but we make a life by what we give.',
-//     'author': 'Winston Churchill',
-//     'color': Colors.purple,
-//   },
-//   {
-//     'image': 'assets/images/food1.jpg',
-//     'quote': 'Never doubt that a small group of thoughtful, committed citizens can change the world.',
-//     'author': 'Margaret Mead',
-//     'color': Colors.teal,
-//   },
-// ];
-
-// class VolunteersScreen extends StatefulWidget {
-//   const VolunteersScreen({super.key});
-
-//   @override
-//   State<VolunteersScreen> createState() => _VolunteersScreenState();
-// }
-
-// class _VolunteersScreenState extends State<VolunteersScreen> {
-//   int _currentCarouselIndex = 0;
-
-//   @override
-//   Widget build(BuildContext context) {
-//     // Sort volunteers by donations in descending order
-//     final sortedVolunteers = List<Map<String, dynamic>>.from(demoVolunteers);
-//     sortedVolunteers.sort((a, b) => b['donations'].compareTo(a['donations']));
-
-//     return Scaffold(
-//       appBar: AppBar(
-//         title: const Text('Volunteers'),
-//         centerTitle: true,
-//       ),
-//       body: SingleChildScrollView(
-//         child: Column(
-//           crossAxisAlignment: CrossAxisAlignment.start,
-//           children: [
-//             // Motivational Carousel
-//             Padding(
-//               padding: const EdgeInsets.all(16.0),
-//               child: Column(
-//                 crossAxisAlignment: CrossAxisAlignment.start,
-//                 children: [
-//                   CarouselSlider(
-//                     options: CarouselOptions(
-//                       height: 160,
-//                       viewportFraction: 0.9,
-//                       enlargeCenterPage: true,
-//                       enableInfiniteScroll: true,
-//                       autoPlay: true,
-//                       autoPlayInterval: const Duration(seconds: 5),
-//                       onPageChanged: (index, reason) {
-//                         setState(() {
-//                           _currentCarouselIndex = index;
-//                         });
-//                       },
-//                     ),
-//                     items: motivationalContent.map((item) {
-//                       return Builder(
-//                         builder: (BuildContext context) {
-//                           return Container(
-//                             width: MediaQuery.of(context).size.width,
-//                             decoration: BoxDecoration(
-//                               color: item['color'] as Color,
-//                               borderRadius: BorderRadius.circular(16),
-//                               image: DecorationImage(
-//                                 image: AssetImage(item['image'] as String),
-//                                 fit: BoxFit.cover,
-//                                 colorFilter: ColorFilter.mode(
-//                                   (item['color'] as Color).withOpacity(0.7),
-//                                   BlendMode.srcATop,
-//                                 ),
-//                               ),
-//                             ),
-//                             child: Padding(
-//                               padding: const EdgeInsets.all(20.0),
-//                               child: Column(
-//                                 mainAxisAlignment: MainAxisAlignment.center,
-//                                 children: [
-//                                   Text(
-//                                     '"${item['quote']}"',
-//                                     textAlign: TextAlign.center,
-//                                     style: const TextStyle(
-//                                       fontSize: 16,
-//                                       fontWeight: FontWeight.bold,
-//                                       color: Colors.white,
-//                                     ),
-//                                   ),
-//                                   const SizedBox(height: 8),
-//                                   Text(
-//                                     "— ${item['author']}",
-//                                     textAlign: TextAlign.center,
-//                                     style: const TextStyle(
-//                                       fontSize: 14,
-//                                       fontStyle: FontStyle.italic,
-//                                       color: Colors.white,
-//                                     ),
-//                                   ),
-//                                 ],
-//                               ),
-//                             ),
-//                           );
-//                         },
-//                       );
-//                     }).toList(),
-//                   ),
-//                   const SizedBox(height: 8),
-//                   Row(
-//                     mainAxisAlignment: MainAxisAlignment.center,
-//                     children: motivationalContent.asMap().entries.map((entry) {
-//                       return Container(
-//                         width: 8.0,
-//                         height: 8.0,
-//                         margin: const EdgeInsets.symmetric(horizontal: 4.0),
-//                         decoration: BoxDecoration(
-//                           shape: BoxShape.circle,
-//                           color: _currentCarouselIndex == entry.key
-//                               ? Colors.green
-//                               : Colors.grey.shade300,
-//                         ),
-//                       );
-//                     }).toList(),
-//                   ),
-//                 ],
-//               ),
-//             ),
-
-//             // Leaderboard Section
-//             const Padding(
-//               padding: EdgeInsets.only(left: 16.0, right: 16.0, top: 8.0),
-//               child: Text(
-//                 'Volunteer Leaderboard',
-//                 style: TextStyle(
-//                   fontSize: 18,
-//                   fontWeight: FontWeight.bold,
-//                 ),
-//               ),
-//             ),
-
-//             // Stats Container
-//             Container(
-//               padding: const EdgeInsets.all(16),
-//               margin: const EdgeInsets.all(16),
-//               decoration: BoxDecoration(
-//                 color: Colors.green.shade50,
-//                 borderRadius: BorderRadius.circular(12),
-//                 boxShadow: [
-//                   BoxShadow(
-//                     color: Colors.black.withOpacity(0.05),
-//                     blurRadius: 5,
-//                     offset: const Offset(0, 2),
-//                   ),
-//                 ],
-//               ),
-//               child: Row(
-//                 mainAxisAlignment: MainAxisAlignment.spaceAround,
-//                 children: [
-//                   _buildStatColumn('Total Volunteers', '${sortedVolunteers.length}'),
-//                   _buildStatColumn(
-//                     'Total Deliveries',
-//                     '${sortedVolunteers.fold<int>(0, (sum, item) => sum + (item['donations'] as int))}',
-//                   ),
-//                   _buildStatColumn(
-//                     'Avg Deliveries',
-//                     (sortedVolunteers.fold<int>(0, (sum, item) => sum + (item['donations'] as int)) /
-//                             sortedVolunteers.length)
-//                         .toStringAsFixed(1),
-//                   ),
-//                 ],
-//               ),
-//             ),
-
-//             // Table Header
-//             Container(
-//               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-//               decoration: BoxDecoration(
-//                 color: Colors.green.shade100,
-//               ),
-//               child: const Row(
-//                 children: [
-//                   SizedBox(
-//                     width: 50,
-//                     child: Text(
-//                       'Rank',
-//                       style: TextStyle(fontWeight: FontWeight.bold),
-//                     ),
-//                   ),
-//                   Expanded(
-//                     child: Text(
-//                       'Volunteer',
-//                       style: TextStyle(fontWeight: FontWeight.bold),
-//                     ),
-//                   ),
-//                   SizedBox(
-//                     width: 80,
-//                     child: Text(
-//                       'Deliveries',
-//                       style: TextStyle(fontWeight: FontWeight.bold),
-//                       textAlign: TextAlign.center,
-//                     ),
-//                   ),
-//                 ],
-//               ),
-//             ),
-
-//             // Volunteer List
-//             ListView.builder(
-//               padding: const EdgeInsets.symmetric(vertical: 8),
-//               shrinkWrap: true,
-//               physics: const NeverScrollableScrollPhysics(),
-//               itemCount: sortedVolunteers.length,
-//               itemBuilder: (context, index) {
-//                 final volunteer = sortedVolunteers[index];
-//                 final rank = index + 1;
-
-//                 return Card(
-//                   margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-//                   elevation: 0.5,
-//                   child: Padding(
-//                     padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-//                     child: Row(
-//                       children: [
-//                         // Rank with medal for top 3
-//                         SizedBox(
-//                           width: 50,
-//                           child: _buildRankWidget(rank),
-//                         ),
-
-//                         // Avatar and volunteer info
-//                         Expanded(
-//                           child: Row(
-//                             children: [
-//                               // Avatar
-//                               CircleAvatar(
-//                                 radius: 24,
-//                                 backgroundImage: NetworkImage(volunteer['avatar'] as String),
-//                                 backgroundColor: Colors.grey.shade200,
-//                               ),
-//                               const SizedBox(width: 16),
-//                               // Name and subtitle
-//                               Expanded(
-//                                 child: Column(
-//                                   crossAxisAlignment: CrossAxisAlignment.start,
-//                                   children: [
-//                                     Text(
-//                                       volunteer['name'] as String,
-//                                       style: const TextStyle(fontWeight: FontWeight.bold),
-//                                     ),
-//                                     Text(
-//                                       '${volunteer['donations']} deliveries made',
-//                                       style: TextStyle(
-//                                         color: Colors.grey.shade600,
-//                                         fontSize: 12,
-//                                       ),
-//                                     ),
-//                                   ],
-//                                 ),
-//                               ),
-//                             ],
-//                           ),
-//                         ),
-
-//                         // Donations count
-//                         SizedBox(
-//                           width: 80,
-//                           child: Text(
-//                             '${volunteer['donations']}',
-//                             style: const TextStyle(
-//                               fontWeight: FontWeight.bold,
-//                               fontSize: 16,
-//                             ),
-//                             textAlign: TextAlign.center,
-//                           ),
-//                         ),
-//                       ],
-//                     ),
-//                   ),
-//                 );
-//               },
-//             ),
-//           ],
-//         ),
-//       ),
-//       floatingActionButton: FloatingActionButton.extended(
-//         onPressed: () {
-//           _showVolunteerApplicationForm(context);
-//         },
-//         icon: const Icon(Icons.volunteer_activism),
-//         label: const Text('Become a Volunteer'),
-//         backgroundColor: Colors.green,
-//       ),
-//     );
-//   }
-
-//   Widget _buildStatColumn(String title, String value) {
-//     return Column(
-//       children: [
-//         Text(
-//           value,
-//           style: const TextStyle(
-//             fontSize: 24,
-//             fontWeight: FontWeight.bold,
-//             color: Colors.green,
-//           ),
-//         ),
-//         const SizedBox(height: 4),
-//         Text(
-//           title,
-//           style: TextStyle(
-//             fontSize: 12,
-//             color: Colors.grey.shade700,
-//           ),
-//         ),
-//       ],
-//     );
-//   }
-
-//   Widget _buildRankWidget(int rank) {
-//     if (rank <= 3) {
-//       // Medal for top 3
-//       return Container(
-//         width: 40,
-//         height: 40,
-//         decoration: BoxDecoration(
-//           shape: BoxShape.circle,
-//           color: _getMedalColor(rank - 1),
-//           boxShadow: [
-//             BoxShadow(
-//               color: Colors.black.withOpacity(0.1),
-//               blurRadius: 4,
-//               offset: const Offset(0, 2),
-//             ),
-//           ],
-//         ),
-//         child: Center(
-//           child: _getMedalIcon(rank),
-//         ),
-//       );
-//     } else {
-//       // Regular rank indicator for others
-//       return Container(
-//         width: 40,
-//         height: 40,
-//         decoration: BoxDecoration(
-//           shape: BoxShape.circle,
-//           color: Colors.grey.shade100,
-//           border: Border.all(color: Colors.grey.shade300, width: 1),
-//         ),
-//         child: Center(
-//           child: Text(
-//             '$rank',
-//             style: TextStyle(
-//               color: Colors.grey.shade700,
-//               fontWeight: FontWeight.bold,
-//               fontSize: 16,
-//             ),
-//           ),
-//         ),
-//       );
-//     }
-//   }
-
-//   Widget _getMedalIcon(int rank) {
-//     switch (rank) {
-//       case 1:
-//         return const Icon(Icons.emoji_events, color: Colors.white, size: 24);
-//       case 2:
-//         return const Icon(Icons.emoji_events, color: Colors.white, size: 22);
-//       case 3:
-//         return const Icon(Icons.emoji_events, color: Colors.white, size: 20);
-//       default:
-//         return Text(
-//           '$rank',
-//           style: const TextStyle(
-//             color: Colors.white,
-//             fontWeight: FontWeight.bold,
-//           ),
-//         );
-//     }
-//   }
-
-//   Color _getMedalColor(int position) {
-//     switch (position) {
-//       case 0:
-//         return Colors.amber.shade700; // Gold
-//       case 1:
-//         return Colors.blueGrey.shade400; // Silver
-//       case 2:
-//         return Colors.brown.shade400; // Bronze
-//       default:
-//         return Colors.grey.shade500;
-//     }
-//   }
-
-//   void _showVolunteerApplicationForm(BuildContext context) {
-//     showDialog(
-//       context: context,
-//       builder: (BuildContext context) {
-//         return AlertDialog(
-//           title: const Text('Become a Volunteer'),
-//           content: SingleChildScrollView(
-//             child: Column(
-//               mainAxisSize: MainAxisSize.min,
-//               crossAxisAlignment: CrossAxisAlignment.start,
-//               children: [
-//                 const Text(
-//                   'Join our community of food rescue heroes!',
-//                   style: TextStyle(fontWeight: FontWeight.bold),
-//                 ),
-//                 const SizedBox(height: 16),
-//                 const Text(
-//                   'As a volunteer, you\'ll help deliver surplus food to those who need it most. '
-//                   'Fill out this form to get started on your volunteer journey.',
-//                 ),
-//                 const SizedBox(height: 20),
-//                 TextField(
-//                   decoration: InputDecoration(
-//                     labelText: 'Full Name',
-//                     border: OutlineInputBorder(
-//                       borderRadius: BorderRadius.circular(8),
-//                     ),
-//                   ),
-//                 ),
-//                 const SizedBox(height: 16),
-//                 TextField(
-//                   decoration: InputDecoration(
-//                     labelText: 'Email',
-//                     border: OutlineInputBorder(
-//                       borderRadius: BorderRadius.circular(8),
-//                     ),
-//                   ),
-//                 ),
-//                 const SizedBox(height: 16),
-//                 TextField(
-//                   decoration: InputDecoration(
-//                     labelText: 'Phone Number',
-//                     border: OutlineInputBorder(
-//                       borderRadius: BorderRadius.circular(8),
-//                     ),
-//                   ),
-//                 ),
-//                 const SizedBox(height: 16),
-//                 TextField(
-//                   maxLines: 3,
-//                   decoration: InputDecoration(
-//                     labelText: 'Why do you want to volunteer?',
-//                     border: OutlineInputBorder(
-//                       borderRadius: BorderRadius.circular(8),
-//                     ),
-//                   ),
-//                 ),
-//               ],
-//             ),
-//           ),
-//           actions: [
-//             TextButton(
-//               child: const Text('Cancel'),
-//               onPressed: () {
-//                 Navigator.of(context).pop();
-//               },
-//             ),
-//             ElevatedButton(
-//               style: ElevatedButton.styleFrom(
-//                 backgroundColor: Colors.green,
-//               ),
-//               child: const Text('Submit Application'),
-//               onPressed: () {
-//                 Navigator.of(context).pop();
-//                 // TODO: Implement volunteer application submission
-//                 ScaffoldMessenger.of(context).showSnackBar(
-//                   const SnackBar(
-//                     content: Text('Application submitted successfully!'),
-//                     backgroundColor: Colors.green,
-//                   ),
-//                 );
-//               },
-//             ),
-//           ],
-//         );
-//       },
-//     );
-//   }
-// }
-
-
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
-
-// Demo data for volunteers
-final List<Map<String, dynamic>> demoVolunteers = [
-  {
-    'name': 'Emma Thompson',
-    'since': '2023',
-    'rating': 4.8,
-    'avatar': 'https://via.placeholder.com/150',
-    'donations': 47,
-  },
-  {
-    'name': 'James Wilson',
-    'since': '2022',
-    'rating': 4.6,
-    'avatar': 'https://via.placeholder.com/150',
-    'donations': 63,
-  },
-  {
-    'name': 'Sarah Johnson',
-    'since': '2023',
-    'rating': 4.9,
-    'avatar': 'https://via.placeholder.com/150',
-    'donations': 32,
-  },
-  {
-    'name': 'Michael Chen',
-    'since': '2021',
-    'rating': 4.7,
-    'avatar': 'https://via.placeholder.com/150',
-    'donations': 78,
-  },
-  {
-    'name': 'Olivia Rodriguez',
-    'since': '2022',
-    'rating': 4.5,
-    'avatar': 'https://via.placeholder.com/150',
-    'donations': 41,
-  },
-  {
-    'name': 'William Davis',
-    'since': '2023',
-    'rating': 4.4,
-    'avatar': 'https://via.placeholder.com/150',
-    'donations': 28,
-  },
-  {
-    'name': 'Lisa Kumar',
-    'since': '2021',
-    'rating': 4.9,
-    'avatar': 'https://via.placeholder.com/150',
-    'donations': 85,
-  },
-];
+import '../../services/api_service.dart';
 
 // Motivational content for food donation carousel
 final List<Map<String, dynamic>> motivationalContent = [
@@ -660,267 +45,406 @@ class VolunteersScreen extends StatefulWidget {
 
 class _VolunteersScreenState extends State<VolunteersScreen> {
   int _currentCarouselIndex = 0;
+  bool _isLoading = true;
+  List<Map<String, dynamic>> _volunteers = [];
+  final ApiService _apiService = ApiService();
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchVolunteers();
+  }
+
+  Future<void> _fetchVolunteers() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Fetch volunteers from API
+      final volunteers = await _apiService.getTopVolunteers(limit: 20);
+
+      if (volunteers.isNotEmpty) {
+        setState(() {
+          _volunteers = volunteers.map((volunteer) {
+            return {
+              'name': volunteer['volunteerName'] ?? 'Volunteer',
+              'since': volunteer['createdAt'] != null
+                  ? DateTime.parse(volunteer['createdAt']).year.toString()
+                  : '2023',
+              'rating': volunteer['rating'] ?? 4.0,
+              'donations': volunteer['totalRatings'] ?? 0,
+              'avatar': volunteer['profileImage'] ??
+                  'https://via.placeholder.com/150',
+            };
+          }).toList();
+        });
+      } else {
+        // Fall back to demo data if API returns empty list
+        _setDemoData();
+      }
+    } catch (e) {
+      print('Error fetching volunteers: $e');
+      // Fall back to demo data on error
+      _setDemoData();
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _setDemoData() {
+    setState(() {
+      _volunteers = [
+        {
+          'name': 'Emma Thompson',
+          'since': '2023',
+          'rating': 4.8,
+          'avatar': 'https://via.placeholder.com/150',
+          'donations': 47,
+        },
+        {
+          'name': 'James Wilson',
+          'since': '2022',
+          'rating': 4.6,
+          'avatar': 'https://via.placeholder.com/150',
+          'donations': 63,
+        },
+        {
+          'name': 'Sarah Johnson',
+          'since': '2023',
+          'rating': 4.9,
+          'avatar': 'https://via.placeholder.com/150',
+          'donations': 32,
+        },
+        {
+          'name': 'Michael Chen',
+          'since': '2021',
+          'rating': 4.7,
+          'avatar': 'https://via.placeholder.com/150',
+          'donations': 78,
+        },
+        {
+          'name': 'Olivia Rodriguez',
+          'since': '2022',
+          'rating': 4.5,
+          'avatar': 'https://via.placeholder.com/150',
+          'donations': 41,
+        },
+        {
+          'name': 'William Davis',
+          'since': '2023',
+          'rating': 4.4,
+          'avatar': 'https://via.placeholder.com/150',
+          'donations': 28,
+        },
+        {
+          'name': 'Lisa Kumar',
+          'since': '2021',
+          'rating': 4.9,
+          'avatar': 'https://via.placeholder.com/150',
+          'donations': 85,
+        },
+      ];
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     // Sort volunteers by donations in descending order
-    final sortedVolunteers = List<Map<String, dynamic>>.from(demoVolunteers);
+    final sortedVolunteers = List<Map<String, dynamic>>.from(_volunteers);
     sortedVolunteers.sort((a, b) => b['donations'].compareTo(a['donations']));
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Volunteers'),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _fetchVolunteers,
+          ),
+        ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Motivational Carousel
-            Padding(
-              padding: const EdgeInsets.all(16.0),
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(),
+            )
+          : SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CarouselSlider(
-                    options: CarouselOptions(
-                      height: 160,
-                      viewportFraction: 0.9,
-                      enlargeCenterPage: true,
-                      enableInfiniteScroll: true,
-                      autoPlay: true,
-                      autoPlayInterval: const Duration(seconds: 5),
-                      onPageChanged: (index, reason) {
-                        setState(() {
-                          _currentCarouselIndex = index;
-                        });
-                      },
-                    ),
-                    items: motivationalContent.map((item) {
-                      return Builder(
-                        builder: (BuildContext context) {
-                          return Container(
-                            width: MediaQuery.of(context).size.width,
-                            decoration: BoxDecoration(
-                              color: item['color'] as Color,
-                              borderRadius: BorderRadius.circular(16),
-                              image: DecorationImage(
-                                image: AssetImage(item['image'] as String),
-                                fit: BoxFit.cover,
-                                colorFilter: ColorFilter.mode(
-                                  (item['color'] as Color).withOpacity(0.7),
-                                  BlendMode.srcATop,
-                                ),
-                              ),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(20.0),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    item['title'] as String,
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    item['subtitle'] as String,
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: motivationalContent.asMap().entries.map((entry) {
-                      return Container(
-                        width: 8.0,
-                        height: 8.0,
-                        margin: const EdgeInsets.symmetric(horizontal: 4.0),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: _currentCarouselIndex == entry.key
-                              ? Colors.green
-                              : Colors.grey.shade300,
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ],
-              ),
-            ),
-
-            // Leaderboard Section
-            const Padding(
-              padding: EdgeInsets.only(left: 16.0, right: 16.0, top: 8.0),
-              child: Text(
-                'Volunteer Leaderboard',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-
-            // Stats Container
-            Container(
-              padding: const EdgeInsets.all(16),
-              margin: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.green.shade50,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 5,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildStatColumn('Total Volunteers', '${sortedVolunteers.length}'),
-                  _buildStatColumn(
-                    'Total Deliveries',
-                    '${sortedVolunteers.fold<int>(0, (sum, item) => sum + (item['donations'] as int))}',
-                  ),
-                  _buildStatColumn(
-                    'Avg Deliveries',
-                    (sortedVolunteers.fold<int>(0, (sum, item) => sum + (item['donations'] as int)) /
-                            sortedVolunteers.length)
-                        .toStringAsFixed(1),
-                  ),
-                ],
-              ),
-            ),
-
-            // Table Header
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.green.shade100,
-              ),
-              child: const Row(
-                children: [
-                  SizedBox(
-                    width: 50,
-                    child: Text(
-                      'Rank',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      'Volunteer',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  SizedBox(
-                    width: 80,
-                    child: Text(
-                      'Deliveries',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Volunteer List
-            ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: sortedVolunteers.length,
-              itemBuilder: (context, index) {
-                final volunteer = sortedVolunteers[index];
-                final rank = index + 1;
-
-                return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  elevation: 0.5,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-                    child: Row(
+                  // Motivational Carousel
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Rank with medal for top 3
-                        SizedBox(
-                          width: 50,
-                          child: _buildRankWidget(rank),
-                        ),
-
-                        // Avatar and volunteer info
-                        Expanded(
-                          child: Row(
-                            children: [
-                              // Avatar
-                              CircleAvatar(
-                                radius: 24,
-                                backgroundImage: NetworkImage(volunteer['avatar'] as String),
-                                backgroundColor: Colors.grey.shade200,
-                              ),
-                              const SizedBox(width: 16),
-                              // Name and subtitle
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      volunteer['name'] as String,
-                                      style: const TextStyle(fontWeight: FontWeight.bold),
-                                    ),
-                                    Text(
-                                      '${volunteer['donations']} deliveries made',
-                                      style: TextStyle(
-                                        color: Colors.grey.shade600,
-                                        fontSize: 12,
+                        CarouselSlider(
+                          options: CarouselOptions(
+                            height: 160,
+                            viewportFraction: 0.9,
+                            enlargeCenterPage: true,
+                            enableInfiniteScroll: true,
+                            autoPlay: true,
+                            autoPlayInterval: const Duration(seconds: 5),
+                            onPageChanged: (index, reason) {
+                              setState(() {
+                                _currentCarouselIndex = index;
+                              });
+                            },
+                          ),
+                          items: motivationalContent.map((item) {
+                            return Builder(
+                              builder: (BuildContext context) {
+                                return Container(
+                                  width: MediaQuery.of(context).size.width,
+                                  decoration: BoxDecoration(
+                                    color: item['color'] as Color,
+                                    borderRadius: BorderRadius.circular(16),
+                                    image: DecorationImage(
+                                      image:
+                                          AssetImage(item['image'] as String),
+                                      fit: BoxFit.cover,
+                                      colorFilter: ColorFilter.mode(
+                                        (item['color'] as Color)
+                                            .withOpacity(0.7),
+                                        BlendMode.srcATop,
                                       ),
                                     ),
-                                  ],
-                                ),
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(20.0),
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          item['title'] as String,
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          item['subtitle'] as String,
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            );
+                          }).toList(),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children:
+                              motivationalContent.asMap().entries.map((entry) {
+                            return Container(
+                              width: 8.0,
+                              height: 8.0,
+                              margin:
+                                  const EdgeInsets.symmetric(horizontal: 4.0),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: _currentCarouselIndex == entry.key
+                                    ? Colors.green
+                                    : Colors.grey.shade300,
                               ),
-                            ],
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Leaderboard Section
+                  const Padding(
+                    padding: EdgeInsets.only(left: 16.0, right: 16.0, top: 8.0),
+                    child: Text(
+                      'Volunteer Leaderboard',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+
+                  // Stats Container
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    margin: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 5,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _buildStatColumn(
+                            'Total Volunteers', '${sortedVolunteers.length}'),
+                        _buildStatColumn(
+                          'Total Deliveries',
+                          '${sortedVolunteers.fold<int>(0, (sum, item) => sum + (item['donations'] as int))}',
+                        ),
+                        _buildStatColumn(
+                          'Avg Deliveries',
+                          sortedVolunteers.isEmpty
+                              ? '0'
+                              : (sortedVolunteers.fold<int>(
+                                          0,
+                                          (sum, item) =>
+                                              sum +
+                                              (item['donations'] as int)) /
+                                      sortedVolunteers.length)
+                                  .toStringAsFixed(1),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Table Header
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade100,
+                    ),
+                    child: const Row(
+                      children: [
+                        SizedBox(
+                          width: 50,
+                          child: Text(
+                            'Rank',
+                            style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
-
-                        // Donations count
+                        Expanded(
+                          child: Text(
+                            'Volunteer',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
                         SizedBox(
                           width: 80,
                           child: Text(
-                            '${volunteer['donations']}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
+                            'Deliveries',
+                            style: TextStyle(fontWeight: FontWeight.bold),
                             textAlign: TextAlign.center,
                           ),
                         ),
                       ],
                     ),
                   ),
-                );
-              },
+
+                  // Volunteer List
+                  sortedVolunteers.isEmpty
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(20.0),
+                            child: Text(
+                              'No volunteers found',
+                              style: TextStyle(color: Colors.grey.shade600),
+                            ),
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: sortedVolunteers.length,
+                          itemBuilder: (context, index) {
+                            final volunteer = sortedVolunteers[index];
+                            final rank = index + 1;
+
+                            return Card(
+                              margin: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 4),
+                              elevation: 0.5,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 8, horizontal: 8),
+                                child: Row(
+                                  children: [
+                                    // Rank with medal for top 3
+                                    SizedBox(
+                                      width: 50,
+                                      child: _buildRankWidget(rank),
+                                    ),
+
+                                    // Avatar and volunteer info
+                                    Expanded(
+                                      child: Row(
+                                        children: [
+                                          // Avatar
+                                          _buildVolunteerAvatar(
+                                              volunteer['avatar']),
+                                          const SizedBox(width: 16),
+                                          // Name and subtitle
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  volunteer['name'] as String,
+                                                  style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.bold),
+                                                ),
+                                                Text(
+                                                  '${volunteer['donations']} deliveries made',
+                                                  style: TextStyle(
+                                                    color: Colors.grey.shade600,
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+
+                                    // Donations count
+                                    SizedBox(
+                                      width: 80,
+                                      child: Text(
+                                        '${volunteer['donations']}',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ],
+              ),
             ),
-          ],
-        ),
-      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           _showVolunteerApplicationForm(context);
@@ -928,6 +452,54 @@ class _VolunteersScreenState extends State<VolunteersScreen> {
         icon: const Icon(Icons.volunteer_activism),
         label: const Text('Become a Volunteer'),
         backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  Widget _buildVolunteerAvatar(dynamic profileImage) {
+    if (profileImage != null && profileImage.toString().isNotEmpty) {
+      // Case 1: Image starts with /uploads - it's from our API server
+      if (profileImage.toString().startsWith('/uploads')) {
+        return CircleAvatar(
+          radius: 24,
+          backgroundImage: NetworkImage(
+            '${ApiService.baseUrl}${profileImage}',
+          ),
+          onBackgroundImageError: (e, stackTrace) {
+            print('Error loading profile image from API server: $e');
+          },
+          backgroundColor: Colors.grey.shade200,
+        );
+      }
+      // Case 2: Image is a full URL - from a placeholder or other source
+      else if (profileImage.toString().startsWith('http')) {
+        return CircleAvatar(
+          radius: 24,
+          backgroundImage: NetworkImage(profileImage),
+          onBackgroundImageError: (e, stackTrace) {
+            print('Error loading profile image from URL: $e');
+          },
+          backgroundColor: Colors.grey.shade200,
+        );
+      }
+      // Case 3: Image is a local asset path
+      else if (profileImage.toString().startsWith('assets/')) {
+        return CircleAvatar(
+          radius: 24,
+          backgroundImage: AssetImage(profileImage),
+          backgroundColor: Colors.grey.shade200,
+        );
+      }
+    }
+
+    // Default case: no image or invalid image path
+    return CircleAvatar(
+      radius: 24,
+      backgroundColor: Colors.grey.shade200,
+      child: Icon(
+        Icons.person,
+        color: Colors.grey.shade500,
+        size: 30,
       ),
     );
   }

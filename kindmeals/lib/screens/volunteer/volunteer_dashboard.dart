@@ -205,8 +205,8 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Logout'),
-        content: const Text('Are you sure you want to logout?'),
+        title: const Text('Log Out'),
+        content: const Text('Are you sure you want to log out?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -214,7 +214,7 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Logout'),
+            child: const Text('Log Out'),
           ),
         ],
       ),
@@ -665,85 +665,144 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
     final name = _volunteerProfile['volunteerName'] ?? 'Volunteer';
     final deliveries = _volunteerProfile['totalRatings'] ?? 0;
     final rating = _volunteerProfile['rating'] ?? 0.0;
+    final profileImage = _volunteerProfile['profileImage'];
 
     return Container(
-      margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.green.shade500, Colors.green.shade700],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.green.shade50,
+        borderRadius: BorderRadius.circular(10),
         boxShadow: [
           BoxShadow(
-            color: Colors.green.withOpacity(0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
+            color: Colors.green.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 3,
+            offset: const Offset(0, 1),
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         children: [
-          CircleAvatar(
-            radius: 30,
-            backgroundColor: Colors.white,
-            child: Icon(
-              Icons.person,
-              size: 36,
-              color: Colors.green.shade700,
-            ),
+          Row(
+            children: [
+              _buildProfileImage(profileImage),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.local_shipping_rounded,
+                          size: 16,
+                          color: Colors.green.shade700,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '$deliveries Deliveries',
+                          style: TextStyle(
+                            color: Colors.grey.shade700,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(
+                          Icons.star_rounded,
+                          size: 16,
+                          color: Colors.amber,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          rating.toString(),
+                          style: TextStyle(
+                            color: Colors.grey.shade700,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              OutlinedButton.icon(
+                onPressed: _navigateToVolunteerHistory,
+                icon: const Icon(Icons.history),
+                label: const Text('View History'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.green,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  '$deliveries Deliveries Completed',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.star,
-                  size: 16,
-                  color: Colors.amber.shade600,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  rating.toStringAsFixed(1),
-                  style: TextStyle(
-                    color: Colors.green.shade700,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildProfileImage(dynamic profileImage) {
+    // Handle different profile image scenarios
+    if (profileImage != null && profileImage.toString().isNotEmpty) {
+      // Case 1: Image starts with /uploads - it's from our API server
+      if (profileImage.toString().startsWith('/uploads')) {
+        return CircleAvatar(
+          radius: 30,
+          backgroundImage: NetworkImage(
+            '${ApiService.baseUrl}${profileImage}',
+          ),
+          onBackgroundImageError: (e, stackTrace) {
+            if (kDebugMode) {
+              print('Error loading profile image from API server: $e');
+            }
+          },
+          backgroundColor: Colors.green.shade100,
+        );
+      }
+      // Case 2: Image is a full URL - it might be from Firebase or another source
+      else if (profileImage.toString().startsWith('http')) {
+        return CircleAvatar(
+          radius: 30,
+          backgroundImage: NetworkImage(profileImage),
+          onBackgroundImageError: (e, stackTrace) {
+            if (kDebugMode) {
+              print('Error loading profile image from URL: $e');
+            }
+          },
+          backgroundColor: Colors.green.shade100,
+        );
+      }
+      // Case 3: Image is a local asset path
+      else if (profileImage.toString().startsWith('assets/')) {
+        return CircleAvatar(
+          radius: 30,
+          backgroundImage: AssetImage(profileImage),
+          backgroundColor: Colors.green.shade100,
+        );
+      }
+    }
+
+    // Default case: no image or invalid image path
+    return CircleAvatar(
+      radius: 30,
+      backgroundColor: Colors.green.shade100,
+      child: Icon(
+        Icons.person,
+        size: 30,
+        color: Colors.green.shade700,
       ),
     );
   }

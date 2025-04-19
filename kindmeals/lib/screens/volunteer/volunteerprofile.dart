@@ -44,7 +44,7 @@ class _VolunteerProfileScreenState extends State<VolunteerProfileScreen> {
           _volunteerProfile = {
             'name': userProfile['profile']['volunteerName'] ?? 'Unknown',
             'avatar': userProfile['profile']['profileImage'] ?? '',
-            'deliveries': userProfile['profile']['totalRatings'] ?? 0,
+            'deliveries': userProfile['profile']['deliveries'] ?? 0,
             'rating': userProfile['profile']['rating'] ?? 0.0,
             'status': _isAvailable ? 'Available' : 'Unavailable',
             'email': userProfile['profile']['email'] ?? '',
@@ -243,9 +243,10 @@ class _VolunteerProfileScreenState extends State<VolunteerProfileScreen> {
   }
 
   void _navigateToHome() {
-    Navigator.pushReplacement(
+    Navigator.pushNamedAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (context) => const VolunteerDashboardScreen()),
+      '/',
+      (route) => false,
     );
   }
 
@@ -393,33 +394,7 @@ class _VolunteerProfileScreenState extends State<VolunteerProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          _volunteerProfile['avatar'] != null &&
-                  _volunteerProfile['avatar'].toString().startsWith('/uploads')
-              ? CircleAvatar(
-                  radius: 60,
-                  backgroundImage: NetworkImage(
-                    '${ApiService.baseUrl}${_volunteerProfile['avatar']}',
-                  ),
-                  onBackgroundImageError: (e, stackTrace) {
-                    if (kDebugMode) {
-                      print('Error loading profile image: $e');
-                    }
-                  },
-                  backgroundColor: Colors.green.shade100,
-                  child: _volunteerProfile['avatar'] == null
-                      ? Icon(
-                          Icons.person,
-                          size: 60,
-                          color: Colors.green.shade700,
-                        )
-                      : null,
-                )
-              : CircleAvatar(
-                  radius: 60,
-                  backgroundImage:
-                      const AssetImage('assets/images/volunteer1.jpg'),
-                  backgroundColor: Colors.green.shade100,
-                ),
+          _buildProfileImage(),
           const SizedBox(height: 16),
           Text(
             _volunteerProfile['name'],
@@ -471,6 +446,61 @@ class _VolunteerProfileScreenState extends State<VolunteerProfileScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildProfileImage() {
+    final profileImage = _volunteerProfile['avatar'];
+
+    // Handle different profile image scenarios
+    if (profileImage != null && profileImage.toString().isNotEmpty) {
+      // Case 1: Image starts with /uploads - it's from our API server
+      if (profileImage.toString().startsWith('/uploads')) {
+        return CircleAvatar(
+          radius: 60,
+          backgroundImage: NetworkImage(
+            '${ApiService.baseUrl}${profileImage}',
+          ),
+          onBackgroundImageError: (e, stackTrace) {
+            if (kDebugMode) {
+              print('Error loading profile image from API server: $e');
+            }
+          },
+          backgroundColor: Colors.green.shade100,
+        );
+      }
+      // Case 2: Image is a full URL - it might be from Firebase or another source
+      else if (profileImage.toString().startsWith('http')) {
+        return CircleAvatar(
+          radius: 60,
+          backgroundImage: NetworkImage(profileImage),
+          onBackgroundImageError: (e, stackTrace) {
+            if (kDebugMode) {
+              print('Error loading profile image from URL: $e');
+            }
+          },
+          backgroundColor: Colors.green.shade100,
+        );
+      }
+      // Case 3: Image is a local asset path
+      else if (profileImage.toString().startsWith('assets/')) {
+        return CircleAvatar(
+          radius: 60,
+          backgroundImage: AssetImage(profileImage),
+          backgroundColor: Colors.green.shade100,
+        );
+      }
+    }
+
+    // Default case: no image or invalid image path
+    return CircleAvatar(
+      radius: 60,
+      backgroundColor: Colors.green.shade100,
+      child: Icon(
+        Icons.person,
+        size: 60,
+        color: Colors.green.shade700,
       ),
     );
   }
