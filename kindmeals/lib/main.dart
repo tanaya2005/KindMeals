@@ -8,6 +8,7 @@ import 'screens/dashboard/dashboard_screen.dart';
 import 'screens/volunteer/volunteer_dashboard.dart';
 import 'dart:developer' as developer;
 import 'services/firebase_service.dart';
+import 'services/api_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,6 +39,7 @@ class KindMealsApp extends StatefulWidget {
 
 class _KindMealsAppState extends State<KindMealsApp> {
   final FirebaseService _firebaseService = FirebaseService();
+  final ApiService _apiService = ApiService();
   bool _isUserSignedIn = false;
   bool _isInitializing = true;
 
@@ -101,7 +103,7 @@ class _KindMealsAppState extends State<KindMealsApp> {
               ),
             )
           : _isUserSignedIn
-              ? const DashboardScreen()
+              ? const _InitialLoadingScreen()
               : const WelcomeScreen(),
       routes: {
         '/login': (context) => const LoginScreen(),
@@ -111,12 +113,67 @@ class _KindMealsAppState extends State<KindMealsApp> {
         '/volunteer/dashboard': (context) => const VolunteerDashboardScreen(),
       },
       onGenerateRoute: (settings) {
-        // Handle any undefined routes
+        // Handle any undefined routes by going to the welcome screen if not signed in
         return MaterialPageRoute(
           builder: (context) =>
               _isUserSignedIn ? const DashboardScreen() : const WelcomeScreen(),
         );
       },
+    );
+  }
+}
+
+// Screen to check user type and redirect accordingly
+class _InitialLoadingScreen extends StatefulWidget {
+  const _InitialLoadingScreen({Key? key}) : super(key: key);
+
+  @override
+  State<_InitialLoadingScreen> createState() => _InitialLoadingScreenState();
+}
+
+class _InitialLoadingScreenState extends State<_InitialLoadingScreen> {
+  final ApiService _apiService = ApiService();
+
+  @override
+  void initState() {
+    super.initState();
+    _checkUserTypeAndRedirect();
+  }
+
+  Future<void> _checkUserTypeAndRedirect() async {
+    try {
+      final userProfile = await _apiService.getDirectUserProfile();
+      final userType = userProfile['userType'] ?? '';
+
+      if (mounted) {
+        if (userType.toLowerCase() == 'volunteer') {
+          Navigator.pushReplacementNamed(context, '/volunteer/dashboard');
+        } else {
+          Navigator.pushReplacementNamed(context, '/dashboard');
+        }
+      }
+    } catch (e) {
+      print('Error checking user type: $e');
+      // Default to regular dashboard if error occurs
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/dashboard');
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 20),
+            Text('Loading your profile...'),
+          ],
+        ),
+      ),
     );
   }
 }

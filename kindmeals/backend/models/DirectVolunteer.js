@@ -11,6 +11,7 @@ const directVolunteerSchema = new mongoose.Schema({
   volunteerabout: { type: String },
   rating: { type: Number, default: 0 },
   totalRatings: { type: Number, default: 0 },
+  deliveries: { type: Number, default: 0 },
   hasVehicle: { type: Boolean, default: false },
   vehicleDetails: {
     vehicleType: { type: String },
