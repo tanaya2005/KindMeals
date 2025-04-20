@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use, duplicate_ignore, use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:kindmeals/screens/dashboard/post_donation_screen.dart';
@@ -46,9 +48,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _userType = directProfile['userType'] ?? '';
       });
 
-      print('User type detected: $_userType');
+      if (kDebugMode) {
+        print('User type detected: $_userType');
+      }
     } catch (e) {
-      print('Error fetching user profile: $e');
+      if (kDebugMode) {
+        print('Error fetching user profile: $e');
+      }
       setState(() {
         _isInitialized = true;
       });
@@ -244,37 +250,6 @@ class _HomeScreenState extends State<_HomeScreen> {
   ];
 
   // Charity donation options
-  final List<Map<String, dynamic>> _charityOptions = [
-    {
-      'title': 'Feed a Child',
-      'description': 'Provide nutritious meals to underprivileged children',
-      'amount': '₹500',
-      'image': 'assets/images/food1.jpg',
-      'impact': 'Feeds 10 children for a day',
-    },
-    {
-      'title': 'Support a Family',
-      'description': 'Help a family with groceries for a month',
-      'amount': '₹2000',
-      'image': 'assets/images/food2.jpg',
-      'impact': 'Provides essential groceries for a family of 4',
-    },
-    {
-      'title': 'Sponsor a Community Kitchen',
-      'description': 'Help run a community kitchen for a day',
-      'amount': '₹5000',
-      'image': 'assets/images/food3.jpg',
-      'impact': 'Serves over 100 meals to those in need',
-    },
-    {
-      'title': 'Emergency Food Relief',
-      'description': 'Support emergency food distribution in crisis areas',
-      'amount': '₹1000',
-      'image': 'assets/images/food4.jpg',
-      'impact': 'Provides emergency rations for 5 families',
-    },
-  ];
-
   final List<Map<String, dynamic>> _reviews = [
     {
       'name': 'John Doe',
@@ -788,8 +763,10 @@ class _HomeScreenState extends State<_HomeScreen> {
                               // Safety check for name
                               final name = volunteer['name'] ?? 'Volunteer';
                               if (name == 'Volunteer' && kDebugMode) {
-                                print(
+                                if (kDebugMode) {
+                                  print(
                                     'Warning: Missing volunteer name at index $index: $volunteer');
+                                }
                               }
                               return Container(
                                 padding: const EdgeInsets.symmetric(
@@ -827,6 +804,7 @@ class _HomeScreenState extends State<_HomeScreen> {
                                       backgroundImage: _getImageProvider(
                                           volunteer['avatar']),
                                       onBackgroundImageError: (_, __) {},
+                                      backgroundColor: Colors.grey.shade300,
                                       child: volunteer['avatar']
                                                   .toString()
                                                   .isEmpty ||
@@ -846,7 +824,6 @@ class _HomeScreenState extends State<_HomeScreen> {
                                           ? const Icon(Icons.person,
                                               color: Colors.white)
                                           : null,
-                                      backgroundColor: Colors.grey.shade300,
                                     ),
                                     const SizedBox(width: 12),
                                     Expanded(
@@ -1010,6 +987,8 @@ class _HomeScreenState extends State<_HomeScreen> {
                     borderRadius: BorderRadius.circular(15),
                     boxShadow: [
                       BoxShadow(
+                        // ignore: duplicate_ignore
+                        // ignore: deprecated_member_use
                         color: Colors.black.withOpacity(0.05),
                         blurRadius: 10,
                         offset: const Offset(0, 5),
@@ -1064,8 +1043,10 @@ class _HomeScreenState extends State<_HomeScreen> {
                                   'Donor';
                               if ((name == 'Donor' || name.isEmpty) &&
                                   kDebugMode) {
-                                print(
+                                if (kDebugMode) {
+                                  print(
                                     'Warning: Missing donor name at index $index: $donor');
+                                }
                               }
                               return Container(
                                 padding: const EdgeInsets.symmetric(
@@ -1103,6 +1084,7 @@ class _HomeScreenState extends State<_HomeScreen> {
                                       backgroundImage:
                                           _getImageProvider(donor['avatar']),
                                       onBackgroundImageError: (_, __) {},
+                                      backgroundColor: Colors.grey.shade300,
                                       child: donor['avatar']
                                                   .toString()
                                                   .isEmpty ||
@@ -1122,7 +1104,6 @@ class _HomeScreenState extends State<_HomeScreen> {
                                           ? const Icon(Icons.storefront,
                                               color: Colors.white)
                                           : null,
-                                      backgroundColor: Colors.grey.shade300,
                                     ),
                                     const SizedBox(width: 12),
                                     Expanded(
@@ -1235,6 +1216,7 @@ class _HomeScreenState extends State<_HomeScreen> {
                   borderRadius: BorderRadius.circular(15),
                   boxShadow: [
                     BoxShadow(
+                      // ignore: deprecated_member_use
                       color: Colors.black.withOpacity(0.03),
                       blurRadius: 10,
                       offset: const Offset(0, 5),
@@ -1440,6 +1422,7 @@ class _HomeScreenState extends State<_HomeScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
+        // ignore: deprecated_member_use
         color: Colors.white.withOpacity(0.2),
         shape: BoxShape.circle,
       ),
@@ -1469,6 +1452,7 @@ class _HomeScreenState extends State<_HomeScreen> {
           Text(
             'Share Food, Share Love',
             style: TextStyle(
+              // ignore: deprecated_member_use
               color: Colors.white.withOpacity(0.7),
               fontSize: 14,
             ),
@@ -1490,6 +1474,7 @@ class _HomeScreenState extends State<_HomeScreen> {
           Text(
             'Privacy Policy | Terms of Service | Contact Us',
             style: TextStyle(
+              // ignore: deprecated_member_use
               color: Colors.white.withOpacity(0.6),
               fontSize: 12,
             ),

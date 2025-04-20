@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import '../../services/api_service.dart';
@@ -125,107 +127,6 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
     });
   }
 
-  Future<void> _acceptDonation(String donationId) async {
-    try {
-      setState(() {
-        _isLoading = true;
-      });
-
-      print('Accepting donation $donationId');
-      final acceptedDonation = await _apiService.acceptDonation(
-        donationId: donationId,
-        needsVolunteer: _showNeedsVolunteer,
-      );
-      print('Donation accepted with ID: ${acceptedDonation['_id']}');
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Donation accepted successfully!'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
-            behavior: SnackBarBehavior.floating,
-            margin: EdgeInsets.all(16),
-          ),
-        );
-
-        // Wait for the snackbar to show briefly before redirecting
-        Future.delayed(const Duration(milliseconds: 1500), () {
-          if (mounted) {
-            // Show a dialog confirming the donation was accepted
-            showDialog(
-              context: context,
-              barrierDismissible: false,
-              builder: (context) => AlertDialog(
-                title: const Text('Donation Accepted!'),
-                content: const Text(
-                  'The donation has been accepted successfully. You can view it in your donation history.',
-                ),
-                actions: [
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(context); // Close dialog
-
-                      // Navigate back to dashboard and use a notification
-                      // to tell the parent screen to switch to history tab
-                      if (widget.onDonationAccepted != null) {
-                        widget.onDonationAccepted!();
-                      }
-                    },
-                    child: const Text('View History'),
-                  ),
-                ],
-              ),
-            );
-          }
-        });
-      }
-
-      // Refresh the donations list
-      await _fetchDonations();
-    } catch (e) {
-      print('Error accepting donation: $e');
-
-      String errorMessage = e.toString().replaceAll('Exception: ', '');
-      String displayMessage = errorMessage;
-
-      // Provide user-friendly error messages for common errors
-      if (errorMessage
-          .contains('Only registered recipients can accept donations')) {
-        displayMessage =
-            'You need to be registered as a recipient to accept donations. Please complete your recipient profile.';
-      } else if (errorMessage.contains('No authenticated user found')) {
-        displayMessage = 'You need to sign in to accept donations.';
-      } else if (errorMessage.contains('Donation not found')) {
-        displayMessage =
-            'This donation is no longer available. It may have been accepted by someone else.';
-      } else if (errorMessage.contains('This donation has expired')) {
-        displayMessage =
-            'This donation has expired and is no longer available.';
-      } else if (errorMessage.contains('User not found in database')) {
-        displayMessage =
-            'Your recipient profile was not found. Please ensure you have completed registration as a recipient.';
-      } else if (errorMessage.contains('User is not a recipient')) {
-        displayMessage =
-            'Only recipients can accept donations. Please register as a recipient to accept donations.';
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $displayMessage'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.all(16),
-          ),
-        );
-      }
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -617,7 +518,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                     Padding(
                       padding: const EdgeInsets.only(right: 8.0),
                       child: Chip(
-                        label: Text('${_selectedFoodType.toUpperCase()}'),
+                        label: Text(_selectedFoodType.toUpperCase()),
                         deleteIcon: const Icon(Icons.close, size: 15),
                         onDeleted: () {
                           setState(() {
