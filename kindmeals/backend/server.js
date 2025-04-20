@@ -1493,14 +1493,20 @@ app.put('/api/notifications/:notificationId/mark-read', firebaseAuthMiddleware, 
 app.get('/api/volunteers/leaderboard', async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
+    console.log('=== DEBUG: Fetching top volunteers for leaderboard ===');
     
-    // Get volunteers sorted by total ratings (deliveries completed)
+    // Get volunteers sorted by deliveries (deliveries completed)
     const volunteers = await DirectVolunteer.find({})
-      .sort({ totalRatings: -1 })
+      .sort({ deliveries: -1 }) // Sort by deliveries field
       .limit(limit)
-      .select('volunteerName profileImage totalRatings rating');
+      .select('volunteerName profileImage deliveries totalRatings rating');
     
     console.log(`Found ${volunteers.length} top volunteers`);
+    
+    // Log each volunteer for debugging
+    volunteers.forEach(v => {
+      console.log(`Volunteer: ${v.volunteerName}, Deliveries: ${v.deliveries || 0}, Ratings: ${v.totalRatings || 0}`);
+    });
     
     res.status(200).json(volunteers);
   } catch (err) {

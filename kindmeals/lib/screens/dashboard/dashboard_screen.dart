@@ -14,6 +14,7 @@ import '../../services/api_service.dart';
 import 'view_donations_screen.dart';
 import 'volunteers_screen.dart';
 import '../notifications/notification_screen.dart';
+import '../charity/charity_donation_screen.dart';
 import 'package:flutter/foundation.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -311,25 +312,39 @@ class _HomeScreenState extends State<_HomeScreen> {
     if (mounted) {
       setState(() {
         _isLoadingLeaderboards = true;
+        // Clear existing data before fetching to avoid stale data
+        _volunteerLeaderboard = [];
+        _donorLeaderboard = [];
       });
     }
 
     try {
-      // Fetch top volunteers
+      if (kDebugMode) {
+        print('=== FETCHING FRESH LEADERBOARD DATA ===');
+      }
+
+      // Fetch top volunteers with increased debug info
       final volunteers = await _apiService.getTopVolunteers(limit: 5);
+      if (kDebugMode) {
+        print('Volunteer data returned from API:');
+        for (var volunteer in volunteers) {
+          print('${volunteer['name']}: ${volunteer['donations']} deliveries');
+        }
+      }
+
       if (volunteers.isNotEmpty && mounted) {
         setState(() {
-          _volunteerLeaderboard = volunteers.map((volunteer) {
-            return {
-              'name': volunteer['volunteerName'] ?? 'Volunteer',
-              'donations': volunteer['totalRatings'] ?? 0,
-              'avatar': volunteer['profileImage'] != null &&
-                      volunteer['profileImage'].toString().isNotEmpty
-                  ? volunteer['profileImage']
-                  : 'assets/images/volunteer1.jpg',
-            };
-          }).toList();
+          _volunteerLeaderboard = volunteers;
         });
+
+        if (kDebugMode) {
+          print(
+              'Updated volunteer leaderboard with ${volunteers.length} entries');
+        }
+      } else {
+        if (kDebugMode) {
+          print('No volunteer data returned from API');
+        }
       }
 
       // Fetch top donors with debugging
@@ -344,27 +359,15 @@ class _HomeScreenState extends State<_HomeScreen> {
 
       if (donors.isNotEmpty && mounted) {
         setState(() {
-          _donorLeaderboard = donors.map((donor) {
-            return {
-              'name': donor['donorname'] ??
-                  donor['donorName'] ??
-                  donor['orgName'] ??
-                  'Donor',
-              'meals': donor['donationCount'] ?? 0,
-              'avatar': donor['profileImage'] != null &&
-                      donor['profileImage'].toString().isNotEmpty
-                  ? donor['profileImage']
-                  : 'assets/images/restaurant1.jpg',
-            };
-          }).toList();
-
-          if (kDebugMode) {
-            print('Transformed donor leaderboard:');
-            for (var donor in _donorLeaderboard) {
-              print('${donor['name']}: ${donor['meals']} meals');
-            }
-          }
+          _donorLeaderboard = donors;
         });
+
+        if (kDebugMode) {
+          print('Transformed donor leaderboard:');
+          for (var donor in _donorLeaderboard) {
+            print('${donor['name']}: ${donor['meals']} meals');
+          }
+        }
       }
     } catch (e) {
       if (kDebugMode) {
@@ -429,32 +432,37 @@ class _HomeScreenState extends State<_HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Welcome Header with Gradient
-              _buildWelcomeHeader(),
+        child: RefreshIndicator(
+          onRefresh: () async {
+            await _fetchLeaderboardData();
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Welcome Header with Gradient
+                _buildWelcomeHeader(),
 
-              // Featured Carousel
-              _buildCarousel(),
+                // Featured Carousel
+                _buildCarousel(),
 
-              // Volunteer Leaderboard Section
-              _buildVolunteerLeaderboard(),
+                // Volunteer Leaderboard Section
+                _buildVolunteerLeaderboard(),
 
-              // Donor Leaderboard Section
-              _buildDonorLeaderboard(),
+                // Donor Leaderboard Section
+                _buildDonorLeaderboard(),
 
-              // Reviews Section
-              _buildReviews(),
+                // Reviews Section
+                _buildReviews(),
 
-              // Charity Donation Section
-              _buildCharitySection(),
+                // Charity Donation Section
+                _buildCharitySection(),
 
-              // Footer with Social Links
-              _buildFooter(),
-            ],
+                // Footer with Social Links
+                _buildFooter(),
+              ],
+            ),
           ),
         ),
       ),
@@ -668,157 +676,255 @@ class _HomeScreenState extends State<_HomeScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              TextButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => VolunteerLeaderboardScreen(
-                        volunteers: _volunteerLeaderboard,
-                      ),
-                    ),
-                  );
-                },
-                child: Row(
-                  children: [
-                    Text(
-                      'View All',
-                      style: TextStyle(
-                        color: Colors.green.shade600,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Icon(
-                      Icons.arrow_forward_ios,
-                      size: 14,
+              Row(
+                children: [
+                  // Add refresh button
+                  IconButton(
+                    icon: Icon(
+                      Icons.refresh,
                       color: Colors.green.shade600,
+                      size: 20,
                     ),
-                  ],
-                ),
+                    onPressed: () {
+                      if (kDebugMode) {
+                        print('Manual refresh of volunteer leaderboard');
+                      }
+                      _fetchLeaderboardData();
+                    },
+                    tooltip: 'Refresh leaderboard',
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => VolunteerLeaderboardScreen(
+                            volunteers: _volunteerLeaderboard,
+                          ),
+                        ),
+                      );
+                    },
+                    child: Row(
+                      children: [
+                        Text(
+                          'View All',
+                          style: TextStyle(
+                            color: Colors.green.shade600,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Icon(
+                          Icons.arrow_forward_ios,
+                          size: 14,
+                          color: Colors.green.shade600,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
           const SizedBox(height: 15),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(15),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                // Header row
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade50,
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(15),
-                      topRight: Radius.circular(15),
-                    ),
+          _isLoadingLeaderboards
+              ? Center(
+                  child: CircularProgressIndicator(
+                    color: Colors.green.shade600,
                   ),
-                  child: const Row(
-                    children: [
-                      SizedBox(width: 40),
-                      Expanded(
-                        child: Text(
-                          'Name',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        'Deliveries',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                        ),
+                )
+              : Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(15),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 5),
                       ),
                     ],
                   ),
-                ),
-                // Top 3 volunteers with medals
-                ...List.generate(3, (index) {
-                  if (index >= _volunteerLeaderboard.length)
-                    return const SizedBox();
-                  final volunteer = _volunteerLeaderboard[index];
-                  return Container(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 12, horizontal: 16),
-                    decoration: BoxDecoration(
-                      border: Border(
-                        bottom: BorderSide(
-                          color: Colors.grey.shade200,
-                          width: 1,
-                        ),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 30,
-                          height: 30,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: _getMedalColor(index),
-                          ),
-                          child: Center(
-                            child: Text(
-                              '${index + 1}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
+                  child: _volunteerLeaderboard.isEmpty
+                      ? _buildEmptyLeaderboardState('No volunteers found', true)
+                      : Column(
+                          children: [
+                            // Header row
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 12, horizontal: 16),
+                              decoration: BoxDecoration(
+                                color: Colors.green.shade50,
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(15),
+                                  topRight: Radius.circular(15),
+                                ),
+                              ),
+                              child: const Row(
+                                children: [
+                                  SizedBox(width: 40),
+                                  Expanded(
+                                    child: Text(
+                                      'Name',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    'Deliveries',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        CircleAvatar(
-                          radius: 18,
-                          backgroundImage: AssetImage(volunteer['avatar']),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            volunteer['name'],
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w500,
+                            // Top 3 volunteers with medals
+                            ...List.generate(
+                                _volunteerLeaderboard.length > 3
+                                    ? 3
+                                    : _volunteerLeaderboard.length, (index) {
+                              final volunteer = _volunteerLeaderboard[index];
+                              // Safety check for name
+                              final name = volunteer['name'] ?? 'Volunteer';
+                              if (name == 'Volunteer' && kDebugMode) {
+                                print(
+                                    'Warning: Missing volunteer name at index $index: $volunteer');
+                              }
+                              return Container(
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 12, horizontal: 16),
+                                decoration: BoxDecoration(
+                                  border: Border(
+                                    bottom: BorderSide(
+                                      color: Colors.grey.shade200,
+                                      width: 1,
+                                    ),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 30,
+                                      height: 30,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: _getMedalColor(index),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          '${index + 1}',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    CircleAvatar(
+                                      radius: 18,
+                                      backgroundImage: _getImageProvider(
+                                          volunteer['avatar']),
+                                      onBackgroundImageError: (_, __) {},
+                                      child: volunteer['avatar']
+                                                  .toString()
+                                                  .isEmpty ||
+                                              (!(volunteer['avatar']
+                                                          .toString()
+                                                          .startsWith('http') ||
+                                                      volunteer['avatar']
+                                                          .toString()
+                                                          .startsWith(
+                                                              'https')) &&
+                                                  !volunteer['avatar']
+                                                      .toString()
+                                                      .startsWith('assets/') &&
+                                                  !volunteer['avatar']
+                                                      .toString()
+                                                      .startsWith('/uploads'))
+                                          ? const Icon(Icons.person,
+                                              color: Colors.white)
+                                          : null,
+                                      backgroundColor: Colors.grey.shade300,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        name,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                    Text(
+                                      volunteer['donations'].toString(),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.green,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }),
+                            // "View All" button at bottom
+                            TextButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        VolunteerLeaderboardScreen(
+                                      volunteers: _volunteerLeaderboard,
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: const Text('View Full Leaderboard'),
                             ),
-                          ),
+                          ],
                         ),
-                        Text(
-                          volunteer['donations'].toString(),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-                // "View All" button at bottom
-                TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => VolunteerLeaderboardScreen(
-                          volunteers: _volunteerLeaderboard,
-                        ),
-                      ),
-                    );
-                  },
-                  child: const Text('View Full Leaderboard'),
                 ),
-              ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyLeaderboardState(String message, bool isVolunteer) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(15),
+        color: Colors.grey.shade50,
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            isVolunteer ? Icons.volunteer_activism : Icons.store,
+            size: 48,
+            color: Colors.grey.shade400,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            message,
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey.shade700,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: () {
+              _fetchLeaderboardData();
+            },
+            icon: const Icon(Icons.refresh),
+            label: const Text('Refresh Data'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green.shade600,
+              foregroundColor: Colors.white,
             ),
           ),
         ],
@@ -842,159 +948,220 @@ class _HomeScreenState extends State<_HomeScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              TextButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => DonorLeaderboardScreen(
-                        donors: _donorLeaderboard,
-                      ),
-                    ),
-                  );
-                },
-                child: Row(
-                  children: [
-                    Text(
-                      'View All',
-                      style: TextStyle(
-                        color: Colors.green.shade600,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Icon(
-                      Icons.arrow_forward_ios,
-                      size: 14,
+              Row(
+                children: [
+                  // Add refresh button
+                  IconButton(
+                    icon: Icon(
+                      Icons.refresh,
                       color: Colors.green.shade600,
+                      size: 20,
                     ),
-                  ],
-                ),
+                    onPressed: () {
+                      if (kDebugMode) {
+                        print('Manual refresh of donor leaderboard');
+                      }
+                      _fetchLeaderboardData();
+                    },
+                    tooltip: 'Refresh leaderboard',
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => DonorLeaderboardScreen(
+                            donors: _donorLeaderboard,
+                          ),
+                        ),
+                      );
+                    },
+                    child: Row(
+                      children: [
+                        Text(
+                          'View All',
+                          style: TextStyle(
+                            color: Colors.green.shade600,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Icon(
+                          Icons.arrow_forward_ios,
+                          size: 14,
+                          color: Colors.green.shade600,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
           const SizedBox(height: 15),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(15),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                // Header row
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade50,
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(15),
-                      topRight: Radius.circular(15),
-                    ),
+          _isLoadingLeaderboards
+              ? Center(
+                  child: CircularProgressIndicator(
+                    color: Colors.green.shade600,
                   ),
-                  child: const Row(
-                    children: [
-                      SizedBox(width: 40),
-                      Expanded(
-                        child: Text(
-                          'Name',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        'Meals',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                        ),
+                )
+              : Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(15),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 5),
                       ),
                     ],
                   ),
-                ),
-                // Top 3 donors with medals
-                ...List.generate(3, (index) {
-                  if (index >= _donorLeaderboard.length)
-                    return const SizedBox();
-                  final donor = _donorLeaderboard[index];
-                  return Container(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 12, horizontal: 16),
-                    decoration: BoxDecoration(
-                      border: Border(
-                        bottom: BorderSide(
-                          color: Colors.grey.shade200,
-                          width: 1,
-                        ),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 30,
-                          height: 30,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: _getMedalColor(index),
-                          ),
-                          child: Center(
-                            child: Text(
-                              '${index + 1}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
+                  child: _donorLeaderboard.isEmpty
+                      ? _buildEmptyLeaderboardState('No donors found', false)
+                      : Column(
+                          children: [
+                            // Header row
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 12, horizontal: 16),
+                              decoration: BoxDecoration(
+                                color: Colors.green.shade50,
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(15),
+                                  topRight: Radius.circular(15),
+                                ),
+                              ),
+                              child: const Row(
+                                children: [
+                                  SizedBox(width: 40),
+                                  Expanded(
+                                    child: Text(
+                                      'Name',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    'Meals',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        CircleAvatar(
-                          radius: 18,
-                          backgroundImage: AssetImage(donor['avatar']),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            donor['name'],
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w500,
+                            // Top 3 donors with medals
+                            ...List.generate(
+                                _donorLeaderboard.length > 3
+                                    ? 3
+                                    : _donorLeaderboard.length, (index) {
+                              final donor = _donorLeaderboard[index];
+                              // Safety check for name
+                              final name = donor['name'] ??
+                                  donor['donorname'] ??
+                                  donor['orgName'] ??
+                                  'Donor';
+                              if ((name == 'Donor' || name.isEmpty) &&
+                                  kDebugMode) {
+                                print(
+                                    'Warning: Missing donor name at index $index: $donor');
+                              }
+                              return Container(
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 12, horizontal: 16),
+                                decoration: BoxDecoration(
+                                  border: Border(
+                                    bottom: BorderSide(
+                                      color: Colors.grey.shade200,
+                                      width: 1,
+                                    ),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 30,
+                                      height: 30,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: _getMedalColor(index),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          '${index + 1}',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    CircleAvatar(
+                                      radius: 18,
+                                      backgroundImage:
+                                          _getImageProvider(donor['avatar']),
+                                      onBackgroundImageError: (_, __) {},
+                                      child: donor['avatar']
+                                                  .toString()
+                                                  .isEmpty ||
+                                              (!(donor['avatar']
+                                                          .toString()
+                                                          .startsWith('http') ||
+                                                      donor['avatar']
+                                                          .toString()
+                                                          .startsWith(
+                                                              'https')) &&
+                                                  !donor['avatar']
+                                                      .toString()
+                                                      .startsWith('assets/') &&
+                                                  !donor['avatar']
+                                                      .toString()
+                                                      .startsWith('/uploads'))
+                                          ? const Icon(Icons.storefront,
+                                              color: Colors.white)
+                                          : null,
+                                      backgroundColor: Colors.grey.shade300,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        name,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                    Text(
+                                      donor['meals'].toString(),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.green,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }),
+                            // "View All" button at bottom
+                            TextButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        DonorLeaderboardScreen(
+                                      donors: _donorLeaderboard,
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: const Text('View Full Leaderboard'),
                             ),
-                          ),
+                          ],
                         ),
-                        Text(
-                          donor['meals'].toString(),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-                // "View All" button at bottom
-                TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => DonorLeaderboardScreen(
-                          donors: _donorLeaderboard,
-                        ),
-                      ),
-                    );
-                  },
-                  child: const Text('View Full Leaderboard'),
                 ),
-              ],
-            ),
-          ),
         ],
       ),
     );
@@ -1176,72 +1343,92 @@ class _HomeScreenState extends State<_HomeScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          Container(
-            height: 180,
-            decoration: BoxDecoration(
-              color: Colors.green.shade50,
-              borderRadius: BorderRadius.circular(12),
-              image: const DecorationImage(
-                image: AssetImage('assets/images/charity_bg.jpg'),
-                fit: BoxFit.cover,
-                colorFilter: ColorFilter.mode(
-                  Color.fromRGBO(0, 0, 0, 0.3),
-                  BlendMode.darken,
+          LayoutBuilder(
+            builder: (context, constraints) {
+              return Container(
+                height: 183,
+                width: constraints.maxWidth,
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  image: const DecorationImage(
+                    image: AssetImage('assets/images/charity_bg.jpg'),
+                    fit: BoxFit.cover,
+                    colorFilter: ColorFilter.mode(
+                      Color.fromRGBO(0, 0, 0, 0.3),
+                      BlendMode.darken,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.volunteer_activism,
-                    color: Colors.white,
-                    size: 50,
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Donate to Charity',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Support organizations that feed the hungry',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.pushNamed(context, '/charities');
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.green,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.volunteer_activism,
+                        color: Colors.white,
+                        size: 50,
                       ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Donate to KindMeals',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    child: const Text(
-                      'Donate Now',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Support our mission to reduce food waste and hunger',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                    ),
+                      const SizedBox(height: 20),
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => CharityDonationScreen(
+                                charity: {
+                                  'id': 'kindmeals-main',
+                                  'name': 'KindMeals',
+                                  'description':
+                                      'Support our mission to reduce food waste and hunger through the KindMeals platform.',
+                                  'recommendedAmounts': [100, 500, 1000, 5000],
+                                  'imageUrl': 'assets/images/charity_bg.jpg',
+                                },
+                              ),
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.green,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text(
+                          'Donate Now',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -1318,5 +1505,28 @@ class _HomeScreenState extends State<_HomeScreen> {
         ],
       ),
     );
+  }
+
+  // Helper method to get the appropriate image provider based on the URL
+  ImageProvider _getImageProvider(dynamic imageUrl) {
+    if (imageUrl == null || imageUrl.toString().isEmpty) {
+      return const AssetImage('assets/images/volunteer1.jpg');
+    }
+
+    final url = imageUrl.toString();
+
+    if (url.startsWith('http') || url.startsWith('https')) {
+      // Network image
+      return NetworkImage(url);
+    } else if (url.startsWith('/uploads')) {
+      // API server image (needs full URL)
+      return NetworkImage('${ApiService.baseUrl}$url');
+    } else if (url.startsWith('assets/')) {
+      // Asset image
+      return AssetImage(url);
+    } else {
+      // Default fallback
+      return const AssetImage('assets/images/volunteer1.jpg');
+    }
   }
 }

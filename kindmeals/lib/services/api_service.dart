@@ -1599,7 +1599,83 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
-        return data.cast<Map<String, dynamic>>();
+
+        if (kDebugMode) {
+          print('Raw volunteer response: $data');
+        }
+
+        // Convert the response to a usable format
+        return data.map<Map<String, dynamic>>((volunteer) {
+          // Extract the volunteer name
+          String volunteerName = '';
+          if (volunteer['volunteerName'] != null) {
+            volunteerName = volunteer['volunteerName'].toString();
+          } else {
+            // Fallback names
+            volunteerName = volunteer['name'] ?? 'Volunteer';
+          }
+
+          // Debug the volunteer data
+          if (kDebugMode) {
+            print('Processing volunteer data: $volunteer');
+          }
+
+          // Extract delivery count
+          int deliveryCount = 0;
+
+          // Try to get delivery count from various possible field names
+          if (volunteer['deliveries'] != null) {
+            try {
+              deliveryCount = int.parse(volunteer['deliveries'].toString());
+            } catch (e) {
+              if (kDebugMode) {
+                print('Error parsing deliveries: $e');
+              }
+            }
+          } else if (volunteer['deliveryCount'] != null) {
+            try {
+              deliveryCount = int.parse(volunteer['deliveryCount'].toString());
+            } catch (e) {
+              if (kDebugMode) {
+                print('Error parsing deliveryCount: $e');
+              }
+            }
+          } else if (volunteer['totalDeliveries'] != null) {
+            try {
+              deliveryCount =
+                  int.parse(volunteer['totalDeliveries'].toString());
+            } catch (e) {
+              if (kDebugMode) {
+                print('Error parsing totalDeliveries: $e');
+              }
+            }
+          } else if (volunteer['totalRatings'] != null) {
+            try {
+              deliveryCount = int.parse(volunteer['totalRatings'].toString());
+            } catch (e) {
+              if (kDebugMode) {
+                print('Error parsing totalRatings: $e');
+              }
+            }
+          }
+
+          // Debug output
+          if (kDebugMode) {
+            print('Volunteer $volunteerName has $deliveryCount deliveries');
+          }
+
+          // Extract profile image
+          String profileImage = '';
+          if (volunteer['profileImage'] != null) {
+            profileImage = volunteer['profileImage'].toString();
+          }
+
+          return {
+            'name': volunteerName,
+            'donations': deliveryCount,
+            'avatar': profileImage,
+          };
+        }).toList();
       } else {
         if (kDebugMode) {
           print(
@@ -1632,7 +1708,71 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
-        return data.cast<Map<String, dynamic>>();
+
+        if (kDebugMode) {
+          print('Raw donor response: $data');
+        }
+
+        // Convert the response to a usable format
+        return data.map<Map<String, dynamic>>((donor) {
+          // Extract the donor name from possible fields
+          String donorName = '';
+          if (donor['donorname'] != null) {
+            donorName = donor['donorname'].toString();
+          } else if (donor['donorName'] != null) {
+            donorName = donor['donorName'].toString();
+          } else if (donor['orgName'] != null &&
+              donor['orgName'].toString().isNotEmpty) {
+            donorName = donor['orgName'].toString();
+          } else {
+            donorName = donor['name'] ?? 'Donor';
+          }
+
+          // Extract meal count
+          int mealCount = 0;
+          if (donor['donationCount'] != null) {
+            try {
+              mealCount = int.parse(donor['donationCount'].toString());
+            } catch (e) {
+              if (kDebugMode) {
+                print('Error parsing donationCount: $e');
+              }
+            }
+          } else if (donor['mealCount'] != null) {
+            try {
+              mealCount = int.parse(donor['mealCount'].toString());
+            } catch (e) {
+              if (kDebugMode) {
+                print('Error parsing mealCount: $e');
+              }
+            }
+          } else if (donor['meals'] != null) {
+            try {
+              mealCount = int.parse(donor['meals'].toString());
+            } catch (e) {
+              if (kDebugMode) {
+                print('Error parsing meals: $e');
+              }
+            }
+          }
+
+          // Debug output
+          if (kDebugMode) {
+            print('Donor $donorName has $mealCount meals');
+          }
+
+          // Extract profile image
+          String profileImage = '';
+          if (donor['profileImage'] != null) {
+            profileImage = donor['profileImage'].toString();
+          }
+
+          return {
+            'name': donorName,
+            'meals': mealCount,
+            'avatar': profileImage,
+          };
+        }).toList();
       } else {
         if (kDebugMode) {
           print(
