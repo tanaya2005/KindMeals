@@ -1,24 +1,22 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../services/api_service.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'donation_history_screen.dart';
 import '../../utils/image_helper.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'dart:convert';
-import '../../services/charity_service.dart';
 import '../../utils/env_config.dart';
 
 class CharityDonationScreen extends StatefulWidget {
   final Map<String, dynamic> charity;
 
   const CharityDonationScreen({
-    Key? key,
+    super.key,
     required this.charity,
-  }) : super(key: key);
+  });
 
   @override
   State<CharityDonationScreen> createState() => _CharityDonationScreenState();

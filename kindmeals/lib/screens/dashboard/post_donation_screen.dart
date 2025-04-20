@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -7,8 +9,6 @@ import '../../config/api_config.dart';
 import 'package:flutter/foundation.dart';
 import '../../utils/date_time_helper.dart';
 import '../../services/location_service.dart';
-import 'package:geolocator/geolocator.dart';
-
 class PostDonationScreen extends StatefulWidget {
   const PostDonationScreen({super.key});
 
@@ -53,12 +53,18 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
         _errorMessage = '';
       });
 
-      print('DEBUG: Checking user type and fetching profile...');
+      if (kDebugMode) {
+        print('DEBUG: Checking user type and fetching profile...');
+      }
       final currentUser = FirebaseAuth.instance.currentUser;
-      print('DEBUG: Current Firebase user: ${currentUser?.uid}');
+      if (kDebugMode) {
+        print('DEBUG: Current Firebase user: ${currentUser?.uid}');
+      }
 
       final userProfile = await _apiService.getDirectUserProfile();
-      print('DEBUG: User profile received: ${userProfile.toString()}');
+      if (kDebugMode) {
+        print('DEBUG: User profile received: ${userProfile.toString()}');
+      }
 
       // Store the user profile for later use
 
@@ -68,7 +74,9 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
       if (userProfile.containsKey('profile') &&
           userProfile['profile'] != null &&
           userProfile['profile'].containsKey('_id')) {
-        print('DEBUG: MongoDB ID: ${userProfile['profile']['_id']}');
+        if (kDebugMode) {
+          print('DEBUG: MongoDB ID: ${userProfile['profile']['_id']}');
+        }
 
         // If the user has a stored location, use that as the default
         if (userProfile['profile'].containsKey('latitude') &&
@@ -88,7 +96,9 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
           _addressController.text = userProfile['profile']['address'];
         }
       } else {
-        print('WARNING: MongoDB ID not found in profile data');
+        if (kDebugMode) {
+          print('WARNING: MongoDB ID not found in profile data');
+        }
       }
 
       // Check if the user is a donor
@@ -108,9 +118,13 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
         _isCheckingUserType = false;
       });
 
-      print('DEBUG: User type check completed. Is Donor: $_isUserDonor');
+      if (kDebugMode) {
+        print('DEBUG: User type check completed. Is Donor: $_isUserDonor');
+      }
     } catch (e) {
-      print('DEBUG: User type check error: $e');
+      if (kDebugMode) {
+        print('DEBUG: User type check error: $e');
+      }
       setState(() {
         _isUserDonor = false;
         _errorMessage =
@@ -133,11 +147,17 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
         setState(() {
           _foodImage = File(image.path);
         });
-        print('Image selected: ${image.path}');
-        print('Image size: ${await _foodImage!.length()} bytes');
+        if (kDebugMode) {
+          print('Image selected: ${image.path}');
+        }
+        if (kDebugMode) {
+          print('Image size: ${await _foodImage!.length()} bytes');
+        }
       }
     } catch (e) {
-      print('Error picking image: $e');
+      if (kDebugMode) {
+        print('Error picking image: $e');
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error selecting image: $e'),
@@ -402,7 +422,9 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
           ),
         );
 
-        print('Error posting donation: $e');
+        if (kDebugMode) {
+          print('Error posting donation: $e');
+        }
       }
     }
   }

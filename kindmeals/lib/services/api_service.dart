@@ -10,7 +10,7 @@ import '../services/location_service.dart';
 import '../services/charity_service.dart';
 
 class ApiService {
-  static const String baseUrl = ApiConfig.apiBaseUrl;
+  static String baseUrl = ApiConfig.apiBaseUrl;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   // Helper method to get auth headers

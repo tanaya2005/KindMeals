@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
@@ -630,7 +632,9 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
                     width: double.infinity,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) {
-                      print('Error loading image: $error');
+                      if (kDebugMode) {
+                        print('Error loading image: $error');
+                      }
                       return Container(
                         height: 150,
                         width: double.infinity,
