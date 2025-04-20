@@ -3,6 +3,7 @@ import 'package:kindmeals/screens/volunteer/volunteer_dashboard.dart';
 import 'package:kindmeals/screens/volunteer/volunteerhistory.dart';
 import '../../services/api_service.dart';
 import 'package:flutter/foundation.dart';
+import '../../config/api_config.dart';
 
 class VolunteerProfileScreen extends StatefulWidget {
   const VolunteerProfileScreen({super.key});
@@ -455,42 +456,26 @@ class _VolunteerProfileScreenState extends State<VolunteerProfileScreen> {
 
     // Handle different profile image scenarios
     if (profileImage != null && profileImage.toString().isNotEmpty) {
-      // Case 1: Image starts with /uploads - it's from our API server
-      if (profileImage.toString().startsWith('/uploads')) {
-        return CircleAvatar(
-          radius: 60,
-          backgroundImage: NetworkImage(
-            '${ApiService.baseUrl}${profileImage}',
-          ),
-          onBackgroundImageError: (e, stackTrace) {
-            if (kDebugMode) {
-              print('Error loading profile image from API server: $e');
-            }
-          },
-          backgroundColor: Colors.green.shade100,
-        );
+      if (kDebugMode) {
+        print('Profile image path: $profileImage');
       }
-      // Case 2: Image is a full URL - it might be from Firebase or another source
-      else if (profileImage.toString().startsWith('http')) {
-        return CircleAvatar(
-          radius: 60,
-          backgroundImage: NetworkImage(profileImage),
-          onBackgroundImageError: (e, stackTrace) {
-            if (kDebugMode) {
-              print('Error loading profile image from URL: $e');
-            }
-          },
-          backgroundColor: Colors.green.shade100,
-        );
+
+      // Use ApiConfig helper to get correct URL
+      String imageUrl = ApiConfig.getImageUrl(profileImage.toString());
+      if (kDebugMode) {
+        print('Converted profile image URL: $imageUrl');
       }
-      // Case 3: Image is a local asset path
-      else if (profileImage.toString().startsWith('assets/')) {
-        return CircleAvatar(
-          radius: 60,
-          backgroundImage: AssetImage(profileImage),
-          backgroundColor: Colors.green.shade100,
-        );
-      }
+
+      return CircleAvatar(
+        radius: 60,
+        backgroundImage: NetworkImage(imageUrl),
+        onBackgroundImageError: (e, stackTrace) {
+          if (kDebugMode) {
+            print('Error loading profile image: $e');
+          }
+        },
+        backgroundColor: Colors.green.shade100,
+      );
     }
 
     // Default case: no image or invalid image path

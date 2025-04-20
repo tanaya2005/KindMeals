@@ -11,6 +11,7 @@ import 'volunteerhistory.dart';
 import 'volunteerprofile.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../config/api_config.dart';
 
 class VolunteerDashboardScreen extends StatefulWidget {
   const VolunteerDashboardScreen({super.key});
@@ -154,6 +155,9 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
         acceptedDonationId: acceptedDonationId,
       );
 
+      // Reload all data including profile and opportunities
+      await _loadData();
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -162,27 +166,24 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
           ),
         );
       }
-
-      // Refresh data
-      _loadData();
     } catch (e) {
       if (kDebugMode) {
         print('Error accepting delivery: $e');
       }
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-                'Failed to accept delivery: ${e.toString().replaceAll('Exception: ', '')}'),
+            content: Text('Failed to accept delivery: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
       }
-
-      setState(() {
-        _isLoading = false;
-      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -663,9 +664,15 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
   Widget _buildVolunteerProfile() {
     // Extract volunteer name and rating from profile data
     final name = _volunteerProfile['volunteerName'] ?? 'Volunteer';
-    final deliveries = _volunteerProfile['totalRatings'] ?? 0;
+    final deliveries = _volunteerProfile['deliveries'] ?? 0;
     final rating = _volunteerProfile['rating'] ?? 0.0;
     final profileImage = _volunteerProfile['profileImage'];
+
+    if (kDebugMode) {
+      print('Volunteer profile data: $_volunteerProfile');
+      print(
+          'Name: $name, Deliveries: $deliveries, Rating: $rating, ProfileImage: $profileImage');
+    }
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -757,42 +764,30 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
   Widget _buildProfileImage(dynamic profileImage) {
     // Handle different profile image scenarios
     if (profileImage != null && profileImage.toString().isNotEmpty) {
-      // Case 1: Image starts with /uploads - it's from our API server
-      if (profileImage.toString().startsWith('/uploads')) {
-        return CircleAvatar(
-          radius: 30,
-          backgroundImage: NetworkImage(
-            '${ApiService.baseUrl}${profileImage}',
-          ),
-          onBackgroundImageError: (e, stackTrace) {
-            if (kDebugMode) {
-              print('Error loading profile image from API server: $e');
-            }
-          },
-          backgroundColor: Colors.green.shade100,
-        );
+      if (kDebugMode) {
+        print('Profile image path: $profileImage');
       }
-      // Case 2: Image is a full URL - it might be from Firebase or another source
-      else if (profileImage.toString().startsWith('http')) {
-        return CircleAvatar(
-          radius: 30,
-          backgroundImage: NetworkImage(profileImage),
-          onBackgroundImageError: (e, stackTrace) {
-            if (kDebugMode) {
-              print('Error loading profile image from URL: $e');
-            }
-          },
-          backgroundColor: Colors.green.shade100,
-        );
+
+      // Use ApiConfig helper to get correct URL
+      String imageUrl = ApiConfig.getImageUrl(profileImage.toString());
+      if (kDebugMode) {
+        print('Converted profile image URL: $imageUrl');
       }
-      // Case 3: Image is a local asset path
-      else if (profileImage.toString().startsWith('assets/')) {
-        return CircleAvatar(
-          radius: 30,
-          backgroundImage: AssetImage(profileImage),
-          backgroundColor: Colors.green.shade100,
-        );
-      }
+
+      return CircleAvatar(
+        radius: 30,
+        backgroundImage: NetworkImage(imageUrl),
+        onBackgroundImageError: (e, stackTrace) {
+          if (kDebugMode) {
+            print('Error loading profile image: $e');
+          }
+        },
+        backgroundColor: Colors.green.shade100,
+      );
+    }
+
+    if (kDebugMode) {
+      print('Using default profile image icon');
     }
 
     // Default case: no image or invalid image path
@@ -853,7 +848,10 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
     String? imageUrl;
     if (donation['imageUrl'] != null &&
         donation['imageUrl'].toString().isNotEmpty) {
-      imageUrl = '${ApiService.baseUrl}${donation['imageUrl']}';
+      imageUrl = ApiConfig.getImageUrl(donation['imageUrl'].toString());
+      if (kDebugMode) {
+        print('Food image URL: $imageUrl');
+      }
     }
 
     // Food type icon and color mapping

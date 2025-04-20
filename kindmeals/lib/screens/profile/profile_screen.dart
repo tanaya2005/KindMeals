@@ -614,37 +614,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ]),
 
-                      // Donation History Button (Only for Donors)
-                      if (_userData?['type']?.toString().toLowerCase() ==
-                          'donor')
-                        Container(
-                          margin: const EdgeInsets.all(16.0),
-                          child: ElevatedButton.icon(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      const DonorHistoryScreen(),
-                                ),
-                              );
-                            },
-                            icon: const Icon(Icons.history),
-                            label: const Text('View Donation History'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green.shade600,
-                              foregroundColor: Colors.white,
-                              minimumSize: const Size(double.infinity, 56),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              elevation: 3,
-                              shadowColor: Colors.green.withOpacity(0.5),
-                              padding: const EdgeInsets.symmetric(vertical: 15),
-                            ),
-                          ),
-                        ),
-
                       const SizedBox(height: 24),
                     ],
                   ),
