@@ -456,7 +456,7 @@ class _VolunteersScreenState extends State<VolunteersScreen> {
             ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          _showVolunteerApplicationForm(context);
+          Navigator.pushNamed(context, '/register/volunteer');
         },
         icon: const Icon(Icons.volunteer_activism),
         label: const Text('Become a Volunteer'),
@@ -635,94 +635,5 @@ class _VolunteersScreenState extends State<VolunteersScreen> {
       default:
         return Colors.grey.shade500;
     }
-  }
-
-  void _showVolunteerApplicationForm(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Become a Volunteer'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Join our community of food rescue heroes!',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'As a volunteer, you\'ll help deliver surplus food to those who need it most. '
-                  'Fill out this form to get started on your volunteer journey.',
-                ),
-                const SizedBox(height: 20),
-                TextField(
-                  decoration: InputDecoration(
-                    labelText: 'Full Name',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  decoration: InputDecoration(
-                    labelText: 'Email',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  decoration: InputDecoration(
-                    labelText: 'Phone Number',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  maxLines: 3,
-                  decoration: InputDecoration(
-                    labelText: 'Why do you want to volunteer?',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-              ),
-              child: const Text('Submit Application'),
-              onPressed: () {
-                Navigator.of(context).pop();
-                // TODO: Implement volunteer application submission
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Application submitted successfully!'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              },
-            ),
-          ],
-        );
-      },
-    );
   }
 }

@@ -252,26 +252,26 @@ class _HomeScreenState extends State<_HomeScreen> {
   // Charity donation options
   final List<Map<String, dynamic>> _reviews = [
     {
-      'name': 'John Doe',
+      'name': 'Rohit',
       'rating': 5,
       'comment':
-          'This app made donating leftover food from our restaurant so easy! The volunteers picked up everything within 30 minutes.',
+          'This app made donating leftover food from our Vadapav stall so easy! The volunteers picked up everything within 30 minutes.',
       'date': '2 days ago',
       'avatar': 'assets/images/user1.jpg',
     },
     {
-      'name': 'Emily Roberts',
+      'name': 'Dhoni',
       'rating': 5,
       'comment':
-          'As a recipient, I am so grateful for this platform. The food donations have helped my family during tough times.',
+          'As a recipient, I am so grateful for this platform. The food donations have helped my CSK family during tough times.',
       'date': '1 week ago',
       'avatar': 'assets/images/user2.jpg',
     },
     {
-      'name': 'Raj Sharma',
+      'name': 'Kohli',
       'rating': 4,
       'comment':
-          'Great initiative! I volunteer weekly and the app makes coordination seamless. Just wish there was a chat feature.',
+          'Great initiative! I deliver Ram ji ke Chole Kulche weekly and the app makes coordination seamless.',
       'date': '2 weeks ago',
       'avatar': 'assets/images/user3.jpg',
     },
