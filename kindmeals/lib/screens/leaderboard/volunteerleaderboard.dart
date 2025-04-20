@@ -6,10 +6,12 @@ class VolunteerLeaderboardScreen extends StatefulWidget {
   const VolunteerLeaderboardScreen({super.key, required this.volunteers});
 
   @override
-  State<VolunteerLeaderboardScreen> createState() => _VolunteerLeaderboardScreenState();
+  State<VolunteerLeaderboardScreen> createState() =>
+      _VolunteerLeaderboardScreenState();
 }
 
-class _VolunteerLeaderboardScreenState extends State<VolunteerLeaderboardScreen> {
+class _VolunteerLeaderboardScreenState
+    extends State<VolunteerLeaderboardScreen> {
   String _sortBy = 'donations'; // Default sort by donations
   bool _ascending = false; // Default descending order
 
@@ -17,14 +19,14 @@ class _VolunteerLeaderboardScreenState extends State<VolunteerLeaderboardScreen>
   Widget build(BuildContext context) {
     // Create a copy of the volunteers list to sort
     final sortedVolunteers = List<Map<String, dynamic>>.from(widget.volunteers);
-    
+
     // Sort the list based on current sort settings
     if (_sortBy == 'donations') {
-      sortedVolunteers.sort((a, b) => _ascending 
+      sortedVolunteers.sort((a, b) => _ascending
           ? a['donations'].compareTo(b['donations'])
           : b['donations'].compareTo(a['donations']));
     } else if (_sortBy == 'name') {
-      sortedVolunteers.sort((a, b) => _ascending 
+      sortedVolunteers.sort((a, b) => _ascending
           ? a['name'].compareTo(b['name'])
           : b['name'].compareTo(a['name']));
     }
@@ -81,15 +83,22 @@ class _VolunteerLeaderboardScreenState extends State<VolunteerLeaderboardScreen>
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildStatColumn('Total Volunteers', '${sortedVolunteers.length}'),
-                _buildStatColumn('Total Deliveries', 
+                _buildStatColumn(
+                    'Total Volunteers', '${sortedVolunteers.length}'),
+                _buildStatColumn('Total Deliveries',
                     '${sortedVolunteers.fold<int>(0, (sum, item) => sum + (item['donations'] as int))}'),
-                _buildStatColumn('Avg Deliveries', 
-                    (sortedVolunteers.fold<int>(0, (sum, item) => sum + (item['donations'] as int)) / sortedVolunteers.length).toStringAsFixed(1)),
+                _buildStatColumn(
+                    'Avg Deliveries',
+                    (sortedVolunteers.fold<int>(
+                                0,
+                                (sum, item) =>
+                                    sum + (item['donations'] as int)) /
+                            sortedVolunteers.length)
+                        .toStringAsFixed(1)),
               ],
             ),
           ),
-          
+
           // Table Header
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -99,12 +108,11 @@ class _VolunteerLeaderboardScreenState extends State<VolunteerLeaderboardScreen>
             child: Row(
               children: [
                 SizedBox(
-                  width: 50, 
-                  child: Text(
-                    'Rank',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  )
-                ),
+                    width: 50,
+                    child: Text(
+                      'Rank',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    )),
                 Expanded(
                   child: Text(
                     'Volunteer',
@@ -122,7 +130,7 @@ class _VolunteerLeaderboardScreenState extends State<VolunteerLeaderboardScreen>
               ],
             ),
           ),
-          
+
           // Volunteer List
           Expanded(
             child: ListView.builder(
@@ -131,12 +139,14 @@ class _VolunteerLeaderboardScreenState extends State<VolunteerLeaderboardScreen>
               itemBuilder: (context, index) {
                 final volunteer = sortedVolunteers[index];
                 final rank = index + 1;
-                
+
                 return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  margin:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   elevation: 0.5,
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
                     child: Row(
                       children: [
                         // Rank with medal for top 3
@@ -144,7 +154,7 @@ class _VolunteerLeaderboardScreenState extends State<VolunteerLeaderboardScreen>
                           width: 50,
                           child: _buildRankWidget(rank),
                         ),
-                        
+
                         // Avatar and volunteer info
                         Expanded(
                           child: Row(
@@ -152,8 +162,34 @@ class _VolunteerLeaderboardScreenState extends State<VolunteerLeaderboardScreen>
                               // Avatar
                               CircleAvatar(
                                 radius: 24,
-                                backgroundImage: AssetImage(volunteer['avatar']),
+                                backgroundImage: volunteer['avatar']
+                                            .toString()
+                                            .startsWith('http') ||
+                                        volunteer['avatar']
+                                            .toString()
+                                            .startsWith('https')
+                                    ? NetworkImage(volunteer['avatar'])
+                                        as ImageProvider
+                                    : AssetImage(volunteer['avatar']
+                                            .toString()
+                                            .isNotEmpty
+                                        ? volunteer['avatar']
+                                        : 'assets/images/volunteer1.jpg'),
                                 backgroundColor: Colors.grey.shade200,
+                                onBackgroundImageError: (_, __) {},
+                                child: volunteer['avatar'].toString().isEmpty ||
+                                        (!(volunteer['avatar']
+                                                    .toString()
+                                                    .startsWith('http') ||
+                                                volunteer['avatar']
+                                                    .toString()
+                                                    .startsWith('https')) &&
+                                            !volunteer['avatar']
+                                                .toString()
+                                                .startsWith('assets/'))
+                                    ? const Icon(Icons.person,
+                                        color: Colors.white)
+                                    : null,
                               ),
                               const SizedBox(width: 16),
                               // Name and subtitle
@@ -163,7 +199,8 @@ class _VolunteerLeaderboardScreenState extends State<VolunteerLeaderboardScreen>
                                   children: [
                                     Text(
                                       volunteer['name'],
-                                      style: const TextStyle(fontWeight: FontWeight.bold),
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold),
                                     ),
                                     Text(
                                       '${volunteer['donations']} deliveries made',
@@ -178,7 +215,7 @@ class _VolunteerLeaderboardScreenState extends State<VolunteerLeaderboardScreen>
                             ],
                           ),
                         ),
-                        
+
                         // Donations count
                         SizedBox(
                           width: 80,

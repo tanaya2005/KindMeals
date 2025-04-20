@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import '../../services/api_service.dart';
+import 'package:flutter/foundation.dart';
 
 // Motivational content for food donation carousel
 final List<Map<String, dynamic>> motivationalContent = [
@@ -65,20 +66,16 @@ class _VolunteersScreenState extends State<VolunteersScreen> {
       final volunteers = await _apiService.getTopVolunteers(limit: 20);
 
       if (volunteers.isNotEmpty) {
-        setState(() {
-          _volunteers = volunteers.map((volunteer) {
-            return {
-              'name': volunteer['volunteerName'] ?? 'Volunteer',
-              'since': volunteer['createdAt'] != null
-                  ? DateTime.parse(volunteer['createdAt']).year.toString()
-                  : '2023',
-              'rating': volunteer['rating'] ?? 4.0,
-              'donations': volunteer['totalRatings'] ?? 0,
-              'avatar': volunteer['profileImage'] ??
-                  'https://via.placeholder.com/150',
-            };
-          }).toList();
-        });
+        if (mounted) {
+          setState(() {
+            _volunteers = volunteers;
+
+            if (volunteers.isNotEmpty) {
+              // Debug log the first item to verify structure
+              print('First volunteer data: ${volunteers[0]}');
+            }
+          });
+        }
       } else {
         // Fall back to demo data if API returns empty list
         _setDemoData();
@@ -88,9 +85,11 @@ class _VolunteersScreenState extends State<VolunteersScreen> {
       // Fall back to demo data on error
       _setDemoData();
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -152,9 +151,19 @@ class _VolunteersScreenState extends State<VolunteersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Debug print to diagnose data structure
+    if (_volunteers.isNotEmpty && kDebugMode) {
+      print('Volunteer data sample: ${_volunteers[0]}');
+    }
+
     // Sort volunteers by donations in descending order
     final sortedVolunteers = List<Map<String, dynamic>>.from(_volunteers);
-    sortedVolunteers.sort((a, b) => b['donations'].compareTo(a['donations']));
+    sortedVolunteers
+        .sort((a, b) => (b['donations'] ?? 0).compareTo(a['donations'] ?? 0));
+
+    if (kDebugMode) {
+      print('Sorted ${sortedVolunteers.length} volunteers by donations');
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -457,38 +466,62 @@ class _VolunteersScreenState extends State<VolunteersScreen> {
   }
 
   Widget _buildVolunteerAvatar(dynamic profileImage) {
-    if (profileImage != null && profileImage.toString().isNotEmpty) {
-      // Case 1: Image starts with /uploads - it's from our API server
-      if (profileImage.toString().startsWith('/uploads')) {
+    if (profileImage == null || profileImage.toString().isEmpty) {
+      return CircleAvatar(
+        radius: 24,
+        backgroundColor: Colors.grey.shade200,
+        child: Icon(
+          Icons.person,
+          color: Colors.grey.shade500,
+          size: 30,
+        ),
+      );
+    }
+
+    final imageUrl = profileImage.toString();
+
+    try {
+      // Handle API server uploads
+      if (imageUrl.startsWith('/uploads')) {
         return CircleAvatar(
           radius: 24,
           backgroundImage: NetworkImage(
-            '${ApiService.baseUrl}${profileImage}',
+            '${ApiService.baseUrl}${imageUrl}',
           ),
           onBackgroundImageError: (e, stackTrace) {
-            print('Error loading profile image from API server: $e');
+            if (kDebugMode) {
+              print('Error loading profile image from API server: $e');
+            }
           },
           backgroundColor: Colors.grey.shade200,
+          child: const Icon(Icons.person, color: Colors.white),
         );
       }
-      // Case 2: Image is a full URL - from a placeholder or other source
-      else if (profileImage.toString().startsWith('http')) {
+      // Handle network URLs (http/https)
+      else if (imageUrl.startsWith('http') || imageUrl.startsWith('https')) {
         return CircleAvatar(
           radius: 24,
-          backgroundImage: NetworkImage(profileImage),
+          backgroundImage: NetworkImage(imageUrl),
           onBackgroundImageError: (e, stackTrace) {
-            print('Error loading profile image from URL: $e');
+            if (kDebugMode) {
+              print('Error loading profile image from URL: $e');
+            }
           },
+          backgroundColor: Colors.grey.shade200,
+          child: const Icon(Icons.person, color: Colors.white),
+        );
+      }
+      // Handle asset paths
+      else if (imageUrl.startsWith('assets/')) {
+        return CircleAvatar(
+          radius: 24,
+          backgroundImage: AssetImage(imageUrl),
           backgroundColor: Colors.grey.shade200,
         );
       }
-      // Case 3: Image is a local asset path
-      else if (profileImage.toString().startsWith('assets/')) {
-        return CircleAvatar(
-          radius: 24,
-          backgroundImage: AssetImage(profileImage),
-          backgroundColor: Colors.grey.shade200,
-        );
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error handling avatar image: $e');
       }
     }
 
