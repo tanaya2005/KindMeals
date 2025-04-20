@@ -758,7 +758,7 @@ class _HomeScreenState extends State<_HomeScreen> {
                               if (name == 'Volunteer' && kDebugMode) {
                                 if (kDebugMode) {
                                   print(
-                                    'Warning: Missing volunteer name at index $index: $volunteer');
+                                      'Warning: Missing volunteer name at index $index: $volunteer');
                                 }
                               }
                               return Container(
@@ -807,17 +807,20 @@ class _HomeScreenState extends State<_HomeScreen> {
                                                       .isEmpty ||
                                                   (!(volunteer['avatar']
                                                               .toString()
-                                                              .startsWith('http') ||
+                                                              .startsWith(
+                                                                  'http') ||
                                                           volunteer['avatar']
                                                               .toString()
                                                               .startsWith(
                                                                   'https')) &&
                                                       !volunteer['avatar']
                                                           .toString()
-                                                          .startsWith('assets/') &&
+                                                          .startsWith(
+                                                              'assets/') &&
                                                       !volunteer['avatar']
                                                           .toString()
-                                                          .startsWith('/uploads'))
+                                                          .startsWith(
+                                                              '/uploads'))
                                               ? const Icon(Icons.person,
                                                   color: Colors.white)
                                               : null,
@@ -1055,7 +1058,7 @@ class _HomeScreenState extends State<_HomeScreen> {
                                   kDebugMode) {
                                 if (kDebugMode) {
                                   print(
-                                    'Warning: Missing donor name at index $index: $donor');
+                                      'Warning: Missing donor name at index $index: $donor');
                                 }
                               }
                               return Container(
@@ -1096,25 +1099,28 @@ class _HomeScreenState extends State<_HomeScreen> {
                                         height: 36,
                                         child: CircleAvatar(
                                           radius: 18,
-                                          backgroundImage:
-                                              _getImageProvider(donor['avatar']),
+                                          backgroundImage: _getImageProvider(
+                                              donor['avatar']),
                                           onBackgroundImageError: (_, __) {},
                                           child: donor['avatar']
                                                       .toString()
                                                       .isEmpty ||
                                                   (!(donor['avatar']
                                                               .toString()
-                                                              .startsWith('http') ||
+                                                              .startsWith(
+                                                                  'http') ||
                                                           donor['avatar']
                                                               .toString()
                                                               .startsWith(
                                                                   'https')) &&
                                                       !donor['avatar']
                                                           .toString()
-                                                          .startsWith('assets/') &&
+                                                          .startsWith(
+                                                              'assets/') &&
                                                       !donor['avatar']
                                                           .toString()
-                                                          .startsWith('/uploads'))
+                                                          .startsWith(
+                                                              '/uploads'))
                                               ? const Icon(Icons.storefront,
                                                   color: Colors.white)
                                               : null,
@@ -1346,7 +1352,7 @@ class _HomeScreenState extends State<_HomeScreen> {
   Widget _buildCharitySection() {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 40),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -1375,12 +1381,13 @@ class _HomeScreenState extends State<_HomeScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           LayoutBuilder(
             builder: (context, constraints) {
               return Container(
-                height: 173,
+                height: 200,
                 width: constraints.maxWidth,
+                padding: const EdgeInsets.only(bottom: 10),
                 decoration: BoxDecoration(
                   color: Colors.green.shade50,
                   borderRadius: BorderRadius.circular(12),
@@ -1409,7 +1416,7 @@ class _HomeScreenState extends State<_HomeScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(10),
+                        padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.3),
                           shape: BoxShape.circle,
@@ -1417,15 +1424,15 @@ class _HomeScreenState extends State<_HomeScreen> {
                         child: const Icon(
                           Icons.volunteer_activism,
                           color: Colors.white,
-                          size: 40,
+                          size: 36,
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 10),
                       const Text(
                         'Donate to KindMeals',
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 22,
+                          fontSize: 20,
                           fontWeight: FontWeight.bold,
                           shadows: [
                             Shadow(
@@ -1436,12 +1443,12 @@ class _HomeScreenState extends State<_HomeScreen> {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 16),
                       const Text(
                         'Support our mission to reduce food waste and hunger',
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 14,
+                          fontSize: 12,
                           shadows: [
                             Shadow(
                               offset: Offset(1.0, 1.0),
@@ -1452,7 +1459,7 @@ class _HomeScreenState extends State<_HomeScreen> {
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 16),
                       Container(
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(30),
@@ -1475,7 +1482,12 @@ class _HomeScreenState extends State<_HomeScreen> {
                                     'name': 'KindMeals',
                                     'description':
                                         'Support our mission to reduce food waste and hunger through the KindMeals platform.',
-                                    'recommendedAmounts': [100, 500, 1000, 5000],
+                                    'recommendedAmounts': [
+                                      100,
+                                      500,
+                                      1000,
+                                      5000
+                                    ],
                                     'imageUrl': 'assets/images/charity_bg.jpg',
                                   },
                                 ),
@@ -1486,8 +1498,8 @@ class _HomeScreenState extends State<_HomeScreen> {
                             backgroundColor: Colors.white,
                             foregroundColor: Colors.green.shade700,
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 12,
+                              horizontal: 20,
+                              vertical: 8,
                             ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(30),
@@ -1499,7 +1511,7 @@ class _HomeScreenState extends State<_HomeScreen> {
                             'Donate Now',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                              fontSize: 14,
                             ),
                           ),
                         ),
@@ -1511,7 +1523,7 @@ class _HomeScreenState extends State<_HomeScreen> {
             },
           ),
           Container(
-            margin: const EdgeInsets.only(top: 16),
+            margin: const EdgeInsets.only(top: 20),
             width: double.infinity,
             child: TextButton(
               onPressed: () {

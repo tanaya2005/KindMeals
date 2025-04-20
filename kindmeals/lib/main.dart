@@ -52,7 +52,6 @@ class KindMealsApp extends StatefulWidget {
 
 class _KindMealsAppState extends State<KindMealsApp> {
   final FirebaseService _firebaseService = FirebaseService();
-  final ApiService _apiService = ApiService();
   bool _isUserSignedIn = false;
   bool _isInitializing = true;
 

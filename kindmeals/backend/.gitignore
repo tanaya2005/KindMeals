@@ -9,9 +9,6 @@ logs
 *.log
 npm-debug.log*
 
-# Uploads directory (except for the .gitkeep file to maintain the directory)
-uploads/*
-!uploads/.gitkeep
 
 # IDE files
 .idea/
