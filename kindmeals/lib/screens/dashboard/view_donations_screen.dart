@@ -31,6 +31,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
   String _selectedSortBy = 'expiry';
   double _maxDistance = 10.0; // Default distance in km
   bool _showNeedsVolunteer = false;
+  String _searchQuery = ''; // Search query for food name
 
   final List<String> _foodTypes = ['all', 'veg', 'nonveg', 'jain'];
   final List<String> _sortOptions = ['expiry', 'distance', 'quantity'];
@@ -99,6 +100,15 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
           .where((donation) => donation['needsVolunteer'] == true)
           .toList();
     }
+    
+    // Apply search query filter
+    if (_searchQuery.isNotEmpty) {
+      final String query = _searchQuery.toLowerCase();
+      filteredList = filteredList.where((donation) {
+        final String foodName = (donation['foodName'] ?? '').toLowerCase();
+        return foodName.contains(query);
+      }).toList();
+    }
 
     // Sort the donations
     switch (_selectedSortBy) {
@@ -132,13 +142,13 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Available Donations'),
+        title: const Text('Available Donations',
+            style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
         backgroundColor: _primaryGreen,
         foregroundColor: Colors.white,
-        elevation: 0,
+        elevation: 2,
         actions: [
-          // Filter button removed from here
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _fetchDonations,
@@ -437,46 +447,52 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
       );
     }
 
-    if (_filteredDonations.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.fastfood_outlined,
-              size: 70,
-              color: _primaryGreen.withOpacity(0.5),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'No available donations found',
-              style: TextStyle(fontSize: 18),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _donations.isEmpty
-                  ? 'Check back later for new donations'
-                  : 'Try changing your filters to see more donations',
-              style: const TextStyle(fontSize: 14, color: Colors.grey),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: _fetchDonations,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Refresh'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _primaryGreen,
-                foregroundColor: Colors.white,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
     return Column(
       children: [
-        // New filter button row
+        // Add search bar
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: TextField(
+            onChanged: (value) {
+              setState(() {
+                _searchQuery = value;
+                _applyFilters();
+              });
+            },
+            decoration: InputDecoration(
+              hintText: 'Search for food...',
+              prefixIcon: Icon(Icons.search, color: _primaryGreen),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10.0),
+                borderSide: BorderSide(color: _mediumGreen),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10.0),
+                borderSide: BorderSide(color: _mediumGreen),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10.0),
+                borderSide: BorderSide(color: _primaryGreen, width: 2.0),
+              ),
+              contentPadding: const EdgeInsets.symmetric(vertical: 0.0),
+              suffixIcon: _searchQuery.isNotEmpty 
+                ? IconButton(
+                    icon: const Icon(Icons.clear),
+                    onPressed: () {
+                      setState(() {
+                        _searchQuery = '';
+                        _applyFilters();
+                      });
+                    },
+                  ) 
+                : null,
+            ),
+          ),
+        ),
+
+        // Filter button row
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
           child: Row(
@@ -506,7 +522,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
           ),
         ),
 
-        // Active filter indicators
+        // Active filter indicators - only showing food type and volunteer indicators
         if (_selectedFoodType != 'all' || _showNeedsVolunteer)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -548,22 +564,94 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
             ),
           ),
 
-        // Donation list
+        // Donation list or empty state
         Expanded(
-          child: RefreshIndicator(
-            onRefresh: _fetchDonations,
-            color: _primaryGreen,
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _filteredDonations.length,
-              itemBuilder: (context, index) {
-                final donation = _filteredDonations[index];
-                return _buildDonationCard(donation);
-              },
-            ),
-          ),
+          child: _filteredDonations.isEmpty
+              ? _buildEmptyState()
+              : RefreshIndicator(
+                  onRefresh: _fetchDonations,
+                  color: _primaryGreen,
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _filteredDonations.length,
+                    itemBuilder: (context, index) {
+                      final donation = _filteredDonations[index];
+                      return _buildDonationCard(donation);
+                    },
+                  ),
+                ),
         ),
       ],
+    );
+  }
+
+  Widget _buildEmptyState() {
+    // Create a text controller to clear the search field
+    final TextEditingController controller = TextEditingController();
+    
+    return Center(
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.fastfood_outlined,
+              size: 70,
+              color: _primaryGreen.withOpacity(0.5),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'No available donations found',
+              style: TextStyle(fontSize: 18),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _searchQuery.isNotEmpty
+                  ? 'No results found for "$_searchQuery"'
+                  : _donations.isEmpty
+                      ? 'Check back later for new donations'
+                      : 'Try changing your filters to see more donations',
+              style: const TextStyle(fontSize: 14, color: Colors.grey),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (_searchQuery.isNotEmpty || _selectedFoodType != 'all' || _showNeedsVolunteer)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        // Clear the search bar text using controller
+                        setState(() {
+                          _searchQuery = '';
+                          _selectedFoodType = 'all';
+                          _showNeedsVolunteer = false;
+                          _applyFilters();
+                        });
+                      },
+                      icon: const Icon(Icons.clear),
+                      label: const Text('Clear Filters'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _primaryGreen,
+                      ),
+                    ),
+                  ),
+                ElevatedButton.icon(
+                  onPressed: _fetchDonations,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Refresh'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _primaryGreen,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
