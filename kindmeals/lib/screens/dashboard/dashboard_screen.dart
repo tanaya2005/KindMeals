@@ -428,11 +428,11 @@ class _HomeScreenState extends State<_HomeScreen> {
                 // Donor Leaderboard Section
                 _buildDonorLeaderboard(),
 
-                // Reviews Section
-                _buildReviews(),
-
-                // Charity Donation Section
+                // Charity Donation Section (moved above reviews)
                 _buildCharitySection(),
+
+                // Reviews Section (moved below charity)
+                _buildReviews(),
 
                 // Footer with Social Links
                 _buildFooter(),
@@ -638,17 +638,31 @@ class _HomeScreenState extends State<_HomeScreen> {
   Widget _buildVolunteerLeaderboard() {
     return Container(
       padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.green.shade100, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.green.withOpacity(0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Top Volunteers',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
+                  color: Colors.green.shade800,
                 ),
               ),
               Row(
@@ -668,34 +682,6 @@ class _HomeScreenState extends State<_HomeScreen> {
                     },
                     tooltip: 'Refresh leaderboard',
                   ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => VolunteerLeaderboardScreen(
-                            volunteers: _volunteerLeaderboard,
-                          ),
-                        ),
-                      );
-                    },
-                    child: Row(
-                      children: [
-                        Text(
-                          'View All',
-                          style: TextStyle(
-                            color: Colors.green.shade600,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Icon(
-                          Icons.arrow_forward_ios,
-                          size: 14,
-                          color: Colors.green.shade600,
-                        ),
-                      ],
-                    ),
-                  ),
                 ],
               ),
             ],
@@ -711,6 +697,7 @@ class _HomeScreenState extends State<_HomeScreen> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(15),
+                    border: Border.all(color: Colors.grey.shade200, width: 1),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.05),
@@ -732,6 +719,12 @@ class _HomeScreenState extends State<_HomeScreen> {
                                 borderRadius: const BorderRadius.only(
                                   topLeft: Radius.circular(15),
                                   topRight: Radius.circular(15),
+                                ),
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: Colors.green.shade200,
+                                    width: 1,
+                                  ),
                                 ),
                               ),
                               child: const Row(
@@ -799,31 +792,38 @@ class _HomeScreenState extends State<_HomeScreen> {
                                       ),
                                     ),
                                     const SizedBox(width: 10),
-                                    CircleAvatar(
-                                      radius: 18,
-                                      backgroundImage: _getImageProvider(
-                                          volunteer['avatar']),
-                                      onBackgroundImageError: (_, __) {},
-                                      backgroundColor: Colors.grey.shade300,
-                                      child: volunteer['avatar']
-                                                  .toString()
-                                                  .isEmpty ||
-                                              (!(volunteer['avatar']
-                                                          .toString()
-                                                          .startsWith('http') ||
-                                                      volunteer['avatar']
-                                                          .toString()
-                                                          .startsWith(
-                                                              'https')) &&
-                                                  !volunteer['avatar']
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(18),
+                                      child: SizedBox(
+                                        width: 36,
+                                        height: 36,
+                                        child: CircleAvatar(
+                                          radius: 18,
+                                          backgroundImage: _getImageProvider(
+                                              volunteer['avatar']),
+                                          onBackgroundImageError: (_, __) {},
+                                          child: volunteer['avatar']
                                                       .toString()
-                                                      .startsWith('assets/') &&
-                                                  !volunteer['avatar']
-                                                      .toString()
-                                                      .startsWith('/uploads'))
-                                          ? const Icon(Icons.person,
-                                              color: Colors.white)
-                                          : null,
+                                                      .isEmpty ||
+                                                  (!(volunteer['avatar']
+                                                              .toString()
+                                                              .startsWith('http') ||
+                                                          volunteer['avatar']
+                                                              .toString()
+                                                              .startsWith(
+                                                                  'https')) &&
+                                                      !volunteer['avatar']
+                                                          .toString()
+                                                          .startsWith('assets/') &&
+                                                      !volunteer['avatar']
+                                                          .toString()
+                                                          .startsWith('/uploads'))
+                                              ? const Icon(Icons.person,
+                                                  color: Colors.white)
+                                              : null,
+                                          backgroundColor: Colors.grey.shade300,
+                                        ),
+                                      ),
                                     ),
                                     const SizedBox(width: 12),
                                     Expanded(
@@ -845,24 +845,41 @@ class _HomeScreenState extends State<_HomeScreen> {
                                 ),
                               );
                             }),
-                            // "View All" button at bottom
-                            TextButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        VolunteerLeaderboardScreen(
-                                      volunteers: _volunteerLeaderboard,
-                                    ),
-                                  ),
-                                );
-                              },
-                              child: const Text('View Full Leaderboard'),
-                            ),
                           ],
                         ),
                 ),
+          const SizedBox(height: 16),
+          // "View All" button at bottom in a rounded box
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 40),
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => VolunteerLeaderboardScreen(
+                      volunteers: _volunteerLeaderboard,
+                    ),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green.shade50,
+                foregroundColor: Colors.green.shade700,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                  side: BorderSide(color: Colors.green.shade300),
+                ),
+              ),
+              child: const Text(
+                'View Full Leaderboard',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -912,17 +929,31 @@ class _HomeScreenState extends State<_HomeScreen> {
   Widget _buildDonorLeaderboard() {
     return Container(
       padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.green.shade100, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.green.withOpacity(0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Top Donors',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
+                  color: Colors.green.shade800,
                 ),
               ),
               Row(
@@ -942,34 +973,6 @@ class _HomeScreenState extends State<_HomeScreen> {
                     },
                     tooltip: 'Refresh leaderboard',
                   ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => DonorLeaderboardScreen(
-                            donors: _donorLeaderboard,
-                          ),
-                        ),
-                      );
-                    },
-                    child: Row(
-                      children: [
-                        Text(
-                          'View All',
-                          style: TextStyle(
-                            color: Colors.green.shade600,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Icon(
-                          Icons.arrow_forward_ios,
-                          size: 14,
-                          color: Colors.green.shade600,
-                        ),
-                      ],
-                    ),
-                  ),
                 ],
               ),
             ],
@@ -985,6 +988,7 @@ class _HomeScreenState extends State<_HomeScreen> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(15),
+                    border: Border.all(color: Colors.grey.shade200, width: 1),
                     boxShadow: [
                       BoxShadow(
                         // ignore: duplicate_ignore
@@ -1008,6 +1012,12 @@ class _HomeScreenState extends State<_HomeScreen> {
                                 borderRadius: const BorderRadius.only(
                                   topLeft: Radius.circular(15),
                                   topRight: Radius.circular(15),
+                                ),
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: Colors.green.shade200,
+                                    width: 1,
+                                  ),
                                 ),
                               ),
                               child: const Row(
@@ -1079,31 +1089,38 @@ class _HomeScreenState extends State<_HomeScreen> {
                                       ),
                                     ),
                                     const SizedBox(width: 10),
-                                    CircleAvatar(
-                                      radius: 18,
-                                      backgroundImage:
-                                          _getImageProvider(donor['avatar']),
-                                      onBackgroundImageError: (_, __) {},
-                                      backgroundColor: Colors.grey.shade300,
-                                      child: donor['avatar']
-                                                  .toString()
-                                                  .isEmpty ||
-                                              (!(donor['avatar']
-                                                          .toString()
-                                                          .startsWith('http') ||
-                                                      donor['avatar']
-                                                          .toString()
-                                                          .startsWith(
-                                                              'https')) &&
-                                                  !donor['avatar']
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(18),
+                                      child: SizedBox(
+                                        width: 36,
+                                        height: 36,
+                                        child: CircleAvatar(
+                                          radius: 18,
+                                          backgroundImage:
+                                              _getImageProvider(donor['avatar']),
+                                          onBackgroundImageError: (_, __) {},
+                                          child: donor['avatar']
                                                       .toString()
-                                                      .startsWith('assets/') &&
-                                                  !donor['avatar']
-                                                      .toString()
-                                                      .startsWith('/uploads'))
-                                          ? const Icon(Icons.storefront,
-                                              color: Colors.white)
-                                          : null,
+                                                      .isEmpty ||
+                                                  (!(donor['avatar']
+                                                              .toString()
+                                                              .startsWith('http') ||
+                                                          donor['avatar']
+                                                              .toString()
+                                                              .startsWith(
+                                                                  'https')) &&
+                                                      !donor['avatar']
+                                                          .toString()
+                                                          .startsWith('assets/') &&
+                                                      !donor['avatar']
+                                                          .toString()
+                                                          .startsWith('/uploads'))
+                                              ? const Icon(Icons.storefront,
+                                                  color: Colors.white)
+                                              : null,
+                                          backgroundColor: Colors.grey.shade300,
+                                        ),
+                                      ),
                                     ),
                                     const SizedBox(width: 12),
                                     Expanded(
@@ -1125,24 +1142,41 @@ class _HomeScreenState extends State<_HomeScreen> {
                                 ),
                               );
                             }),
-                            // "View All" button at bottom
-                            TextButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        DonorLeaderboardScreen(
-                                      donors: _donorLeaderboard,
-                                    ),
-                                  ),
-                                );
-                              },
-                              child: const Text('View Full Leaderboard'),
-                            ),
                           ],
                         ),
                 ),
+          const SizedBox(height: 16),
+          // "View All" button at bottom in a rounded box
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 40),
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => DonorLeaderboardScreen(
+                      donors: _donorLeaderboard,
+                    ),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green.shade50,
+                foregroundColor: Colors.green.shade700,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                  side: BorderSide(color: Colors.green.shade300),
+                ),
+              ),
+              child: const Text(
+                'View Full Leaderboard',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -1164,39 +1198,31 @@ class _HomeScreenState extends State<_HomeScreen> {
   Widget _buildReviews() {
     return Container(
       padding: const EdgeInsets.all(20),
-      color: Colors.grey.shade50,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.green.shade100, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.green.withOpacity(0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Reviews & Feedback',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                ),
-              ),
-              TextButton(
-                onPressed: () {
-                  // Navigate to all reviews
-                },
-                child: Row(
-                  children: [
-                    Text(
-                      'View All',
-                      style: TextStyle(
-                        color: Colors.green.shade600,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Icon(
-                      Icons.arrow_forward_ios,
-                      size: 14,
-                      color: Colors.green.shade600,
-                    ),
-                  ],
+                  color: Colors.green.shade800,
                 ),
               ),
             ],
@@ -1214,6 +1240,7 @@ class _HomeScreenState extends State<_HomeScreen> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(15),
+                  border: Border.all(color: Colors.grey.shade200),
                   boxShadow: [
                     BoxShadow(
                       // ignore: deprecated_member_use
@@ -1228,9 +1255,16 @@ class _HomeScreenState extends State<_HomeScreen> {
                   children: [
                     Row(
                       children: [
-                        CircleAvatar(
-                          radius: 22,
-                          backgroundImage: AssetImage(review['avatar']),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(22),
+                          child: SizedBox(
+                            width: 44,
+                            height: 44,
+                            child: Image.asset(
+                              review['avatar'],
+                              fit: BoxFit.cover,
+                            ),
+                          ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -1280,6 +1314,30 @@ class _HomeScreenState extends State<_HomeScreen> {
               );
             },
           ),
+          // "View All" button at bottom in a rounded box
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 40, vertical: 10),
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () {
+                // Navigate to all reviews
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green.shade50,
+                foregroundColor: Colors.green.shade700,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                  side: BorderSide(color: Colors.green.shade300),
+                ),
+              ),
+              child: const Text(
+                'View All Reviews',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -1288,38 +1346,31 @@ class _HomeScreenState extends State<_HomeScreen> {
   Widget _buildCharitySection() {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.green.shade100, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.green.withOpacity(0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Support a Cause',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                ),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.pushNamed(context, '/charities');
-                },
-                child: Row(
-                  children: [
-                    Text(
-                      'View All',
-                      style: TextStyle(
-                        color: Colors.green.shade600,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Icon(
-                      Icons.arrow_forward_ios,
-                      size: 14,
-                      color: Colors.green.shade600,
-                    ),
-                  ],
+                  color: Colors.green.shade800,
                 ),
               ),
             ],
@@ -1328,7 +1379,7 @@ class _HomeScreenState extends State<_HomeScreen> {
           LayoutBuilder(
             builder: (context, constraints) {
               return Container(
-                height: 183,
+                height: 173,
                 width: constraints.maxWidth,
                 decoration: BoxDecoration(
                   color: Colors.green.shade50,
@@ -1341,15 +1392,33 @@ class _HomeScreenState extends State<_HomeScreen> {
                       BlendMode.darken,
                     ),
                   ),
+                  border: Border.all(
+                    color: Colors.green.shade200,
+                    width: 1,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
                 child: Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(
-                        Icons.volunteer_activism,
-                        color: Colors.white,
-                        size: 50,
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.3),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.volunteer_activism,
+                          color: Colors.white,
+                          size: 40,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       const Text(
@@ -1358,6 +1427,13 @@ class _HomeScreenState extends State<_HomeScreen> {
                           color: Colors.white,
                           fontSize: 22,
                           fontWeight: FontWeight.bold,
+                          shadows: [
+                            Shadow(
+                              offset: Offset(1.0, 1.0),
+                              blurRadius: 3.0,
+                              color: Color.fromARGB(150, 0, 0, 0),
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -1366,43 +1442,65 @@ class _HomeScreenState extends State<_HomeScreen> {
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 14,
+                          shadows: [
+                            Shadow(
+                              offset: Offset(1.0, 1.0),
+                              blurRadius: 3.0,
+                              color: Color.fromARGB(150, 0, 0, 0),
+                            ),
+                          ],
                         ),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 20),
-                      ElevatedButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => CharityDonationScreen(
-                                charity: {
-                                  'id': 'kindmeals-main',
-                                  'name': 'KindMeals',
-                                  'description':
-                                      'Support our mission to reduce food waste and hunger through the KindMeals platform.',
-                                  'recommendedAmounts': [100, 500, 1000, 5000],
-                                  'imageUrl': 'assets/images/charity_bg.jpg',
-                                },
-                              ),
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(30),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
                             ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: Colors.green,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 12,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
+                          ],
                         ),
-                        child: const Text(
-                          'Donate Now',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => CharityDonationScreen(
+                                  charity: {
+                                    'id': 'kindmeals-main',
+                                    'name': 'KindMeals',
+                                    'description':
+                                        'Support our mission to reduce food waste and hunger through the KindMeals platform.',
+                                    'recommendedAmounts': [100, 500, 1000, 5000],
+                                    'imageUrl': 'assets/images/charity_bg.jpg',
+                                  },
+                                ),
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.green.shade700,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                              side: BorderSide(color: Colors.green.shade300),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: const Text(
+                            'Donate Now',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
                           ),
                         ),
                       ),
@@ -1411,6 +1509,28 @@ class _HomeScreenState extends State<_HomeScreen> {
                 ),
               );
             },
+          ),
+          Container(
+            margin: const EdgeInsets.only(top: 16),
+            width: double.infinity,
+            child: TextButton(
+              onPressed: () {
+                Navigator.pushNamed(context, '/charities');
+              },
+              style: TextButton.styleFrom(
+                backgroundColor: Colors.green.shade50,
+                foregroundColor: Colors.green.shade700,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                  side: BorderSide(color: Colors.green.shade200),
+                ),
+              ),
+              child: const Text(
+                'View All Charities',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
           ),
         ],
       ),

@@ -23,6 +23,7 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
   String _errorMessage = '';
   bool _showDistance = false;
   bool _isGettingLocation = false;
+  String _searchQuery = ''; // Search query for food name
 
   // Filter variables
   String _selectedTimeFilter = 'All';
@@ -167,6 +168,13 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
             return false;
           }
         }
+        
+        // Apply search query filter
+        if (_searchQuery.isNotEmpty) {
+          final String query = _searchQuery.toLowerCase();
+          final String foodName = (donation['foodName'] ?? '').toLowerCase();
+          return foodName.contains(query);
+        }
 
         return true;
       }).toList();
@@ -241,6 +249,162 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
       }
     }
   }
+  
+  void _showFilterBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      isScrollControlled: true, 
+      builder: (context) => StatefulBuilder(
+        builder: (context, setStateModal) {
+          return Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Filter Donation History',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: primaryGreen,
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.close, color: primaryGreen),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                
+                // Time Period Filter
+                Text(
+                  'Time Period',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: primaryGreen,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: ['All', 'Today', 'This Week', 'This Month'].map((type) {
+                      bool isSelected = _selectedTimeFilter == type;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: ChoiceChip(
+                          label: Text(
+                            type,
+                            style: TextStyle(
+                              color: isSelected ? Colors.white : primaryGreen,
+                            ),
+                          ),
+                          selected: isSelected,
+                          selectedColor: primaryGreen,
+                          backgroundColor: lightGreen,
+                          onSelected: (selected) {
+                            setStateModal(() {
+                              _selectedTimeFilter = type;
+                            });
+                          },
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                // Food Type Filter
+                Text(
+                  'Food Type',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: primaryGreen,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: ['All', 'Veg', 'NonVeg', 'Jain'].map((type) {
+                      bool isSelected = _selectedFoodTypeFilter == type;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: ChoiceChip(
+                          label: Text(
+                            type,
+                            style: TextStyle(
+                              color: isSelected ? Colors.white : primaryGreen,
+                            ),
+                          ),
+                          selected: isSelected,
+                          selectedColor: primaryGreen,
+                          backgroundColor: lightGreen,
+                          onSelected: (selected) {
+                            setStateModal(() {
+                              _selectedFoodTypeFilter = type;
+                            });
+                          },
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                // Apply and Reset Buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    OutlinedButton(
+                      onPressed: () {
+                        setStateModal(() {
+                          _selectedTimeFilter = 'All';
+                          _selectedFoodTypeFilter = 'All';
+                        });
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: primaryGreen,
+                        side: BorderSide(color: primaryGreen),
+                      ),
+                      child: const Text('Reset'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        // Update state in parent
+                        setState(() {
+                          _selectedTimeFilter = _selectedTimeFilter;
+                          _selectedFoodTypeFilter = _selectedFoodTypeFilter;
+                        });
+                        // Apply filters
+                        _applyFilters();
+                        Navigator.pop(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryGreen,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text('Apply Filters'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -275,130 +439,87 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          _buildFilterSection(),
-          Expanded(child: _buildBody()),
-        ],
-      ),
+      body: _buildBody(),
     );
   }
 
   Widget _buildFilterSection() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 2,
-            offset: const Offset(0, 2),
-          )
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    final displayDonations =
+        (_selectedTimeFilter == 'All' && _selectedFoodTypeFilter == 'All' && _searchQuery.isEmpty)
+            ? _acceptedDonations
+            : _filteredDonations;
+            
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            'Filter Donations',
+            'Donation History (${displayDonations.length})',
             style: TextStyle(
-                fontSize: 16, fontWeight: FontWeight.bold, color: primaryGreen),
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: primaryGreen,
+            ),
           ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              // Time filter
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  decoration: InputDecoration(
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    labelText: 'Time',
-                    labelStyle: TextStyle(color: secondaryGreen),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: lightGreen),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: lightGreen),
-                    ),
-                  ),
-                  value: _selectedTimeFilter,
-                  items: ['All', 'Today', 'This Week', 'This Month']
-                      .map((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(value),
-                    );
-                  }).toList(),
-                  onChanged: (String? newValue) {
-                    if (newValue != null) {
-                      setState(() {
-                        _selectedTimeFilter = newValue;
-                        _applyFilters();
-                      });
-                    }
-                  },
-                ),
-              ),
-              const SizedBox(width: 8),
-              // Food type filter
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  decoration: InputDecoration(
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    labelText: 'Food Type',
-                    labelStyle: TextStyle(color: secondaryGreen),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: lightGreen),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: lightGreen),
-                    ),
-                  ),
-                  value: _selectedFoodTypeFilter,
-                  items: ['All', 'Veg', 'NonVeg', 'Jain'].map((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(value),
-                    );
-                  }).toList(),
-                  onChanged: (String? newValue) {
-                    if (newValue != null) {
-                      setState(() {
-                        _selectedFoodTypeFilter = newValue;
-                        _applyFilters();
-                      });
-                    }
-                  },
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          // Reset filters button
-          Center(
-            child: TextButton.icon(
-              onPressed: () {
-                setState(() {
-                  _selectedTimeFilter = 'All';
-                  _selectedFoodTypeFilter = 'All';
-                  _applyFilters();
-                });
-              },
-              icon: Icon(Icons.clear, color: secondaryGreen, size: 16),
-              label: Text(
-                'Reset Filters',
-                style: TextStyle(color: secondaryGreen),
-              ),
+          ElevatedButton.icon(
+            onPressed: _showFilterBottomSheet,
+            icon: const Icon(Icons.filter_list, size: 18),
+            label: const Text('Filter'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryGreen,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             ),
           ),
         ],
+      ),
+    );
+  }
+  
+  Widget _buildActiveFilters() {
+    if (_selectedTimeFilter == 'All' && _selectedFoodTypeFilter == 'All' && _searchQuery.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            if (_selectedTimeFilter != 'All')
+              Padding(
+                padding: const EdgeInsets.only(right: 8.0),
+                child: Chip(
+                  label: Text('Time: $_selectedTimeFilter'),
+                  deleteIcon: const Icon(Icons.close, size: 15),
+                  onDeleted: () {
+                    setState(() {
+                      _selectedTimeFilter = 'All';
+                      _applyFilters();
+                    });
+                  },
+                  backgroundColor: lightGreen,
+                  labelStyle: TextStyle(color: primaryGreen),
+                ),
+              ),
+            if (_selectedFoodTypeFilter != 'All')
+              Chip(
+                label: Text('Type: $_selectedFoodTypeFilter'),
+                deleteIcon: const Icon(Icons.close, size: 15),
+                onDeleted: () {
+                  setState(() {
+                    _selectedFoodTypeFilter = 'All';
+                    _applyFilters();
+                  });
+                },
+                backgroundColor: lightGreen,
+                labelStyle: TextStyle(color: primaryGreen),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -492,10 +613,83 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
       );
     }
 
-    // Check for filtered results
-    if (_filteredDonations.isEmpty &&
-        (_selectedTimeFilter != 'All' || _selectedFoodTypeFilter != 'All')) {
-      return Center(
+    return Column(
+      children: [
+        // Add search bar - always visible
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: TextField(
+            onChanged: (value) {
+              setState(() {
+                _searchQuery = value;
+                _applyFilters();
+              });
+            },
+            decoration: InputDecoration(
+              hintText: 'Search for food...',
+              prefixIcon: Icon(Icons.search, color: primaryGreen),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10.0),
+                borderSide: BorderSide(color: lightGreen),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10.0),
+                borderSide: BorderSide(color: lightGreen),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10.0),
+                borderSide: BorderSide(color: primaryGreen, width: 2.0),
+              ),
+              contentPadding: const EdgeInsets.symmetric(vertical: 0.0),
+              suffixIcon: _searchQuery.isNotEmpty 
+                ? IconButton(
+                    icon: const Icon(Icons.clear),
+                    onPressed: () {
+                      setState(() {
+                        _searchQuery = '';
+                        _applyFilters();
+                      });
+                    },
+                  ) 
+                : null,
+            ),
+          ),
+        ),
+        
+        // Filter button row - always visible
+        _buildFilterSection(),
+        
+        // Active filter indicators - only visible when filters are active
+        _buildActiveFilters(),
+        
+        // Donation list or no results state
+        Expanded(
+          child: _filteredDonations.isEmpty && 
+                (_selectedTimeFilter != 'All' || _selectedFoodTypeFilter != 'All' || _searchQuery.isNotEmpty)
+              ? _buildNoResultsState()
+              : RefreshIndicator(
+                  onRefresh: _fetchAcceptedDonations,
+                  color: primaryGreen,
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _filteredDonations.length,
+                    itemBuilder: (context, index) {
+                      final donation = _filteredDonations[index];
+                      return _buildDonationCard(donation);
+                    },
+                  ),
+                ),
+        ),
+      ],
+    );
+  }
+
+  // New widget to show when filters return no results
+  Widget _buildNoResultsState() {
+    return Center(
+      child: SingleChildScrollView(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -506,44 +700,53 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              'No donations match your filters',
+              'No donations match your criteria',
               style: TextStyle(fontSize: 18),
             ),
-            const SizedBox(height: 24),
-            TextButton.icon(
-              onPressed: () {
-                setState(() {
-                  _selectedTimeFilter = 'All';
-                  _selectedFoodTypeFilter = 'All';
-                  _applyFilters();
-                });
-              },
-              icon: Icon(Icons.clear, size: 16),
-              label: Text('Clear Filters'),
-              style: TextButton.styleFrom(
-                foregroundColor: secondaryGreen,
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Text(
+                _searchQuery.isNotEmpty
+                    ? 'No results found for "$_searchQuery"'
+                    : 'Try adjusting your filters to see more donations',
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+                textAlign: TextAlign.center,
               ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _selectedTimeFilter = 'All';
+                      _selectedFoodTypeFilter = 'All';
+                      _searchQuery = '';
+                      _applyFilters();
+                    });
+                  },
+                  icon: const Icon(Icons.clear),
+                  label: const Text('Clear All Filters'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: secondaryGreen,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton.icon(
+                  onPressed: _fetchAcceptedDonations,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Refresh'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryGreen,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
-      );
-    }
-
-    final displayDonations =
-        (_selectedTimeFilter == 'All' && _selectedFoodTypeFilter == 'All')
-            ? _acceptedDonations
-            : _filteredDonations;
-
-    return RefreshIndicator(
-      onRefresh: _fetchAcceptedDonations,
-      color: primaryGreen,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: displayDonations.length,
-        itemBuilder: (context, index) {
-          final donation = displayDonations[index];
-          return _buildDonationCard(donation);
-        },
       ),
     );
   }
@@ -934,3 +1137,4 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
     );
   }
 }
+

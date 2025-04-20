@@ -572,17 +572,40 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
                 return [
                   // App Bar with Hero Animation and Gradient
                   SliverAppBar(
-                    expandedHeight: 120,
+                    expandedHeight: 180,
                     floating: true,
                     pinned: true,
                     elevation: 0,
                     backgroundColor: Colors.transparent,
+                    actions: [
+                      Padding(
+                        padding: const EdgeInsets.only(right: 16.0),
+                        child: IconButton(
+                          icon: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.3),
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(Icons.refresh, size: 20),
+                          ),
+                          onPressed: _loadHistoryData,
+                        ),
+                      ),
+                    ],
                     flexibleSpace: Container(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
-                            Colors.green.shade700,
-                            Colors.green.shade500,
+                            Colors.green.shade700.withOpacity(0.85),
+                            Colors.green.shade500.withOpacity(0.85),
                           ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
@@ -594,23 +617,42 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 18,
+                            shadows: [
+                              Shadow(
+                                offset: Offset(1.0, 1.0),
+                                blurRadius: 3.0,
+                                color: Color.fromARGB(150, 0, 0, 0),
+                              ),
+                            ],
                           ),
                         ),
                         background: Stack(
                           children: [
-                            // Background pattern
+                            // Background image
                             Positioned.fill(
-                              child: Opacity(
-                                opacity: 0.1,
-                                child: Image.network(
-                                  'https://cdn.pixabay.com/photo/2016/12/26/17/28/pattern-1932656_1280.jpg',
-                                  fit: BoxFit.cover,
+                              child: Image.asset(
+                                'assets/images/food_del.jpg',
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            // Gradient overlay
+                            Positioned.fill(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      Colors.black.withOpacity(0.1),
+                                      Colors.green.shade700.withOpacity(0.7),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
                             // Content
                             Positioned(
-                              bottom: 60,
+                              bottom: 70,
                               left: 20,
                               child: Row(
                                 children: [
@@ -620,6 +662,13 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
                                     decoration: BoxDecoration(
                                       color: Colors.white,
                                       borderRadius: BorderRadius.circular(20),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.2),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
                                     ),
                                     child: Row(
                                       children: [
@@ -646,19 +695,6 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
                         ),
                       ),
                     ),
-                    actions: [
-                      IconButton(
-                        icon: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.refresh, size: 20),
-                        ),
-                        onPressed: _loadHistoryData,
-                      ),
-                    ],
                   ),
                 ];
               },
@@ -794,6 +830,16 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
                 ],
               ),
             ),
+      floatingActionButton: _filteredDonations.isNotEmpty
+          ? FloatingActionButton(
+              onPressed: _loadHistoryData,
+              backgroundColor: Colors.green.shade600,
+              foregroundColor: Colors.white,
+              elevation: 4,
+              tooltip: 'Refresh deliveries',
+              child: const Icon(Icons.refresh),
+            )
+          : null,
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: 1,
         onTap: (index) {
@@ -835,36 +881,43 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.grey.shade100,
+              color: Colors.green.shade50,
               shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.green.withOpacity(0.1),
+                  blurRadius: 10,
+                  spreadRadius: 2,
+                ),
+              ],
             ),
             child: Icon(
               Icons.delivery_dining_outlined,
-              size: 60,
-              color: Colors.grey.shade400,
+              size: 70,
+              color: Colors.green.shade400,
             ),
           ),
           const SizedBox(height: 24),
           Text(
             'No delivery history found',
             style: TextStyle(
-              fontSize: 18,
+              fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.grey.shade700,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 40),
             child: Text(
               _acceptedDonations.isEmpty
-                  ? 'Start accepting donations from the dashboard'
-                  : 'Try changing your search filters',
+                  ? 'Start accepting donations from the dashboard to see your delivery history'
+                  : 'Try changing your search filters to find your deliveries',
               style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey.shade500,
+                fontSize: 15,
+                color: Colors.grey.shade600,
                 height: 1.4,
               ),
               textAlign: TextAlign.center,
@@ -884,7 +937,7 @@ class _VolunteerHistoryScreenState extends State<VolunteerHistoryScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
               ),
             ),
         ],
