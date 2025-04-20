@@ -1646,6 +1646,127 @@ app.get('/api/donations/statistics', async (req, res) => {
   }
 });
 
+// Update donor profile
+app.put('/api/donor/profile', firebaseAuthMiddleware, upload, async (req, res) => {
+  try {
+    console.log('=== DEBUG: Update Donor Profile ===');
+    console.log('Request body:', req.body);
+    console.log('Request files:', req.files);
+    
+    if (!req.firebaseUid) {
+      console.log('ERROR: No Firebase UID provided in the request');
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    // Check if user is a donor
+    if (req.userType !== 'donor') {
+      console.log('User is not a donor:', req.userType);
+      return res.status(403).json({ error: 'Only registered donors can update donor profiles' });
+    }
+
+    const donor = req.user;
+    console.log('Updating donor with ID:', donor._id);
+
+    // Prepare update object
+    const updates = {};
+    
+    // Update text fields if provided
+    if (req.body.donorname) updates.donorname = req.body.donorname;
+    if (req.body.orgName) updates.orgName = req.body.orgName;
+    if (req.body.donoraddress) updates.donoraddress = req.body.donoraddress;
+    if (req.body.donorcontact) updates.donorcontact = req.body.donorcontact;
+    if (req.body.donorabout) updates.donorabout = req.body.donorabout;
+    
+    // Update location if provided
+    if (req.body.latitude || req.body.longitude) {
+      updates.donorlocation = {
+        latitude: parseFloat(req.body.latitude) || donor.donorlocation?.latitude || 0,
+        longitude: parseFloat(req.body.longitude) || donor.donorlocation?.longitude || 0
+      };
+    }
+
+    // Update profile image if provided
+    if (req.files && req.files['profileImage']) {
+      updates.profileImage = `/uploads/${req.files['profileImage'][0].filename}`;
+      console.log('New profile image:', updates.profileImage);
+    }
+
+    // Update donor in database
+    const updatedDonor = await DirectDonor.findByIdAndUpdate(
+      donor._id,
+      { $set: updates },
+      { new: true, runValidators: true }
+    );
+
+    console.log('Donor profile updated successfully');
+    res.status(200).json(updatedDonor);
+  } catch (err) {
+    console.error('Error updating donor profile:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Update recipient profile
+app.put('/api/recipient/profile', firebaseAuthMiddleware, upload, async (req, res) => {
+  try {
+    console.log('=== DEBUG: Update Recipient Profile ===');
+    console.log('Request body:', req.body);
+    console.log('Request files:', req.files);
+    
+    if (!req.firebaseUid) {
+      console.log('ERROR: No Firebase UID provided in the request');
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    // Check if user is a recipient
+    if (req.userType !== 'recipient') {
+      console.log('User is not a recipient:', req.userType);
+      return res.status(403).json({ error: 'Only registered recipients can update recipient profiles' });
+    }
+
+    const recipient = req.user;
+    console.log('Updating recipient with ID:', recipient._id);
+
+    // Prepare update object
+    const updates = {};
+    
+    // Update text fields if provided
+    if (req.body.reciname) updates.reciname = req.body.reciname;
+    if (req.body.ngoName) updates.ngoName = req.body.ngoName;
+    if (req.body.ngoId) updates.ngoId = req.body.ngoId;
+    if (req.body.reciaddress) updates.reciaddress = req.body.reciaddress;
+    if (req.body.recicontact) updates.recicontact = req.body.recicontact;
+    if (req.body.reciabout) updates.reciabout = req.body.reciabout;
+    
+    // Update location if provided
+    if (req.body.latitude || req.body.longitude) {
+      updates.recilocation = {
+        latitude: parseFloat(req.body.latitude) || recipient.recilocation?.latitude || 0,
+        longitude: parseFloat(req.body.longitude) || recipient.recilocation?.longitude || 0
+      };
+    }
+
+    // Update profile image if provided
+    if (req.files && req.files['profileImage']) {
+      updates.profileImage = `/uploads/${req.files['profileImage'][0].filename}`;
+      console.log('New profile image:', updates.profileImage);
+    }
+
+    // Update recipient in database
+    const updatedRecipient = await DirectRecipient.findByIdAndUpdate(
+      recipient._id,
+      { $set: updates },
+      { new: true, runValidators: true }
+    );
+
+    console.log('Recipient profile updated successfully');
+    res.status(200).json(updatedRecipient);
+  } catch (err) {
+    console.error('Error updating recipient profile:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // Start the server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
