@@ -4,6 +4,7 @@ const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
 const { admin, verifyToken } = require('./firebase-admin');
+const { uploadToCloudinary } = require('./cloudinary-config');
 require('dotenv').config();
 const fs = require('fs');
 
@@ -80,15 +81,19 @@ app.use(cors({
 app.use('/uploads', express.static(uploadsDir));
 console.log('Uploads directory configured at:', uploadsDir);
 
-// Configure Multer for file uploads
+// Configure Multer for file uploads - temporary storage before Cloudinary upload
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    console.log('Saving file to:', uploadsDir);
-    cb(null, uploadsDir);
+    const tempDir = path.join(__dirname, 'temp-uploads');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+    console.log('Saving file temporarily to:', tempDir);
+    cb(null, tempDir);
   },
   filename: (req, file, cb) => {
     const filename = Date.now() + path.extname(file.originalname);
-    console.log('Generated filename:', filename);
+    console.log('Generated temporary filename:', filename);
     cb(null, filename);
   }
 });
@@ -112,6 +117,34 @@ const upload = multer({
   { name: 'foodImage', maxCount: 1 },
   { name: 'drivingLicenseImage', maxCount: 1 }
 ]);
+
+// Helper function to handle file uploads to Cloudinary
+const handleFileUploads = async (files) => {
+  const uploads = {};
+  
+  for (const fieldName in files) {
+    if (files[fieldName] && files[fieldName].length > 0) {
+      try {
+        // Upload to Cloudinary
+        const result = await uploadToCloudinary(files[fieldName][0].path, fieldName);
+        
+        // Store the Cloudinary URL
+        uploads[fieldName] = {
+          url: result.secure_url,
+          publicId: result.public_id
+        };
+        
+        // Delete the temp file
+        fs.unlinkSync(files[fieldName][0].path);
+      } catch (error) {
+        console.error(`Error uploading ${fieldName} to Cloudinary:`, error);
+        throw error;
+      }
+    }
+  }
+  
+  return uploads;
+};
 
 // Add a basic health check endpoint at root path
 app.get('/', (req, res) => {
@@ -213,227 +246,144 @@ app.get('/api/profile', firebaseAuthMiddleware, async (req, res) => {
   }
 });
 
-// Complete donor registration (after signup)
+// Donor Registration
 app.post('/api/donor/register', firebaseAuthMiddleware, upload, async (req, res) => {
   try {
-    console.log('=== DEBUG: Direct Donor Registration ===');
-    console.log('Request body:', req.body);
-    console.log('Request files:', req.files);
+    console.log('Donor registration request received');
     
-    if (!req.firebaseUid) {
-      console.log('ERROR: No Firebase UID provided in the request');
-      return res.status(401).json({ error: 'Authentication required' });
+    // Verify if user already exists
+    if (req.userType) {
+      return res.status(400).json({ error: 'User already registered as ' + req.userType });
     }
 
-    console.log('Firebase UID:', req.firebaseUid);
-    console.log('Email:', req.firebaseEmail);
-
-    // Check if donor already exists
-    const existingDonor = await DirectDonor.findOne({ firebaseUid: req.firebaseUid });
-    if (existingDonor) {
-      console.log('Donor already exists for this user');
-      return res.status(400).json({ error: 'Donor profile already exists for this user' });
+    // Validate request body
+    const { name, email, phone, address } = req.body;
+    if (!name || !email || !phone || !address) {
+      return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // Handle profile image upload
-    const profileImage = req.files && req.files['profileImage'] ? 
-      `/uploads/${req.files['profileImage'][0].filename}` : '';
-    
-    console.log('Profile image:', profileImage ? 'Uploaded' : 'Not provided');
-
-    // Create and save new donor document
+    // Process file uploads with Cloudinary
+    let cloudinaryUploads = {};
     try {
-      const donor = new DirectDonor({
-        firebaseUid: req.firebaseUid,
-        email: req.body.email || req.firebaseEmail,
-        donorname: req.body.donorname,
-        orgName: req.body.orgName,
-        identificationId: req.body.identificationId,
-        donoraddress: req.body.donoraddress,
-        donorcontact: req.body.donorcontact,
-        type: req.body.type,
-        donorabout: req.body.donorabout || '',
-        profileImage,
-        donorlocation: {
-          latitude: parseFloat(req.body.latitude) || 0,
-          longitude: parseFloat(req.body.longitude) || 0
-        }
-      });
-
-      console.log('Creating donor with data:', {
-        name: donor.donorname,
-        orgName: donor.orgName,
-        identificationId: donor.identificationId
-      });
-
-      const savedDonor = await donor.save();
-      console.log('Donor saved successfully with ID:', savedDonor._id);
-      
-      res.status(201).json(savedDonor);
-    } catch (validationError) {
-      console.error('Validation error:', validationError);
-      return res.status(400).json({ 
-        error: 'Validation failed',
-        details: validationError.message 
-      });
+      cloudinaryUploads = await handleFileUploads(req.files);
+    } catch (error) {
+      console.error('Error uploading files to Cloudinary:', error);
+      return res.status(500).json({ error: 'Error uploading files' });
     }
+
+    // Create new donor with Cloudinary URLs
+    const donor = new DirectDonor({
+      name,
+      email,
+      phone,
+      address,
+      profileImage: cloudinaryUploads.profileImage?.url || '',
+      profileImageId: cloudinaryUploads.profileImage?.publicId || '',
+      firebaseUid: req.firebaseUid
+    });
+
+    await donor.save();
+    console.log('Donor created:', donor._id);
+    
+    res.status(201).json({ message: 'Donor registered successfully', donorId: donor._id });
   } catch (err) {
-    console.error('Error in donor registration:', err);
-    res.status(400).json({ error: err.message });
+    console.error('Error creating donor:', err);
+    res.status(500).json({ error: 'Error registering donor' });
   }
 });
 
-// Complete recipient registration (after signup)
+// Recipient Registration
 app.post('/api/recipient/register', firebaseAuthMiddleware, upload, async (req, res) => {
   try {
-    console.log('=== DEBUG: Direct Recipient Registration ===');
-    console.log('Request body:', req.body);
-    console.log('Request files:', req.files);
+    console.log('Recipient registration request received');
     
-    if (!req.firebaseUid) {
-      console.log('ERROR: No Firebase UID provided in the request');
-      return res.status(401).json({ error: 'Authentication required' });
+    // Verify if user already exists
+    if (req.userType) {
+      return res.status(400).json({ error: 'User already registered as ' + req.userType });
     }
 
-    console.log('Firebase UID:', req.firebaseUid);
-    console.log('Email:', req.firebaseEmail);
-
-    // Check if recipient already exists
-    const existingRecipient = await DirectRecipient.findOne({ firebaseUid: req.firebaseUid });
-    if (existingRecipient) {
-      console.log('Recipient already exists for this user');
-      return res.status(400).json({ error: 'Recipient profile already exists for this user' });
+    // Validate request body
+    const { name, email, phone, address, organizationType } = req.body;
+    if (!name || !email || !phone || !address || !organizationType) {
+      return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // Handle profile image upload
-    const profileImage = req.files && req.files['profileImage'] ? 
-      `/uploads/${req.files['profileImage'][0].filename}` : '';
-    
-    console.log('Profile image:', profileImage ? 'Uploaded' : 'Not provided');
-
-    // Create and save new recipient document
+    // Process file uploads with Cloudinary
+    let cloudinaryUploads = {};
     try {
-      const recipient = new DirectRecipient({
-        firebaseUid: req.firebaseUid,
-        email: req.body.email || req.firebaseEmail,
-        reciname: req.body.reciname,
-        ngoName: req.body.ngoName,
-        ngoId: req.body.ngoId,
-        reciaddress: req.body.reciaddress,
-        recicontact: req.body.recicontact,
-        type: req.body.type,
-        reciabout: req.body.reciabout || '',
-        profileImage,
-        recilocation: {
-          latitude: parseFloat(req.body.latitude) || 0,
-          longitude: parseFloat(req.body.longitude) || 0
-        }
-      });
-
-      console.log('Creating recipient with data:', {
-        name: recipient.reciname,
-        ngoName: recipient.ngoName,
-        ngoId: recipient.ngoId
-      });
-
-      const savedRecipient = await recipient.save();
-      console.log('Recipient saved successfully with ID:', savedRecipient._id);
-      
-      res.status(201).json(savedRecipient);
-    } catch (validationError) {
-      console.error('Validation error:', validationError);
-      return res.status(400).json({ 
-        error: 'Validation failed',
-        details: validationError.message 
-      });
+      cloudinaryUploads = await handleFileUploads(req.files);
+    } catch (error) {
+      console.error('Error uploading files to Cloudinary:', error);
+      return res.status(500).json({ error: 'Error uploading files' });
     }
+
+    // Create new recipient with Cloudinary URLs
+    const recipient = new DirectRecipient({
+      name,
+      email,
+      phone,
+      address,
+      organizationType,
+      profileImage: cloudinaryUploads.profileImage?.url || '',
+      profileImageId: cloudinaryUploads.profileImage?.publicId || '',
+      firebaseUid: req.firebaseUid
+    });
+
+    await recipient.save();
+    console.log('Recipient created:', recipient._id);
+    
+    res.status(201).json({ message: 'Recipient registered successfully', recipientId: recipient._id });
   } catch (err) {
-    console.error('Error in recipient registration:', err);
-    res.status(400).json({ error: err.message });
+    console.error('Error creating recipient:', err);
+    res.status(500).json({ error: 'Error registering recipient' });
   }
 });
 
-// Complete volunteer registration (after signup)
+// Volunteer Registration
 app.post('/api/volunteer/register', firebaseAuthMiddleware, upload, async (req, res) => {
   try {
-    console.log('=== DEBUG: Direct Volunteer Registration ===');
-    console.log('Request headers:', req.headers);
-    console.log('Request body:', req.body);
-    console.log('Request files:', req.files);
+    console.log('Volunteer registration request received');
     
-    if (!req.firebaseUid) {
-      console.log('ERROR: No Firebase UID provided in the request');
-      return res.status(401).json({ error: 'Authentication required' });
+    // Verify if user already exists
+    if (req.userType) {
+      return res.status(400).json({ error: 'User already registered as ' + req.userType });
     }
 
-    console.log('Firebase UID:', req.firebaseUid);
-    console.log('Email:', req.firebaseEmail);
-
-    // Check if volunteer already exists
-    const existingVolunteer = await DirectVolunteer.findOne({ firebaseUid: req.firebaseUid });
-    if (existingVolunteer) {
-      console.log('Volunteer already exists for this user');
-      return res.status(400).json({ error: 'Volunteer profile already exists for this user' });
+    // Validate request body
+    const { name, email, phone, address } = req.body;
+    if (!name || !email || !phone || !address) {
+      return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // Handle profile image upload
-    const profileImage = req.files && req.files['profileImage'] ? 
-      `/uploads/${req.files['profileImage'][0].filename}` : '';
-    
-    // Handle driving license image upload
-    const drivingLicenseImage = req.files && req.files['drivingLicenseImage'] ? 
-      `/uploads/${req.files['drivingLicenseImage'][0].filename}` : '';
-
-    console.log('Profile image:', profileImage ? 'Uploaded' : 'Not provided');
-    console.log('License image:', drivingLicenseImage ? 'Uploaded' : 'Not provided');
-
-    // Get has vehicle data
-    const hasVehicle = req.body.hasVehicle === 'true';
-    console.log('Has vehicle:', hasVehicle);
-
-    // Create and save new volunteer document with proper data validation
+    // Process file uploads with Cloudinary
+    let cloudinaryUploads = {};
     try {
-      const volunteer = new DirectVolunteer({
-        firebaseUid: req.firebaseUid,
-        email: req.body.email || req.firebaseEmail,
-        volunteerName: req.body.volunteerName,
-        aadharID: req.body.aadharID,
-        volunteeraddress: req.body.volunteeraddress,
-        volunteercontact: req.body.volunteercontact,
-        volunteerabout: req.body.volunteerabout || '',
-        profileImage,
-        hasVehicle,
-        vehicleDetails: hasVehicle ? {
-          vehicleType: req.body.vehicleType || '',
-          vehicleNumber: req.body.vehicleNumber || '',
-          drivingLicenseImage
-        } : undefined,
-        volunteerlocation: {
-          latitude: parseFloat(req.body.latitude) || 0,
-          longitude: parseFloat(req.body.longitude) || 0
-        }
-      });
-
-      console.log('Creating volunteer with data:', {
-        name: volunteer.volunteerName,
-        aadhar: volunteer.aadharID,
-        hasVehicle: volunteer.hasVehicle
-      });
-
-      const savedVolunteer = await volunteer.save();
-      console.log('Volunteer saved successfully with ID:', savedVolunteer._id);
-      
-      res.status(201).json(savedVolunteer);
-    } catch (validationError) {
-      console.error('Validation error:', validationError);
-      return res.status(400).json({ 
-        error: 'Validation failed',
-        details: validationError.message 
-      });
+      cloudinaryUploads = await handleFileUploads(req.files);
+    } catch (error) {
+      console.error('Error uploading files to Cloudinary:', error);
+      return res.status(500).json({ error: 'Error uploading files' });
     }
+
+    // Create new volunteer with Cloudinary URLs
+    const volunteer = new DirectVolunteer({
+      name,
+      email,
+      phone,
+      address,
+      profileImage: cloudinaryUploads.profileImage?.url || '',
+      profileImageId: cloudinaryUploads.profileImage?.publicId || '',
+      drivingLicenseImage: cloudinaryUploads.drivingLicenseImage?.url || '',
+      drivingLicenseImageId: cloudinaryUploads.drivingLicenseImage?.publicId || '',
+      firebaseUid: req.firebaseUid
+    });
+
+    await volunteer.save();
+    console.log('Volunteer created:', volunteer._id);
+    
+    res.status(201).json({ message: 'Volunteer registered successfully', volunteerId: volunteer._id });
   } catch (err) {
-    console.error('Error in volunteer registration:', err);
-    res.status(400).json({ error: err.message });
+    console.error('Error creating volunteer:', err);
+    res.status(500).json({ error: 'Error registering volunteer' });
   }
 });
 
@@ -442,78 +392,50 @@ app.post('/api/volunteer/register', firebaseAuthMiddleware, upload, async (req, 
 // Create a new donation
 app.post('/api/donations/create', firebaseAuthMiddleware, upload, async (req, res) => {
   try {
-    console.log('=== DEBUG: Donation Creation ===');
-    console.log('Request body:', req.body);
-    console.log('Request files:', req.files);
-    
-    // Check if user is a donor
+    console.log('Donation creation request received');
+
+    // Verify user is a donor
     if (req.userType !== 'donor') {
-      console.log('User is not a donor:', req.userType);
-      return res.status(403).json({ error: 'Only registered donors can create donations' });
+      return res.status(403).json({ error: 'Only donors can create donations' });
     }
 
-    const donor = req.user;
-    console.log('User authenticated as donor:', donor._id);
+    // Validate request
+    const { foodName, foodType, foodQuantity, expiryDateTime, description } = req.body;
+    if (!foodName || !foodType || !foodQuantity || !expiryDateTime) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
 
-    // Handle food image upload
-    const foodImage = req.files && req.files['foodImage'] ? 
-      `/uploads/${req.files['foodImage'][0].filename}` : '';
-    
-    console.log('Food image:', foodImage ? 'Uploaded' : 'Not provided');
-
-    // Print timezone information for debugging
-    console.log('Current timezone:', process.env.TZ);
-    console.log('Current server time:', new Date().toString());
-    console.log('Current server time (ISO):', new Date().toISOString());
-    
-    // Parse and correct the expiry date time from the request
-    console.log('Input expiryDateTime from client:', req.body.expiryDateTime);
-    let expiryDateTime;
+    // Process file uploads with Cloudinary
+    let cloudinaryUploads = {};
     try {
-      // Parse the date directly - it will be interpreted in the server's timezone (IST)
-      expiryDateTime = new Date(req.body.expiryDateTime);
-      console.log('Parsed expiryDateTime (server local time):', expiryDateTime.toString());
-      console.log('Parsed expiryDateTime (ISO format):', expiryDateTime.toISOString());
-    } catch (e) {
-      console.error('Error parsing date:', e);
-      expiryDateTime = new Date(); // Default to current time if parsing fails
-      expiryDateTime.setHours(expiryDateTime.getHours() + 1); // Default expiry 1 hour from now
+      cloudinaryUploads = await handleFileUploads(req.files);
+    } catch (error) {
+      console.error('Error uploading files to Cloudinary:', error);
+      return res.status(500).json({ error: 'Error uploading files' });
     }
 
-    const newDonation = new LiveDonation({
-      donorId: donor._id,
-      donorName: donor.donorname,
-      foodName: req.body.foodName,
-      quantity: req.body.quantity,
-      description: req.body.description,
-      expiryDateTime: expiryDateTime,
-      timeOfUpload: new Date(), // Current time in server's timezone (IST)
-      foodType: req.body.foodType,
-      imageUrl: foodImage,
-      location: {
-        address: req.body.address || donor.donoraddress,
-        latitude: req.body.latitude || donor.donorlocation.latitude,
-        longitude: req.body.longitude || donor.donorlocation.longitude
-      },
-      needsVolunteer: req.body.needsVolunteer === 'true'
+    // Create new donation with Cloudinary URLs
+    const donation = new LiveDonation({
+      donorId: req.user._id,
+      donorName: req.user.name,
+      foodName,
+      foodType,
+      foodQuantity: parseInt(foodQuantity),
+      expiryDateTime: new Date(expiryDateTime),
+      description: description || '',
+      timeOfUpload: new Date(),
+      foodImage: cloudinaryUploads.foodImage?.url || '',
+      foodImageId: cloudinaryUploads.foodImage?.publicId || '',
+      status: 'active'
     });
 
-    console.log('Creating donation with data:', {
-      foodName: newDonation.foodName,
-      quantity: newDonation.quantity,
-      expiryDateTime: newDonation.expiryDateTime,
-      expiryDateTimeISO: newDonation.expiryDateTime.toISOString()
-    });
-
-    const savedDonation = await newDonation.save();
-    console.log('Donation saved successfully with ID:', savedDonation._id);
-    console.log('Saved expiryDateTime:', savedDonation.expiryDateTime);
-    console.log('Saved expiryDateTime (ISO):', savedDonation.expiryDateTime.toISOString());
+    await donation.save();
+    console.log('Donation created:', donation._id);
     
-    res.status(201).json(savedDonation);
+    res.status(201).json({ message: 'Donation created successfully', donationId: donation._id });
   } catch (err) {
-    console.error('Error in donation creation:', err);
-    res.status(400).json({ error: err.message });
+    console.error('Error creating donation:', err);
+    res.status(500).json({ error: 'Error creating donation' });
   }
 });
 
