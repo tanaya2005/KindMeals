@@ -49,12 +49,22 @@ mongoose.set('toJSON', {
   }
 });
 
-// Ensure uploads directory exists
-const uploadsDir = path.join(__dirname, 'uploads');
+// Configure uploads directory
+// Use environment variable for uploads path if available, otherwise use default
+const uploadsDir = process.env.UPLOADS_DIR || path.join(__dirname, 'uploads');
 console.log('Uploads directory path:', uploadsDir);
+
+// Ensure uploads directory exists
 if (!fs.existsSync(uploadsDir)) {
   console.log('Creating uploads directory');
   fs.mkdirSync(uploadsDir, { recursive: true });
+  
+  // Create a .gitkeep file to ensure the directory is tracked in git
+  const gitkeepPath = path.join(uploadsDir, '.gitkeep');
+  if (!fs.existsSync(gitkeepPath)) {
+    fs.writeFileSync(gitkeepPath, '');
+    console.log('Created .gitkeep file in uploads directory');
+  }
 }
 
 // Middleware
@@ -62,10 +72,13 @@ app.use(express.json());
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-console.log('Uploads directory configured at:', path.join(__dirname, 'uploads'));
+
+// Configure static file serving for uploads
+// Make sure this path is accessible and persisted in production
+app.use('/uploads', express.static(uploadsDir));
+console.log('Uploads directory configured at:', uploadsDir);
 
 // Configure Multer for file uploads
 const storage = multer.diskStorage({

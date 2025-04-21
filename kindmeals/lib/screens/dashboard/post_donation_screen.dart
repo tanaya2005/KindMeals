@@ -9,6 +9,7 @@ import '../../config/api_config.dart';
 import 'package:flutter/foundation.dart';
 import '../../utils/date_time_helper.dart';
 import '../../services/location_service.dart';
+
 class PostDonationScreen extends StatefulWidget {
   const PostDonationScreen({super.key});
 
@@ -730,8 +731,9 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: _addressController,
+                        readOnly: true,
                         decoration: InputDecoration(
-                          labelText: 'Pickup Address',
+                          labelText: 'Pickup Address (Click to detect)',
                           prefixIcon: const Icon(Icons.location_on),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
@@ -751,9 +753,10 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
                             tooltip: 'Get Current Location',
                           ),
                         ),
+                        onTap: _isGettingLocation ? null : _getLocation,
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return 'Please enter pickup address';
+                            return 'Please get pickup address by clicking the location button';
                           }
                           return null;
                         },

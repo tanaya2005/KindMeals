@@ -365,8 +365,9 @@ class _RegisterVolunteerScreenState extends State<RegisterVolunteerScreen> {
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _addressController,
+                  readOnly: true,
                   decoration: InputDecoration(
-                    labelText: 'Address',
+                    labelText: 'Address (Click to detect)',
                     prefixIcon: const Icon(Icons.home),
                     suffixIcon: IconButton(
                       icon: _isGettingLocation
@@ -386,10 +387,11 @@ class _RegisterVolunteerScreenState extends State<RegisterVolunteerScreen> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
+                  onTap: _isGettingLocation ? null : _getLocation,
                   maxLines: 2,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter your address';
+                      return 'Please get your address by clicking the location button';
                     }
                     return null;
                   },
