@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:io' show Platform;
+import 'dart:io' show Platform;
 import '../../services/api_service.dart';
 import '../../config/api_config.dart';
 import 'donation_detail_screen.dart';
@@ -104,6 +105,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
           .where((donation) => donation['needsVolunteer'] == true)
           .toList();
     }
+
 
     // Apply search query filter
     if (_searchQuery.isNotEmpty) {
@@ -495,6 +497,17 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                       },
                     )
                   : null,
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        setState(() {
+                          _searchQuery = '';
+                          _applyFilters();
+                        });
+                      },
+                    )
+                  : null,
             ),
           ),
         ),
@@ -597,6 +610,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
     // Create a text controller to clear the search field
     final TextEditingController controller = TextEditingController();
 
+
     return Center(
       child: SingleChildScrollView(
         child: Column(
@@ -626,6 +640,9 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                if (_searchQuery.isNotEmpty ||
+                    _selectedFoodType != 'all' ||
+                    _showNeedsVolunteer)
                 if (_searchQuery.isNotEmpty ||
                     _selectedFoodType != 'all' ||
                     _showNeedsVolunteer)
@@ -816,6 +833,115 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
       }
     }
 
+    // Launch phone call intent when the donor contact is clicked
+    void _launchPhoneCall(String phoneNumber) async {
+      try {
+        // Clean up phone number to ensure it's just digits, plus sign, and dashes
+        final cleanedNumber = phoneNumber.replaceAll(RegExp(r'[^\d\+\-]'), '');
+
+        // Create the tel: URI
+        final Uri uri = Uri.parse('tel:$cleanedNumber');
+
+        if (kDebugMode) {
+          print('Attempting to launch phone app with: $uri');
+        }
+
+        // Use launchUrl instead of canLaunch/launch for more reliable behavior
+        final bool launched = await launchUrl(uri);
+
+        if (!launched) {
+          if (kDebugMode) {
+            print('Could not launch phone app with URI: $uri');
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('Error launching phone call: $e');
+        }
+      }
+    }
+
+    // Launch Google Maps with directions from recipient to donor
+    Future<void> _launchMapsDirections(String destinationAddress) async {
+      try {
+        // Try multiple approaches for launching maps based on platform
+        bool launched = false;
+
+        if (Platform.isAndroid) {
+          // Try Android-specific intent
+          try {
+            final String encodedDestination =
+                Uri.encodeComponent(destinationAddress);
+            final Uri uri = Uri.parse(
+                'https://www.google.com/maps/dir/?api=1&destination=$encodedDestination&travelmode=driving');
+
+            if (kDebugMode) {
+              print('Trying Google Maps URI for Android: $uri');
+            }
+
+            if (await canLaunchUrl(uri)) {
+              launched = await launchUrl(
+                uri,
+                mode: LaunchMode.externalApplication,
+              );
+            }
+          } catch (e) {
+            if (kDebugMode) {
+              print('Error with Google Maps URI: $e');
+            }
+          }
+        } else if (Platform.isIOS) {
+          // iOS approach - try Apple Maps first
+          try {
+            final String encodedDestination =
+                Uri.encodeComponent(destinationAddress);
+            final Uri uri = Uri.parse(
+                'https://maps.apple.com/?daddr=$encodedDestination&dirflg=d');
+
+            if (kDebugMode) {
+              print('Trying Apple Maps URI: $uri');
+            }
+
+            if (await canLaunchUrl(uri)) {
+              launched = await launchUrl(
+                uri,
+                mode: LaunchMode.externalApplication,
+              );
+            }
+          } catch (e) {
+            if (kDebugMode) {
+              print('Error with Apple Maps URI: $e');
+            }
+          }
+        }
+
+        // Last resort - try web URL if all else failed
+        if (!launched) {
+          final String encodedDestination =
+              Uri.encodeComponent(destinationAddress);
+          final Uri uri = Uri.parse(
+              'https://www.google.com/maps/search/?api=1&query=$encodedDestination');
+
+          if (kDebugMode) {
+            print('Trying web fallback: $uri');
+          }
+
+          if (await canLaunchUrl(uri)) {
+            launched = await launchUrl(
+              uri,
+              mode: LaunchMode.externalApplication,
+            );
+          } else {
+            throw Exception('Could not launch maps on this device');
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('Error launching Maps: $e');
+        }
+      }
+    }
+
     // Get image URL if available - check multiple possible field names
     String? imageUrl;
     if (donation.containsKey('imageUrl') && donation['imageUrl'] != null) {
@@ -870,6 +996,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                             gradient: LinearGradient(
                               colors: [
                                 _lightGreen,
+                                _lightGreen,
                                 _mediumGreen.withOpacity(0.3)
                               ],
                               begin: Alignment.topLeft,
@@ -880,6 +1007,8 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(
+                                foodType.toLowerCase() == 'veg'
+                                    ? Icons.eco
                                 foodType.toLowerCase() == 'veg'
                                     ? Icons.eco
                                     : foodType.toLowerCase() == 'jain'
@@ -913,6 +1042,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                       ),
                       gradient: LinearGradient(
                         colors: [_lightGreen, _mediumGreen.withOpacity(0.3)],
+                        colors: [_lightGreen, _mediumGreen.withOpacity(0.3)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -921,6 +1051,8 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
+                          foodType.toLowerCase() == 'veg'
+                              ? Icons.eco
                           foodType.toLowerCase() == 'veg'
                               ? Icons.eco
                               : foodType.toLowerCase() == 'jain'
@@ -1162,6 +1294,8 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                         backgroundColor: Colors.blue[50],
                         child: Icon(Icons.person,
                             color: Colors.blue[700], size: 20),
+                        child: Icon(Icons.person,
+                            color: Colors.blue[700], size: 20),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -1266,6 +1400,8 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                           '${localizations.translate('expires')}: $expiryDate',
                           style: TextStyle(
                             fontSize: 13,
+                            color:
+                                isExpiringSoon ? Colors.red : Colors.grey[700],
                             color:
                                 isExpiringSoon ? Colors.red : Colors.grey[700],
                             fontWeight: isExpiringSoon ? FontWeight.bold : null,
