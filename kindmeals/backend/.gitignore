@@ -17,4 +17,10 @@ npm-debug.log*
 *.swo
 
 # OS files
+.DS_Store
+Thumbs.db
+
+# Exclude uploads directory contents but keep the directory structure
+uploads/*
+!uploads/.gitkeep
  

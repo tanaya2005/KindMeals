@@ -8,4 +8,10 @@ services:
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: 10000 
+        value: 10000
+      - key: UPLOADS_DIR
+        value: /data/uploads
+    disk:
+      name: uploads
+      mountPath: /data
+      sizeGB: 5 
