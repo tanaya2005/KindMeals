@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../screens/auth/login_screen.dart';
 import '../../services/firebase_service.dart';
+import '../../utils/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LogoutHandler {
@@ -38,25 +39,29 @@ class LogoutHandler {
       if (context.mounted) {
         Navigator.of(context, rootNavigator: true).pop();
 
+        final localizations = AppLocalizations.of(context);
+        
         // Show error message
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error logging out: $e')),
+          SnackBar(content: Text('${localizations.translate('error_logout')}$e')),
         );
       }
     }
   }
 
   void _showLoadingDialog() {
+    final localizations = AppLocalizations.of(context);
+    
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
-        return const AlertDialog(
+        return AlertDialog(
           content: Row(
             children: [
-              CircularProgressIndicator(),
-              SizedBox(width: 20),
-              Text("Logging out..."),
+              const CircularProgressIndicator(),
+              const SizedBox(width: 20),
+              Text(localizations.translate('logging_out')),
             ],
           ),
         );

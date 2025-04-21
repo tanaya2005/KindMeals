@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/charity_model.dart';
 import '../../services/charity_service.dart';
 import 'charity_donation_screen.dart';
+import '../../utils/app_localizations.dart';
 
 class CharityListScreen extends StatefulWidget {
   const CharityListScreen({Key? key}) : super(key: key);
@@ -49,9 +50,11 @@ class _CharityListScreenState extends State<CharityListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+    
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Donate to Charity'),
+        title: Text(localizations.translate('donate_to_charity')),
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
         actions: [
@@ -64,14 +67,14 @@ class _CharityListScreenState extends State<CharityListScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage.isNotEmpty
-              ? _buildErrorView()
+              ? _buildErrorView(localizations)
               : _charities.isEmpty
-                  ? _buildEmptyView()
-                  : _buildCharityList(),
+                  ? _buildEmptyView(localizations)
+                  : _buildCharityList(localizations),
     );
   }
 
-  Widget _buildErrorView() {
+  Widget _buildErrorView(AppLocalizations localizations) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -83,7 +86,7 @@ class _CharityListScreenState extends State<CharityListScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            'Error',
+            localizations.translate('error'),
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 8),
@@ -98,14 +101,14 @@ class _CharityListScreenState extends State<CharityListScreen> {
           const SizedBox(height: 16),
           ElevatedButton(
             onPressed: _loadCharities,
-            child: const Text('Try Again'),
+            child: Text(localizations.translate('try_again')),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildEmptyView() {
+  Widget _buildEmptyView(AppLocalizations localizations) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -116,18 +119,18 @@ class _CharityListScreenState extends State<CharityListScreen> {
             color: Colors.green.shade200,
           ),
           const SizedBox(height: 16),
-          const Text(
-            'No Charities Available',
-            style: TextStyle(
+          Text(
+            localizations.translate('no_charities_available'),
+            style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Check back later for charity donation opportunities',
+          Text(
+            localizations.translate('check_back_later'),
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey),
+            style: const TextStyle(color: Colors.grey),
           ),
           const SizedBox(height: 24),
           ElevatedButton(
@@ -136,41 +139,41 @@ class _CharityListScreenState extends State<CharityListScreen> {
               backgroundColor: Colors.green,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Refresh'),
+            child: Text(localizations.translate('refresh')),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildCharityList() {
+  Widget _buildCharityList(AppLocalizations localizations) {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
         // Header section
-        _buildHeaderSection(),
+        _buildHeaderSection(localizations),
         const SizedBox(height: 24),
 
         // Charity list
-        ..._charities.map((charity) => _buildCharityCard(charity)).toList(),
+        ..._charities.map((charity) => _buildCharityCard(charity, localizations)).toList(),
       ],
     );
   }
 
-  Widget _buildHeaderSection() {
+  Widget _buildHeaderSection(AppLocalizations localizations) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Make a Difference',
-          style: TextStyle(
+        Text(
+          localizations.translate('make_a_difference'),
+          style: const TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
           ),
         ),
         const SizedBox(height: 8),
         Text(
-          'Your contribution can help those in need. Choose a charity below to donate.',
+          localizations.translate('contribution_help'),
           style: TextStyle(
             fontSize: 14,
             color: Colors.grey.shade700,
@@ -180,7 +183,7 @@ class _CharityListScreenState extends State<CharityListScreen> {
     );
   }
 
-  Widget _buildCharityCard(CharityModel charity) {
+  Widget _buildCharityCard(CharityModel charity, AppLocalizations localizations) {
     return Card(
       elevation: 3,
       margin: const EdgeInsets.only(bottom: 16),
@@ -264,7 +267,7 @@ class _CharityListScreenState extends State<CharityListScreen> {
                       border: Border.all(color: Colors.green.shade100),
                     ),
                     child: Text(
-                      'Food Relief',
+                      localizations.translate('food_relief'),
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.green.shade700,
@@ -295,7 +298,7 @@ class _CharityListScreenState extends State<CharityListScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'From ₹${charity.recommendedAmounts.first.toInt()}',
+                        '${localizations.translate('from')} ₹${charity.recommendedAmounts.first.toInt()}',
                         style: TextStyle(
                           color: Colors.green.shade700,
                           fontWeight: FontWeight.bold,
@@ -322,7 +325,7 @@ class _CharityListScreenState extends State<CharityListScreen> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 10),
                         ),
-                        child: const Text('Donate Now'),
+                        child: Text(localizations.translate('donate_now')),
                       ),
                     ],
                   ),

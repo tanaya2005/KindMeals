@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:kindmeals/services/api_service.dart';
 import 'package:kindmeals/config/api_config.dart';
 import 'package:kindmeals/services/firebase_service.dart';
+import 'package:kindmeals/utils/app_localizations.dart';
 import 'edit_profile_screen.dart';
 import 'donor_history_screen.dart';
 
@@ -92,6 +93,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _pickImage() async {
+    final localizations = AppLocalizations.of(context);
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
     if (image != null) {
@@ -115,8 +117,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Profile image updated successfully'),
+          SnackBar(
+            content: Text(localizations.translate('profile_image_updated')),
             backgroundColor: Colors.green,
           ),
         );
@@ -129,7 +131,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to upload profile image: ${e.toString()}'),
+            content: Text('${localizations.translate('failed_upload_image')} ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -138,6 +140,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _handleLogout() async {
+    final localizations = AppLocalizations.of(context);
     setState(() {
       _isLoading = true;
     });
@@ -155,7 +158,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Logout failed: ${e.toString()}'),
+            content: Text('${localizations.translate('logout_failed')} ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -167,6 +170,89 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
       }
     }
+  }
+  
+  void _showLanguageSelection() {
+    final localizations = AppLocalizations.of(context);
+    final appLocalizationsService = AppLocalizations.localizationsService;
+    
+    // List of supported languages with their native and English names
+    final List<Map<String, String>> languages = [
+      {'name': 'English', 'code': 'en', 'english': 'English'},
+      {'name': 'हिंदी', 'code': 'hi', 'english': 'Hindi'},
+      {'name': 'मराठी', 'code': 'mr', 'english': 'Marathi'},
+      {'name': 'ગુજરાતી', 'code': 'gu', 'english': 'Gujarati'},
+      {'name': 'தமிழ்', 'code': 'ta', 'english': 'Tamil'},
+      {'name': 'తెలుగు', 'code': 'te', 'english': 'Telugu'},
+      {'name': 'ಕನ್ನಡ', 'code': 'kn', 'english': 'Kannada'},
+      {'name': 'മലയാളം', 'code': 'ml', 'english': 'Malayalam'},
+      {'name': 'বাংলা', 'code': 'bn', 'english': 'Bengali'},
+      {'name': 'ਪੰਜਾਬੀ', 'code': 'pa', 'english': 'Punjabi'},
+      {'name': 'ଓଡ଼ିଆ', 'code': 'or', 'english': 'Odia'},
+      {'name': 'অসমীয়া', 'code': 'as', 'english': 'Assamese'},
+    ];
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(localizations.translate('change_language')),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: languages.length,
+            itemBuilder: (context, index) {
+              final language = languages[index];
+              final currentLangCode = languageCodes[appLocalizationsService.currentLanguage];
+              final isSelected = currentLangCode == language['code'];
+              
+              return ListTile(
+                title: Text(language['name']!),
+                subtitle: Text(language['english']!),
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isSelected ? Colors.green.shade100 : Colors.grey.shade200,
+                  ),
+                  child: Text(
+                    language['code']!.toUpperCase(),
+                    style: TextStyle(
+                      color: isSelected ? Colors.green.shade700 : Colors.grey.shade700,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                trailing: isSelected 
+                  ? Icon(Icons.check_circle, color: Colors.green.shade600)
+                  : null,
+                selected: isSelected,
+                selectedTileColor: Colors.green.shade50,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                onTap: () async {
+                  if (!isSelected) {
+                    final appLanguage = getLanguageFromCode(language['code']!);
+                    await appLocalizationsService.changeLanguage(appLanguage);
+                    // Close the dialog
+                    Navigator.pop(context);
+                    // Force rebuild of the UI to apply the new language
+                    setState(() {});
+                  }
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(localizations.translate('cancel')),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildProfileSection(String title, List<Widget> children) {
@@ -230,17 +316,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   IconData _getSectionIcon(String title) {
-    switch (title) {
-      case 'Personal Information':
-        return Icons.person;
-      case 'Contact Information':
-        return Icons.contact_phone;
-      case 'Organization Information':
-        return Icons.business;
-      case 'About':
-        return Icons.info_outline;
-      default:
-        return Icons.article;
+    final localizations = AppLocalizations.of(context);
+    
+    if (title == localizations.translate('personal_information')) {
+      return Icons.person;
+    } else if (title == localizations.translate('contact_information')) {
+      return Icons.contact_phone;
+    } else if (title == localizations.translate('organization_information')) {
+      return Icons.business;
+    } else if (title == localizations.translate('about')) {
+      return Icons.info_outline;
+    } else {
+      return Icons.article;
     }
   }
 
@@ -289,18 +376,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+    
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         backgroundColor: Colors.green.shade600,
         elevation: 0,
-        // leading: IconButton(
-        //   icon: const Icon(Icons.arrow_back, color: Colors.white),
-        //   onPressed: () => Navigator.of(context).pop(),
-        // ),
-        title: const Text(
-          'Profile',
-          style: TextStyle(
+        title: Text(
+          localizations.translate('profile'),
+          style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
@@ -325,6 +410,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 }
               });
             },
+            tooltip: localizations.translate('edit'),
           ),
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),
@@ -336,12 +422,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               showDialog(
                 context: context,
                 builder: (context) => AlertDialog(
-                  title: const Text('Log Out'),
-                  content: const Text('Are you sure you want to log out?'),
+                  title: Text(localizations.translate('logout')),
+                  content: Text(localizations.translate('logout_confirm')),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(context),
-                      child: const Text('Cancel'),
+                      child: Text(localizations.translate('cancel')),
                     ),
                     TextButton(
                       onPressed: () {
@@ -351,7 +437,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       style: TextButton.styleFrom(
                         foregroundColor: Colors.red,
                       ),
-                      child: const Text('Log Out'),
+                      child: Text(localizations.translate('logout')),
                     ),
                   ],
                 ),
@@ -374,7 +460,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'Error loading profile',
+                        localizations.translate('error_loading_profile'),
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
                       const SizedBox(height: 8),
@@ -390,7 +476,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           backgroundColor: Colors.green.shade600,
                           foregroundColor: Colors.white,
                         ),
-                        child: const Text('Try Again'),
+                        child: Text(localizations.translate('try_again')),
                       ),
                     ],
                   ),
@@ -553,64 +639,85 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
 
                       const SizedBox(height: 16),
+                      
+                      // Language change button
+                      Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.language),
+                          label: Text(localizations.translate('change_language')),
+                          onPressed: _showLanguageSelection,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green.shade100,
+                            foregroundColor: Colors.green.shade800,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(color: Colors.green.shade300),
+                            ),
+                          ),
+                        ),
+                      ),
 
                       // Profile sections
-                      _buildProfileSection('Personal Information', [
+                      _buildProfileSection(localizations.translate('personal_information'), [
                         _buildProfileItem(
                           Icons.person,
-                          'Full Name',
+                          localizations.translate('full_name'),
                           _profileData?['donorname'] ??
                               _profileData?['reciname'] ??
                               'N/A',
                         ),
                         _buildProfileItem(
                           Icons.email,
-                          'Email Address',
+                          localizations.translate('email_address'),
                           _userData?['email'] ?? 'N/A',
                         ),
                       ]),
 
-                      _buildProfileSection('Contact Information', [
+                      _buildProfileSection(localizations.translate('contact_information'), [
                         _buildProfileItem(
                           Icons.phone,
-                          'Contact Number',
+                          localizations.translate('contact_number'),
                           _profileData?['donorcontact'] ??
                               _profileData?['recicontact'] ??
                               'N/A',
                         ),
                         _buildProfileItem(
                           Icons.location_on,
-                          'Address',
+                          localizations.translate('address'),
                           _profileData?['donoraddress'] ??
                               _profileData?['reciaddress'] ??
                               'N/A',
                         ),
                       ]),
 
-                      _buildProfileSection('Organization Information', [
+                      _buildProfileSection(localizations.translate('organization_information'), [
                         _buildProfileItem(
                           Icons.business,
-                          'Organization Name',
+                          localizations.translate('organization_name'),
                           _profileData?['orgName'] ??
                               _profileData?['ngoName'] ??
                               'N/A',
                         ),
                         _buildProfileItem(
                           Icons.badge,
-                          'Organization ID',
+                          localizations.translate('organization_id'),
                           _profileData?['identificationId'] ??
                               _profileData?['ngoId'] ??
                               'N/A',
                         ),
                       ]),
 
-                      _buildProfileSection('About', [
+                      _buildProfileSection(localizations.translate('about'), [
                         _buildProfileItem(
                           Icons.info,
-                          'Description',
+                          localizations.translate('description'),
                           _profileData?['donorabout'] ??
                               _profileData?['reciabout'] ??
-                              'No description available',
+                              localizations.translate('no_description'),
                         ),
                       ]),
 

@@ -3,6 +3,7 @@ import '../../services/api_service.dart';
 import '../../config/api_config.dart';
 import '../../utils/date_time_helper.dart';
 import 'package:flutter/foundation.dart';
+import '../../utils/app_localizations.dart';
 
 class DonorHistoryScreen extends StatefulWidget {
   const DonorHistoryScreen({super.key});
@@ -60,10 +61,11 @@ class _DonorHistoryScreenState extends State<DonorHistoryScreen> {
       String errorMsg = e.toString().replaceAll('Exception: ', '');
 
       // Provide more user-friendly error messages
+      final AppLocalizations localizations = AppLocalizations.of(context);
       if (errorMsg.contains('Not found')) {
-        errorMsg = 'No donation history found. Please try again later.';
+        errorMsg = localizations.translate('no_donation_history_found');
       } else if (errorMsg.contains('No authenticated user found')) {
-        errorMsg = 'Please sign in to view your donation history.';
+        errorMsg = localizations.translate('sign_in_to_view_donations');
       }
 
       setState(() {
@@ -115,11 +117,13 @@ class _DonorHistoryScreenState extends State<DonorHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final AppLocalizations localizations = AppLocalizations.of(context);
+    
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'My Donations',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        title: Text(
+          localizations.translate('donation_history'),
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
         backgroundColor: Colors.green.shade600,
@@ -136,17 +140,17 @@ class _DonorHistoryScreenState extends State<DonorHistoryScreen> {
           ? const Center(child: CircularProgressIndicator(color: Colors.green))
           : Column(
               children: [
-                _buildSearchBar(),
+                _buildSearchBar(localizations),
                 _buildFilterChips(),
                 Expanded(
-                  child: _buildBody(),
+                  child: _buildBody(localizations),
                 ),
               ],
             ),
     );
   }
 
-  Widget _buildBody() {
+  Widget _buildBody(AppLocalizations localizations) {
     if (_isLoading) {
       return const Center(
           child: CircularProgressIndicator(color: Colors.green));
@@ -166,7 +170,7 @@ class _DonorHistoryScreenState extends State<DonorHistoryScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Text(
-                'Error: $_errorMessage',
+                '${localizations.translate('error')}: $_errorMessage',
                 style: const TextStyle(color: Colors.red),
                 textAlign: TextAlign.center,
               ),
@@ -175,7 +179,7 @@ class _DonorHistoryScreenState extends State<DonorHistoryScreen> {
             ElevatedButton.icon(
               onPressed: _fetchDonorDonations,
               icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
+              label: Text(localizations.translate('refresh')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green.shade600,
                 foregroundColor: Colors.white,
@@ -199,14 +203,14 @@ class _DonorHistoryScreenState extends State<DonorHistoryScreen> {
               color: Colors.grey,
             ),
             const SizedBox(height: 16),
-            const Text(
-              'No donation history found',
-              style: TextStyle(fontSize: 18),
+            Text(
+              localizations.translate('no_donations_found'),
+              style: const TextStyle(fontSize: 18),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Create donations to see them here',
-              style: TextStyle(fontSize: 14, color: Colors.grey),
+            Text(
+              localizations.translate('create_donations_to_see'),
+              style: const TextStyle(fontSize: 14, color: Colors.grey),
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
@@ -214,7 +218,7 @@ class _DonorHistoryScreenState extends State<DonorHistoryScreen> {
                 Navigator.pop(context);
               },
               icon: const Icon(Icons.add),
-              label: const Text('Create Donation'),
+              label: Text(localizations.translate('create_donation')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green.shade600,
                 foregroundColor: Colors.white,
@@ -225,10 +229,18 @@ class _DonorHistoryScreenState extends State<DonorHistoryScreen> {
       );
     }
 
-    return _buildDonationsList();
+    return _buildDonationsList(localizations);
   }
 
   Widget _buildFilterChips() {
+    final AppLocalizations localizations = AppLocalizations.of(context);
+    final List<String> translatedFilters = [
+      localizations.translate('all'),
+      localizations.translate('active'),
+      localizations.translate('accepted'),
+      localizations.translate('expired')
+    ];
+    
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       decoration: BoxDecoration(
@@ -245,12 +257,14 @@ class _DonorHistoryScreenState extends State<DonorHistoryScreen> {
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
-          children: _filterOptions.map((filter) {
+          children: List.generate(_filterOptions.length, (index) {
+            final filter = _filterOptions[index];
+            final translatedFilter = translatedFilters[index];
             final isSelected = _selectedFilter == filter;
             return Padding(
               padding: const EdgeInsets.only(right: 8),
               child: FilterChip(
-                label: Text(filter),
+                label: Text(translatedFilter),
                 selected: isSelected,
                 onSelected: (_) => _applyFilter(filter),
                 backgroundColor: Colors.grey.shade200,
@@ -269,13 +283,13 @@ class _DonorHistoryScreenState extends State<DonorHistoryScreen> {
                 ),
               ),
             );
-          }).toList(),
+          }),
         ),
       ),
     );
   }
 
-  Widget _buildDonationsList() {
+  Widget _buildDonationsList(AppLocalizations localizations) {
     if (_filteredDonations.isEmpty) {
       return Center(
         child: Column(
@@ -289,8 +303,8 @@ class _DonorHistoryScreenState extends State<DonorHistoryScreen> {
             const SizedBox(height: 16),
             Text(
               _searchQuery.isEmpty
-                ? 'No $_selectedFilter donations found'
-                : 'No results found for "$_searchQuery"',
+                ? localizations.translate('no_filtered_donations_found').replaceFirst('{0}', localizations.translate(_selectedFilter.toLowerCase()))
+                : localizations.translate('no_search_results_found').replaceFirst('{0}', _searchQuery),
               style: const TextStyle(fontSize: 16, color: Colors.grey),
             ),
           ],
@@ -306,20 +320,20 @@ class _DonorHistoryScreenState extends State<DonorHistoryScreen> {
         itemCount: _filteredDonations.length,
         itemBuilder: (context, index) {
           final donation = _filteredDonations[index];
-          return _buildDonationCard(donation);
+          return _buildDonationCard(donation, localizations);
         },
       ),
     );
   }
 
-  Widget _buildSearchBar() {
+  Widget _buildSearchBar(AppLocalizations localizations) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       color: Colors.white,
       child: TextField(
         controller: _searchController,
         decoration: InputDecoration(
-          hintText: 'Search food by name...',
+          hintText: localizations.translate('search_food_by_name'),
           prefixIcon: const Icon(Icons.search, color: Colors.green),
           suffixIcon: _searchQuery.isNotEmpty
               ? IconButton(
@@ -343,10 +357,10 @@ class _DonorHistoryScreenState extends State<DonorHistoryScreen> {
     );
   }
 
-  Widget _buildDonationCard(Map<String, dynamic> donation) {
-    final String foodName = donation['foodName'] ?? 'Unknown';
-    final String description = donation['description'] ?? 'No description';
-    final String foodType = donation['foodType'] ?? 'Unknown';
+  Widget _buildDonationCard(Map<String, dynamic> donation, AppLocalizations localizations) {
+    final String foodName = donation['foodName'] ?? localizations.translate('unknown');
+    final String description = donation['description'] ?? localizations.translate('no_description');
+    final String foodType = donation['foodType'] ?? localizations.translate('unknown');
     String status = donation['status'] ?? 'Active';
 
     // Determine status color
@@ -367,8 +381,8 @@ class _DonorHistoryScreenState extends State<DonorHistoryScreen> {
     }
 
     // Format dates using DateTimeHelper
-    String uploadDate = 'Unknown';
-    String expiryDate = 'Unknown';
+    String uploadDate = localizations.translate('unknown');
+    String expiryDate = localizations.translate('unknown');
 
     if (donation['timeOfUpload'] != null) {
       final DateTime timeOfUpload =
@@ -447,7 +461,7 @@ class _DonorHistoryScreenState extends State<DonorHistoryScreen> {
               ),
             ),
             child: Text(
-              status,
+              localizations.translate(status.toLowerCase()),
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: Colors.white,
@@ -515,7 +529,7 @@ class _DonorHistoryScreenState extends State<DonorHistoryScreen> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Quantity: ${donation['quantity']}',
+                            '${localizations.translate('quantity')}: ${donation['quantity']}',
                             style: const TextStyle(
                               fontSize: 14,
                               color: Colors.grey,
@@ -538,7 +552,7 @@ class _DonorHistoryScreenState extends State<DonorHistoryScreen> {
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                foodType,
+                                localizations.translate(foodType.toLowerCase()),
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: foodType.toLowerCase() == 'veg' ||
@@ -558,7 +572,7 @@ class _DonorHistoryScreenState extends State<DonorHistoryScreen> {
                 const SizedBox(height: 16),
                 // Description
                 Text(
-                  'Description:',
+                  '${localizations.translate('description')}:',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
@@ -572,7 +586,7 @@ class _DonorHistoryScreenState extends State<DonorHistoryScreen> {
                       showDialog(
                         context: context,
                         builder: (context) => AlertDialog(
-                          title: const Text('Description'),
+                          title: Text(localizations.translate('description')),
                           content: SingleChildScrollView(
                             child: Text(
                               description,
@@ -585,7 +599,7 @@ class _DonorHistoryScreenState extends State<DonorHistoryScreen> {
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.pop(context),
-                              child: const Text('Close'),
+                              child: Text(localizations.translate('close')),
                             ),
                           ],
                         ),
@@ -608,7 +622,7 @@ class _DonorHistoryScreenState extends State<DonorHistoryScreen> {
                         Padding(
                           padding: const EdgeInsets.only(top: 4),
                           child: Text(
-                            'Tap to read more',
+                            localizations.translate('tap_to_read_more'),
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.blue.shade600,
@@ -628,7 +642,7 @@ class _DonorHistoryScreenState extends State<DonorHistoryScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Created:',
+                            '${localizations.translate('created')}:',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
@@ -650,7 +664,7 @@ class _DonorHistoryScreenState extends State<DonorHistoryScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Expires:',
+                            '${localizations.translate('expires')}:',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
@@ -677,7 +691,7 @@ class _DonorHistoryScreenState extends State<DonorHistoryScreen> {
                 if (status == 'Accepted' && recipientName.isNotEmpty) ...[
                   const Divider(height: 32),
                   Text(
-                    'Accepted by:',
+                    '${localizations.translate('accepted_by')}:',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
@@ -693,7 +707,7 @@ class _DonorHistoryScreenState extends State<DonorHistoryScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Accepted on:',
+                    '${localizations.translate('accepted_on')}:',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
@@ -713,7 +727,7 @@ class _DonorHistoryScreenState extends State<DonorHistoryScreen> {
                 if (status == 'Expired' && expiredDate.isNotEmpty) ...[
                   const Divider(height: 32),
                   Text(
-                    'Expired on:',
+                    '${localizations.translate('expired_on')}:',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
