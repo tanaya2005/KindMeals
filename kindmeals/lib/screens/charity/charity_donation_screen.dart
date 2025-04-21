@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 import 'donation_history_screen.dart';
 import '../../utils/image_helper.dart';
 import '../../utils/env_config.dart';
+import '../../utils/app_localizations.dart';
 
 class CharityDonationScreen extends StatefulWidget {
   final Map<String, dynamic> charity;
@@ -30,6 +31,7 @@ class _CharityDonationScreenState extends State<CharityDonationScreen> {
   final _panCardController = TextEditingController();
   final _apiService = ApiService();
   late Razorpay _razorpay;
+  late AppLocalizations localizations;
 
   String _paymentMethod = 'UPI';
   bool _requestTaxBenefits = false;
@@ -79,7 +81,7 @@ class _CharityDonationScreenState extends State<CharityDonationScreen> {
   }
 
   void _handlePaymentSuccess(PaymentSuccessResponse response) async {
-    _showProcessingDialog('Processing your donation...');
+    _showProcessingDialog(localizations.translate('processing_donation'));
 
     try {
       if (kDebugMode) {
@@ -205,17 +207,17 @@ class _CharityDonationScreenState extends State<CharityDonationScreen> {
                 ],
               ),
               const SizedBox(height: 20),
-              const Text(
-                'Thank You!',
-                style: TextStyle(
+              Text(
+                localizations.translate('thank_you'),
+                style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Your donation was successful!',
-                style: TextStyle(fontSize: 16),
+              Text(
+                localizations.translate('donation_successful'),
+                style: const TextStyle(fontSize: 16),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
@@ -240,10 +242,10 @@ class _CharityDonationScreenState extends State<CharityDonationScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              const Text(
-                'Your contribution will make a real difference in someone\'s life.',
+              Text(
+                localizations.translate('contribution_difference'),
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   color: Colors.grey,
                   fontSize: 14,
                 ),
@@ -267,7 +269,7 @@ class _CharityDonationScreenState extends State<CharityDonationScreen> {
                       );
                     },
                     icon: const Icon(Icons.history),
-                    label: const Text('View History'),
+                    label: Text(localizations.translate('view_history')),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 12),
@@ -284,7 +286,7 @@ class _CharityDonationScreenState extends State<CharityDonationScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 24, vertical: 12),
                     ),
-                    child: const Text('Done'),
+                    child: Text(localizations.translate('done')),
                   ),
                 ],
               ),
@@ -327,7 +329,7 @@ class _CharityDonationScreenState extends State<CharityDonationScreen> {
       _isProcessing = true;
     });
 
-    _showProcessingDialog('Initializing payment...');
+    _showProcessingDialog(localizations.translate('initializing_payment'));
 
     final currencyFormatter = NumberFormat('#,##0.00');
     final options = {
@@ -418,9 +420,11 @@ class _CharityDonationScreenState extends State<CharityDonationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    localizations = AppLocalizations.of(context);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Make a Donation'),
+        title: Text(localizations.translate('make_a_donation')),
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
         actions: [
@@ -459,9 +463,9 @@ class _CharityDonationScreenState extends State<CharityDonationScreen> {
                     const SizedBox(height: 24),
 
                     // Personal information
-                    const Text(
-                      'Your Information',
-                      style: TextStyle(
+                    Text(
+                      localizations.translate('your_information'),
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
@@ -471,13 +475,13 @@ class _CharityDonationScreenState extends State<CharityDonationScreen> {
 
                     TextFormField(
                       controller: _nameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Full Name',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: localizations.translate('full_name'),
+                        border: const OutlineInputBorder(),
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'Please enter your name';
+                          return localizations.translate('enter_name');
                         }
                         return null;
                       },
@@ -487,17 +491,17 @@ class _CharityDonationScreenState extends State<CharityDonationScreen> {
 
                     TextFormField(
                       controller: _emailController,
-                      decoration: const InputDecoration(
-                        labelText: 'Email',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: localizations.translate('email'),
+                        border: const OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.emailAddress,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'Please enter your email';
+                          return localizations.translate('enter_email');
                         }
                         if (!value.contains('@')) {
-                          return 'Please enter a valid email';
+                          return localizations.translate('valid_email');
                         }
                         return null;
                       },
@@ -507,14 +511,14 @@ class _CharityDonationScreenState extends State<CharityDonationScreen> {
 
                     TextFormField(
                       controller: _phoneController,
-                      decoration: const InputDecoration(
-                        labelText: 'Phone Number',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: localizations.translate('phone_number'),
+                        border: const OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.phone,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'Please enter your phone number';
+                          return localizations.translate('enter_contact');
                         }
                         return null;
                       },
@@ -524,7 +528,7 @@ class _CharityDonationScreenState extends State<CharityDonationScreen> {
 
                     // Tax benefits checkbox
                     CheckboxListTile(
-                      title: const Text('Request Tax Benefits (80G)'),
+                      title: Text(localizations.translate('request_tax_benefits')),
                       value: _requestTaxBenefits,
                       onChanged: (value) {
                         setState(() {
@@ -542,15 +546,15 @@ class _CharityDonationScreenState extends State<CharityDonationScreen> {
                           const SizedBox(height: 8),
                           TextFormField(
                             controller: _panCardController,
-                            decoration: const InputDecoration(
-                              labelText: 'PAN Card Number',
-                              border: OutlineInputBorder(),
-                              helperText: 'Required for tax benefits',
+                            decoration: InputDecoration(
+                              labelText: localizations.translate('pan_card_number'),
+                              border: const OutlineInputBorder(),
+                              helperText: localizations.translate('required_for_tax_benefits'),
                             ),
                             validator: (value) {
                               if (_requestTaxBenefits &&
                                   (value == null || value.isEmpty)) {
-                                return 'Please enter your PAN card number';
+                                return localizations.translate('enter_id');
                               }
                               return null;
                             },
@@ -561,9 +565,9 @@ class _CharityDonationScreenState extends State<CharityDonationScreen> {
                     const SizedBox(height: 24),
 
                     // Payment method selection
-                    const Text(
-                      'Payment Method',
-                      style: TextStyle(
+                    Text(
+                      localizations.translate('payment_method'),
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
@@ -605,7 +609,7 @@ class _CharityDonationScreenState extends State<CharityDonationScreen> {
 
                     // Privacy note
                     Text(
-                      'Your information is secure and will only be used for donation purposes.',
+                      localizations.translate('information_secure'),
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.grey.shade600,
@@ -667,7 +671,7 @@ class _CharityDonationScreenState extends State<CharityDonationScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  widget.charity['description'] ?? 'Support our cause',
+                  widget.charity['description'] ?? localizations.translate('support_our_cause'),
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.grey.shade700,
@@ -715,9 +719,9 @@ class _CharityDonationScreenState extends State<CharityDonationScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Select Amount',
-          style: TextStyle(
+        Text(
+          localizations.translate('select_amount'),
+          style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
           ),
@@ -768,7 +772,7 @@ class _CharityDonationScreenState extends State<CharityDonationScreen> {
         // Custom amount field
         TextFormField(
           decoration: InputDecoration(
-            labelText: 'Custom Amount',
+            labelText: localizations.translate('custom_amount'),
             prefixText: '₹',
             border: const OutlineInputBorder(),
             hintText: NumberFormat('#,##0').format(_selectedAmount),
@@ -804,7 +808,7 @@ class _CharityDonationScreenState extends State<CharityDonationScreen> {
             children: [
               const Icon(Icons.account_balance),
               const SizedBox(width: 8),
-              const Text('UPI / Google Pay / PhonePe'),
+              Text(localizations.translate('upi_gpay_phonepe')),
             ],
           ),
           value: 'UPI',
@@ -820,7 +824,7 @@ class _CharityDonationScreenState extends State<CharityDonationScreen> {
             children: [
               const Icon(Icons.credit_card),
               const SizedBox(width: 8),
-              const Text('Credit/Debit Card'),
+              Text(localizations.translate('credit_debit_card')),
             ],
           ),
           value: 'Card',
@@ -836,7 +840,7 @@ class _CharityDonationScreenState extends State<CharityDonationScreen> {
             children: [
               const Icon(Icons.account_balance_wallet),
               const SizedBox(width: 8),
-              const Text('Net Banking'),
+              Text(localizations.translate('net_banking')),
             ],
           ),
           value: 'NetBanking',

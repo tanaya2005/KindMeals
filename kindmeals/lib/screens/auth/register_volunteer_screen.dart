@@ -4,6 +4,7 @@ import 'dart:io';
 import '../../services/firebase_service.dart';
 import '../../services/api_service.dart';
 import '../../services/location_service.dart';
+import '../../utils/app_localizations.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter/foundation.dart';
 
@@ -218,9 +219,11 @@ class _RegisterVolunteerScreenState extends State<RegisterVolunteerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+    
     return Scaffold(
       appBar: AppBar(
-          title: const Text('Volunteer Registration'), centerTitle: true),
+          title: Text(localizations.translate('volunteer_registration')), centerTitle: true),
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -259,7 +262,7 @@ class _RegisterVolunteerScreenState extends State<RegisterVolunteerScreen> {
                 TextFormField(
                   controller: _nameController,
                   decoration: InputDecoration(
-                    labelText: 'Full Name',
+                    labelText: localizations.translate('full_name'),
                     prefixIcon: const Icon(Icons.person),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -267,7 +270,7 @@ class _RegisterVolunteerScreenState extends State<RegisterVolunteerScreen> {
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter your name';
+                      return localizations.translate('enter_name');
                     }
                     return null;
                   },
@@ -276,7 +279,7 @@ class _RegisterVolunteerScreenState extends State<RegisterVolunteerScreen> {
                 TextFormField(
                   controller: _emailController,
                   decoration: InputDecoration(
-                    labelText: 'Email',
+                    labelText: localizations.translate('email'),
                     prefixIcon: const Icon(Icons.email),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -285,10 +288,10 @@ class _RegisterVolunteerScreenState extends State<RegisterVolunteerScreen> {
                   keyboardType: TextInputType.emailAddress,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter your email';
+                      return localizations.translate('enter_email');
                     }
                     if (!value.contains('@')) {
-                      return 'Please enter a valid email';
+                      return localizations.translate('valid_email');
                     }
                     return null;
                   },
@@ -297,7 +300,7 @@ class _RegisterVolunteerScreenState extends State<RegisterVolunteerScreen> {
                 TextFormField(
                   controller: _passwordController,
                   decoration: InputDecoration(
-                    labelText: 'Password',
+                    labelText: localizations.translate('password'),
                     prefixIcon: const Icon(Icons.lock),
                     suffixIcon: IconButton(
                       icon: Icon(
@@ -318,10 +321,10 @@ class _RegisterVolunteerScreenState extends State<RegisterVolunteerScreen> {
                   obscureText: _obscurePassword,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter a password';
+                      return localizations.translate('enter_password');
                     }
                     if (value.length < 6) {
-                      return 'Password must be at least 6 characters';
+                      return localizations.translate('password_length');
                     }
                     return null;
                   },
@@ -330,7 +333,7 @@ class _RegisterVolunteerScreenState extends State<RegisterVolunteerScreen> {
                 TextFormField(
                   controller: _aadharController,
                   decoration: InputDecoration(
-                    labelText: 'Aadhar Number',
+                    labelText: localizations.translate('aadhar_number'),
                     prefixIcon: const Icon(Icons.credit_card),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -339,7 +342,7 @@ class _RegisterVolunteerScreenState extends State<RegisterVolunteerScreen> {
                   keyboardType: TextInputType.number,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter your Aadhar number';
+                      return localizations.translate('enter_id');
                     }
                     return null;
                   },
@@ -348,7 +351,7 @@ class _RegisterVolunteerScreenState extends State<RegisterVolunteerScreen> {
                 TextFormField(
                   controller: _contactController,
                   decoration: InputDecoration(
-                    labelText: 'Contact Number',
+                    labelText: localizations.translate('contact_number'),
                     prefixIcon: const Icon(Icons.phone),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -357,7 +360,7 @@ class _RegisterVolunteerScreenState extends State<RegisterVolunteerScreen> {
                   keyboardType: TextInputType.phone,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter your contact number';
+                      return localizations.translate('enter_contact');
                     }
                     return null;
                   },
@@ -365,8 +368,9 @@ class _RegisterVolunteerScreenState extends State<RegisterVolunteerScreen> {
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _addressController,
+                  readOnly: true,
                   decoration: InputDecoration(
-                    labelText: 'Address',
+                    labelText: localizations.translate('address_click_detect'),
                     prefixIcon: const Icon(Icons.home),
                     suffixIcon: IconButton(
                       icon: _isGettingLocation
@@ -386,10 +390,11 @@ class _RegisterVolunteerScreenState extends State<RegisterVolunteerScreen> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
+                  onTap: _isGettingLocation ? null : _getLocation,
                   maxLines: 2,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter your address';
+                      return localizations.translate('get_address');
                     }
                     return null;
                   },
@@ -410,7 +415,7 @@ class _RegisterVolunteerScreenState extends State<RegisterVolunteerScreen> {
                 TextFormField(
                   controller: _aboutController,
                   decoration: InputDecoration(
-                    labelText: 'About Yourself',
+                    labelText: localizations.translate('about_yourself'),
                     prefixIcon: const Icon(Icons.info_outline),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -420,7 +425,7 @@ class _RegisterVolunteerScreenState extends State<RegisterVolunteerScreen> {
                 ),
                 const SizedBox(height: 16),
                 SwitchListTile(
-                  title: const Text('Do you have a vehicle for deliveries?'),
+                  title: Text(localizations.translate('have_vehicle')),
                   value: _hasVehicle,
                   activeColor: Colors.green,
                   contentPadding: EdgeInsets.zero,
@@ -434,7 +439,7 @@ class _RegisterVolunteerScreenState extends State<RegisterVolunteerScreen> {
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     decoration: InputDecoration(
-                      labelText: 'Vehicle Type',
+                      labelText: localizations.translate('vehicle_type'),
                       prefixIcon: const Icon(Icons.motorcycle),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
@@ -456,7 +461,7 @@ class _RegisterVolunteerScreenState extends State<RegisterVolunteerScreen> {
                     },
                     validator: (value) {
                       if (_hasVehicle && (value == null || value.isEmpty)) {
-                        return 'Please select a vehicle type';
+                        return localizations.translate('select_vehicle_type');
                       }
                       return null;
                     },
@@ -465,7 +470,7 @@ class _RegisterVolunteerScreenState extends State<RegisterVolunteerScreen> {
                   TextFormField(
                     controller: _vehicleNumberController,
                     decoration: InputDecoration(
-                      labelText: 'Vehicle Number',
+                      labelText: localizations.translate('vehicle_number'),
                       prefixIcon: const Icon(Icons.confirmation_number),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
@@ -473,7 +478,7 @@ class _RegisterVolunteerScreenState extends State<RegisterVolunteerScreen> {
                     ),
                     validator: (value) {
                       if (_hasVehicle && (value == null || value.isEmpty)) {
-                        return 'Please enter your vehicle number';
+                        return localizations.translate('enter_vehicle_number');
                       }
                       return null;
                     },
@@ -482,9 +487,9 @@ class _RegisterVolunteerScreenState extends State<RegisterVolunteerScreen> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Driving License Image',
-                        style: TextStyle(
+                      Text(
+                        localizations.translate('driving_license'),
+                        style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
                         ),
@@ -510,11 +515,11 @@ class _RegisterVolunteerScreenState extends State<RegisterVolunteerScreen> {
                               : Center(
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
-                                    children: const [
-                                      Icon(Icons.upload_file,
+                                    children: [
+                                      const Icon(Icons.upload_file,
                                           size: 40, color: Colors.grey),
-                                      SizedBox(height: 8),
-                                      Text('Upload License Image'),
+                                      const SizedBox(height: 8),
+                                      Text(localizations.translate('upload_license')),
                                     ],
                                   ),
                                 ),
@@ -535,9 +540,9 @@ class _RegisterVolunteerScreenState extends State<RegisterVolunteerScreen> {
                   ),
                   child: _isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                          'Register',
-                          style: TextStyle(fontSize: 18, color: Colors.white),
+                      : Text(
+                          localizations.translate('register'),
+                          style: const TextStyle(fontSize: 18, color: Colors.white),
                         ),
                 ),
                 const SizedBox(height: 16),

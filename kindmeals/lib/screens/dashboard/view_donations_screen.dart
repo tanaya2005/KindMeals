@@ -2,10 +2,14 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:io' show Platform;
 import '../../services/api_service.dart';
 import '../../config/api_config.dart';
 import 'donation_detail_screen.dart';
 import '../../utils/date_time_helper.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:url_launcher/url_launcher_string.dart';
+import '../../utils/app_localizations.dart';
 
 class ViewDonationsScreen extends StatefulWidget {
   final VoidCallback? onDonationAccepted;
@@ -65,16 +69,16 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
     } catch (e) {
       print('Error fetching donations: $e');
       String errorMsg = e.toString().replaceAll('Exception: ', '');
+      
+      final AppLocalizations localizations = AppLocalizations.of(context);
 
       // Provide more user-friendly error messages
       if (errorMsg.contains('User not found in database')) {
-        errorMsg =
-            'Your profile was not found. Please ensure you are registered as a recipient to view donations.';
+        errorMsg = localizations.translate('profile_not_found_recipient');
       } else if (errorMsg.contains('Failed to get live donations')) {
-        errorMsg =
-            'Unable to load donations at this time. Please try again later.';
+        errorMsg = localizations.translate('unable_to_load_donations');
       } else if (errorMsg.contains('No authenticated user found')) {
-        errorMsg = 'Please sign in to view donations.';
+        errorMsg = localizations.translate('sign_in_to_view_donations');
       }
 
       setState(() {
@@ -100,7 +104,8 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
           .where((donation) => donation['needsVolunteer'] == true)
           .toList();
     }
-    
+
+
     // Apply search query filter
     if (_searchQuery.isNotEmpty) {
       final String query = _searchQuery.toLowerCase();
@@ -137,13 +142,125 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
     });
   }
 
+  // Launch phone call intent when the donor contact is clicked
+  void _launchPhoneCall(String phoneNumber) async {
+    try {
+      // Clean up phone number to ensure it's just digits, plus sign, and dashes
+      final cleanedNumber = phoneNumber.replaceAll(RegExp(r'[^\d\+\-]'), '');
+
+      // Create the tel: URI
+      final Uri uri = Uri.parse('tel:$cleanedNumber');
+
+      if (kDebugMode) {
+        print('Attempting to launch phone app with: $uri');
+      }
+
+      // Use launchUrl instead of canLaunch/launch for more reliable behavior
+      final bool launched = await launchUrl(uri);
+
+      if (!launched) {
+        if (kDebugMode) {
+          print('Could not launch phone app with URI: $uri');
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error launching phone call: $e');
+      }
+    }
+  }
+
+  // Launch Google Maps with directions from recipient to donor
+  Future<void> _launchMapsDirections(String destinationAddress) async {
+    try {
+      // Try multiple approaches for launching maps based on platform
+      bool launched = false;
+
+      if (Platform.isAndroid) {
+        // Try Android-specific intent
+        try {
+          final String encodedDestination =
+              Uri.encodeComponent(destinationAddress);
+          final Uri uri = Uri.parse(
+              'https://www.google.com/maps/dir/?api=1&destination=$encodedDestination&travelmode=driving');
+
+          if (kDebugMode) {
+            print('Trying Google Maps URI for Android: $uri');
+          }
+
+          if (await canLaunchUrl(uri)) {
+            launched = await launchUrl(
+              uri,
+              mode: LaunchMode.externalApplication,
+            );
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            print('Error with Google Maps URI: $e');
+          }
+        }
+      } else if (Platform.isIOS) {
+        // iOS approach - try Apple Maps first
+        try {
+          final String encodedDestination =
+              Uri.encodeComponent(destinationAddress);
+          final Uri uri = Uri.parse(
+              'https://maps.apple.com/?daddr=$encodedDestination&dirflg=d');
+
+          if (kDebugMode) {
+            print('Trying Apple Maps URI: $uri');
+          }
+
+          if (await canLaunchUrl(uri)) {
+            launched = await launchUrl(
+              uri,
+              mode: LaunchMode.externalApplication,
+            );
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            print('Error with Apple Maps URI: $e');
+          }
+        }
+      }
+
+      // Last resort - try web URL if all else failed
+      if (!launched) {
+        final String encodedDestination =
+            Uri.encodeComponent(destinationAddress);
+        final Uri uri = Uri.parse(
+            'https://www.google.com/maps/search/?api=1&query=$encodedDestination');
+
+        if (kDebugMode) {
+          print('Trying web fallback: $uri');
+        }
+
+        if (await canLaunchUrl(uri)) {
+          launched = await launchUrl(
+            uri,
+            mode: LaunchMode.externalApplication,
+          );
+        } else {
+          throw Exception('Could not launch maps on this device');
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error launching Maps: $e');
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final AppLocalizations localizations = AppLocalizations.of(context);
+    
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Available Donations',
-            style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(
+          localizations.translate('available_donations'),
+          style: const TextStyle(fontWeight: FontWeight.bold)
+        ),
         centerTitle: true,
         backgroundColor: _primaryGreen,
         foregroundColor: Colors.white,
@@ -170,6 +287,8 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
   }
 
   void _showFilterBottomSheet() {
+    final AppLocalizations localizations = AppLocalizations.of(context);
+    
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -188,7 +307,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Filter Donations',
+                      localizations.translate('filter_donations'),
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -205,7 +324,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
 
                 // Food Type Filter
                 Text(
-                  'Food Type',
+                  localizations.translate('food_type'),
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: _primaryGreen,
@@ -221,7 +340,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                         padding: const EdgeInsets.only(right: 8.0),
                         child: ChoiceChip(
                           label: Text(
-                            type.toUpperCase(),
+                            localizations.translate(type).toUpperCase(),
                             style: TextStyle(
                               color: isSelected ? Colors.white : _primaryGreen,
                             ),
@@ -244,7 +363,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
 
                 // Sort By
                 Text(
-                  'Sort By',
+                  localizations.translate('sort_by'),
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: _primaryGreen,
@@ -256,16 +375,12 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                   child: Row(
                     children: _sortOptions.map((option) {
                       bool isSelected = _selectedSortBy == option;
-                      String displayName = option == 'expiry'
-                          ? 'Expiry Date'
-                          : option == 'distance'
-                              ? 'Distance'
-                              : 'Quantity';
+                      String displayKey = 'sort_by_$option';
                       return Padding(
                         padding: const EdgeInsets.only(right: 8.0),
                         child: ChoiceChip(
                           label: Text(
-                            displayName,
+                            localizations.translate(displayKey),
                             style: TextStyle(
                               color: isSelected ? Colors.white : _primaryGreen,
                             ),
@@ -291,7 +406,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Maximum Distance: ${_maxDistance.toStringAsFixed(1)} km',
+                      '${localizations.translate('maximum_distance')}: ${_maxDistance.toStringAsFixed(1)} ${localizations.translate('km')}',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: _primaryGreen,
@@ -335,7 +450,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                         });
                       },
                     ),
-                    const Text('Show donations needing volunteer assistance'),
+                    Text(localizations.translate('show_needs_volunteer')),
                   ],
                 ),
 
@@ -358,7 +473,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                         foregroundColor: _primaryGreen,
                         side: BorderSide(color: _primaryGreen),
                       ),
-                      child: const Text('Reset'),
+                      child: Text(localizations.translate('reset')),
                     ),
                     ElevatedButton(
                       onPressed: () {
@@ -377,7 +492,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                         backgroundColor: _primaryGreen,
                         foregroundColor: Colors.white,
                       ),
-                      child: const Text('Apply Filters'),
+                      child: Text(localizations.translate('apply_filters')),
                     ),
                   ],
                 ),
@@ -390,6 +505,8 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
   }
 
   Widget _buildBody() {
+    final AppLocalizations localizations = AppLocalizations.of(context);
+    
     if (_isLoading) {
       return Center(
         child: CircularProgressIndicator(
@@ -412,7 +529,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Text(
-                'Error: $_errorMessage',
+                '${localizations.translate('error')}: $_errorMessage',
                 style: const TextStyle(color: Colors.red),
                 textAlign: TextAlign.center,
               ),
@@ -421,7 +538,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
             ElevatedButton.icon(
               onPressed: _fetchDonations,
               icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
+              label: Text(localizations.translate('retry')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: _primaryGreen,
                 foregroundColor: Colors.white,
@@ -429,14 +546,14 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                     const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               ),
             ),
-            if (_errorMessage.contains('profile was not found')) ...[
+            if (_errorMessage.contains(localizations.translate('profile_not_found_recipient'))) ...[
               const SizedBox(height: 16),
               TextButton.icon(
                 onPressed: () {
                   Navigator.pushNamed(context, '/profile');
                 },
                 icon: const Icon(Icons.person),
-                label: const Text('Go to Profile'),
+                label: Text(localizations.translate('go_to_profile')),
                 style: TextButton.styleFrom(
                   foregroundColor: _primaryGreen,
                 ),
@@ -460,7 +577,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
               });
             },
             decoration: InputDecoration(
-              hintText: 'Search for food...',
+              hintText: localizations.translate('search_food'),
               prefixIcon: Icon(Icons.search, color: _primaryGreen),
               filled: true,
               fillColor: Colors.white,
@@ -477,17 +594,17 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                 borderSide: BorderSide(color: _primaryGreen, width: 2.0),
               ),
               contentPadding: const EdgeInsets.symmetric(vertical: 0.0),
-              suffixIcon: _searchQuery.isNotEmpty 
-                ? IconButton(
-                    icon: const Icon(Icons.clear),
-                    onPressed: () {
-                      setState(() {
-                        _searchQuery = '';
-                        _applyFilters();
-                      });
-                    },
-                  ) 
-                : null,
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        setState(() {
+                          _searchQuery = '';
+                          _applyFilters();
+                        });
+                      },
+                    )
+                  : null,
             ),
           ),
         ),
@@ -499,7 +616,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Available Donations (${_filteredDonations.length})',
+                '${localizations.translate('available_donations')} (${_filteredDonations.length})',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -509,7 +626,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
               ElevatedButton.icon(
                 onPressed: _showFilterBottomSheet,
                 icon: const Icon(Icons.filter_list, size: 18),
-                label: const Text('Filter'),
+                label: Text(localizations.translate('filter')),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _primaryGreen,
                   foregroundColor: Colors.white,
@@ -534,7 +651,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                     Padding(
                       padding: const EdgeInsets.only(right: 8.0),
                       child: Chip(
-                        label: Text(_selectedFoodType.toUpperCase()),
+                        label: Text(localizations.translate(_selectedFoodType).toUpperCase()),
                         deleteIcon: const Icon(Icons.close, size: 15),
                         onDeleted: () {
                           setState(() {
@@ -548,7 +665,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                     ),
                   if (_showNeedsVolunteer)
                     Chip(
-                      label: const Text('Needs Volunteer'),
+                      label: Text(localizations.translate('needs_volunteer')),
                       deleteIcon: const Icon(Icons.close, size: 15),
                       onDeleted: () {
                         setState(() {
@@ -586,9 +703,11 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
   }
 
   Widget _buildEmptyState() {
+    final AppLocalizations localizations = AppLocalizations.of(context);
     // Create a text controller to clear the search field
     final TextEditingController controller = TextEditingController();
-    
+
+
     return Center(
       child: SingleChildScrollView(
         child: Column(
@@ -600,17 +719,17 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
               color: _primaryGreen.withOpacity(0.5),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'No available donations found',
-              style: TextStyle(fontSize: 18),
+            Text(
+              localizations.translate('no_available_donations'),
+              style: const TextStyle(fontSize: 18),
             ),
             const SizedBox(height: 8),
             Text(
               _searchQuery.isNotEmpty
-                  ? 'No results found for "$_searchQuery"'
+                  ? '${localizations.translate('no_results_for')} "$_searchQuery"'
                   : _donations.isEmpty
-                      ? 'Check back later for new donations'
-                      : 'Try changing your filters to see more donations',
+                      ? localizations.translate('check_back_later')
+                      : localizations.translate('try_changing_filters'),
               style: const TextStyle(fontSize: 14, color: Colors.grey),
               textAlign: TextAlign.center,
             ),
@@ -618,7 +737,12 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                if (_searchQuery.isNotEmpty || _selectedFoodType != 'all' || _showNeedsVolunteer)
+                if (_searchQuery.isNotEmpty ||
+                    _selectedFoodType != 'all' ||
+                    _showNeedsVolunteer)
+                if (_searchQuery.isNotEmpty ||
+                    _selectedFoodType != 'all' ||
+                    _showNeedsVolunteer)
                   Padding(
                     padding: const EdgeInsets.only(right: 8.0),
                     child: OutlinedButton.icon(
@@ -632,7 +756,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                         });
                       },
                       icon: const Icon(Icons.clear),
-                      label: const Text('Clear Filters'),
+                      label: Text(localizations.translate('clear_filters')),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: _primaryGreen,
                       ),
@@ -641,7 +765,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                 ElevatedButton.icon(
                   onPressed: _fetchDonations,
                   icon: const Icon(Icons.refresh),
-                  label: const Text('Refresh'),
+                  label: Text(localizations.translate('refresh')),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _primaryGreen,
                     foregroundColor: Colors.white,
@@ -656,12 +780,14 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
   }
 
   Widget _buildDonationCard(Map<String, dynamic> donation) {
-    final String foodName = donation['foodName'] ?? 'Unknown';
-    final String description = donation['description'] ?? 'No description';
-    final String foodType = donation['foodType'] ?? 'Unknown';
+    final AppLocalizations localizations = AppLocalizations.of(context);
+    
+    final String foodName = donation['foodName'] ?? localizations.translate('unknown');
+    final String description = donation['description'] ?? localizations.translate('no_description');
+    final String foodType = donation['foodType'] ?? localizations.translate('unknown');
     final String address =
-        donation['location']?['address'] ?? 'Unknown location';
-    final String donorName = donation['donorName'] ?? 'Anonymous';
+        donation['location']?['address'] ?? localizations.translate('unknown_location');
+    final String donorName = donation['donorName'] ?? localizations.translate('anonymous');
     final bool needsVolunteer = donation['needsVolunteer'] == true;
 
     // Format expiry date
@@ -748,7 +874,8 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                             color: _lightGreen,
                             gradient: LinearGradient(
                               colors: [
-                                _lightGreen, 
+                                _lightGreen,
+                                _lightGreen,
                                 _mediumGreen.withOpacity(0.3)
                               ],
                               begin: Alignment.topLeft,
@@ -759,8 +886,8 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(
-                                foodType.toLowerCase() == 'veg' 
-                                    ? Icons.eco 
+                                foodType.toLowerCase() == 'veg'
+                                    ? Icons.eco
                                     : foodType.toLowerCase() == 'jain'
                                         ? Icons.spa
                                         : Icons.fastfood,
@@ -791,10 +918,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                         top: Radius.circular(15),
                       ),
                       gradient: LinearGradient(
-                        colors: [
-                          _lightGreen, 
-                          _mediumGreen.withOpacity(0.3)
-                        ],
+                        colors: [_lightGreen, _mediumGreen.withOpacity(0.3)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -803,8 +927,8 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          foodType.toLowerCase() == 'veg' 
-                              ? Icons.eco 
+                          foodType.toLowerCase() == 'veg'
+                              ? Icons.eco
                               : foodType.toLowerCase() == 'jain'
                                   ? Icons.spa
                                   : Icons.fastfood,
@@ -813,7 +937,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'No image available',
+                          localizations.translate('no_image_available'),
                           style: TextStyle(
                             color: _primaryGreen,
                             fontWeight: FontWeight.w500,
@@ -850,7 +974,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                               color: Colors.orange[800], size: 14),
                           const SizedBox(width: 4),
                           Text(
-                            'Needs Volunteer',
+                            localizations.translate('needs_volunteer'),
                             style: TextStyle(
                               color: Colors.orange[800],
                               fontSize: 12,
@@ -888,7 +1012,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                           Icon(Icons.timer, color: Colors.red[800], size: 14),
                           const SizedBox(width: 4),
                           Text(
-                            'Expiring Soon',
+                            localizations.translate('expiring_soon'),
                             style: TextStyle(
                               color: Colors.red[800],
                               fontSize: 12,
@@ -952,7 +1076,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                       Icon(Icons.restaurant, color: _primaryGreen, size: 18),
                       const SizedBox(width: 8),
                       Text(
-                        'Quantity: ${donation['quantity'] ?? 'Unknown'} servings',
+                        '${localizations.translate('quantity')}: ${donation['quantity'] ?? localizations.translate('unknown')} ${localizations.translate('servings')}',
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.grey[700],
@@ -968,7 +1092,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                         showDialog(
                           context: context,
                           builder: (context) => AlertDialog(
-                            title: const Text('Description'),
+                            title: Text(localizations.translate('description')),
                             content: SingleChildScrollView(
                               child: Text(
                                 description,
@@ -982,7 +1106,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                             actions: [
                               TextButton(
                                 onPressed: () => Navigator.pop(context),
-                                child: const Text('Close'),
+                                child: Text(localizations.translate('close')),
                               ),
                             ],
                           ),
@@ -993,7 +1117,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Description:',
+                          '${localizations.translate('description')}:',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
@@ -1017,7 +1141,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                           Padding(
                             padding: const EdgeInsets.only(top: 4),
                             child: Text(
-                              'Tap to read more',
+                              localizations.translate('tap_to_read_more'),
                               style: TextStyle(
                                 fontSize: 12,
                                 color: _primaryGreen,
@@ -1042,7 +1166,8 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                       CircleAvatar(
                         radius: 20,
                         backgroundColor: Colors.blue[50],
-                        child: Icon(Icons.person, color: Colors.blue[700], size: 20),
+                        child: Icon(Icons.person,
+                            color: Colors.blue[700], size: 20),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -1060,15 +1185,52 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              'Donor',
+                              localizations.translate('donor'),
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.grey[600],
                               ),
                             ),
+                            // Add Contact button if available
+                            if (donation['donorContact'] != null &&
+                                donation['donorContact'].toString().isNotEmpty)
+                              GestureDetector(
+                                onTap: () => _launchPhoneCall(
+                                    donation['donorContact'].toString()),
+                                child: Padding(
+                                  padding: const EdgeInsets.only(top: 4.0),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.phone,
+                                          size: 14, color: Colors.blue[700]),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        donation['donorContact'].toString(),
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.blue[700],
+                                          decoration: TextDecoration.underline,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
                       ),
+                      // Phone icon to directly call donor
+                      if (donation['donorContact'] != null &&
+                          donation['donorContact'].toString().isNotEmpty)
+                        IconButton(
+                          icon: Icon(Icons.call, color: Colors.blue[700]),
+                          onPressed: () => _launchPhoneCall(
+                              donation['donorContact'].toString()),
+                          tooltip: localizations.translate('call_donor'),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          iconSize: 20,
+                        ),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -1087,6 +1249,15 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                           ),
                         ),
                       ),
+                      // Add navigation icon to open Google Maps
+                      IconButton(
+                        icon: Icon(Icons.directions, color: Colors.blue[700]),
+                        onPressed: () => _launchMapsDirections(address),
+                        tooltip: localizations.translate('get_directions'),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        iconSize: 20,
+                      ),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -1098,10 +1269,11 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Expires: $expiryDate',
+                          '${localizations.translate('expires')}: $expiryDate',
                           style: TextStyle(
                             fontSize: 13,
-                            color: isExpiringSoon ? Colors.red : Colors.grey[700],
+                            color:
+                                isExpiringSoon ? Colors.red : Colors.grey[700],
                             fontWeight: isExpiringSoon ? FontWeight.bold : null,
                           ),
                         ),
@@ -1126,7 +1298,7 @@ class _ViewDonationsScreenState extends State<ViewDonationsScreen> {
                         );
                       },
                       icon: const Icon(Icons.visibility),
-                      label: const Text('VIEW DETAILS'),
+                      label: Text(localizations.translate('view_details').toUpperCase()),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _primaryGreen,
                         foregroundColor: Colors.white,

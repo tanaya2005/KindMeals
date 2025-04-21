@@ -6,6 +6,7 @@ import '../../services/api_service.dart';
 import '../../config/api_config.dart';
 import '../../utils/date_time_helper.dart';
 import '../../services/location_service.dart';
+import '../../utils/app_localizations.dart';
 import 'package:intl/intl.dart';
 
 class RecipientHistoryScreen extends StatefulWidget {
@@ -65,15 +66,17 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
     } catch (e) {
       print('Error fetching accepted donations: $e');
       String errorMsg = e.toString().replaceAll('Exception: ', '');
+      
+      final AppLocalizations localizations = AppLocalizations.of(context);
 
       // Provide more user-friendly error messages
       if (errorMsg.contains('Not found')) {
-        errorMsg = 'No donation history found. Please try again later.';
+        errorMsg = localizations.translate('no_donation_history_found');
       } else if (errorMsg.contains('No authenticated user found')) {
-        errorMsg = 'Please sign in to view your donation history.';
+        errorMsg = localizations.translate('sign_in_to_view_donations');
       } else {
         // General error message for any other error
-        errorMsg = 'Unable to load donations. Please try again later.';
+        errorMsg = localizations.translate('unable_to_load_donations');
       }
 
       setState(() {
@@ -91,6 +94,7 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
     });
 
     try {
+      final AppLocalizations localizations = AppLocalizations.of(context);
       final position = await LocationService.getCurrentLocation();
       if (position != null) {
         await _fetchAcceptedDonations();
@@ -98,7 +102,7 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                  'Location updated. Donations refreshed with distance information.'),
+                  localizations.translate('location_updated_donations_refreshed')),
               backgroundColor: Colors.green,
             ),
           );
@@ -108,7 +112,7 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                  'Could not get your location. Please ensure location services are enabled.'),
+                  localizations.translate('could_not_get_location')),
               backgroundColor: Colors.orange,
             ),
           );
@@ -119,9 +123,10 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
         print('Error getting location: $e');
       }
       if (mounted) {
+        final AppLocalizations localizations = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error updating location: ${e.toString()}'),
+            content: Text('${localizations.translate('error_updating_location')}: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -182,29 +187,30 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
   }
 
   Future<void> _addFeedback(String donationId, String currentFeedback) async {
+    final AppLocalizations localizations = AppLocalizations.of(context);
     final TextEditingController feedbackController =
         TextEditingController(text: currentFeedback);
 
     final feedbackResult = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Add Feedback'),
+        title: Text(localizations.translate('add_feedback')),
         content: TextField(
           controller: feedbackController,
-          decoration: const InputDecoration(
-            hintText: 'Share your experience about this donation...',
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            hintText: localizations.translate('share_experience_hint'),
+            border: const OutlineInputBorder(),
           ),
           maxLines: 3,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(localizations.translate('cancel')),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, feedbackController.text),
-            child: const Text('Submit'),
+            child: Text(localizations.translate('submit')),
           ),
         ],
       ),
@@ -226,8 +232,8 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Feedback submitted successfully!'),
+            SnackBar(
+              content: Text(localizations.translate('feedback_submitted_successfully')),
               backgroundColor: Colors.green,
             ),
           );
@@ -238,7 +244,7 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                  'Error submitting feedback: ${e.toString().replaceAll('Exception: ', '')}'),
+                  '${localizations.translate('error_submitting_feedback')}: ${e.toString().replaceAll('Exception: ', '')}'),
               backgroundColor: Colors.red,
             ),
           );
@@ -251,6 +257,7 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
   }
   
   void _showFilterBottomSheet() {
+    final AppLocalizations localizations = AppLocalizations.of(context);
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -269,7 +276,7 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Filter Donation History',
+                      localizations.translate('filter_donation_history'),
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -286,7 +293,7 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
                 
                 // Time Period Filter
                 Text(
-                  'Time Period',
+                  localizations.translate('time_period'),
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: primaryGreen,
@@ -302,7 +309,7 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
                         padding: const EdgeInsets.only(right: 8.0),
                         child: ChoiceChip(
                           label: Text(
-                            type,
+                            localizations.translate(type.toLowerCase().replaceAll(' ', '_')),
                             style: TextStyle(
                               color: isSelected ? Colors.white : primaryGreen,
                             ),
@@ -325,7 +332,7 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
 
                 // Food Type Filter
                 Text(
-                  'Food Type',
+                  localizations.translate('food_type'),
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: primaryGreen,
@@ -341,7 +348,7 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
                         padding: const EdgeInsets.only(right: 8.0),
                         child: ChoiceChip(
                           label: Text(
-                            type,
+                            localizations.translate(type.toLowerCase()),
                             style: TextStyle(
                               color: isSelected ? Colors.white : primaryGreen,
                             ),
@@ -377,7 +384,7 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
                         foregroundColor: primaryGreen,
                         side: BorderSide(color: primaryGreen),
                       ),
-                      child: const Text('Reset'),
+                      child: Text(localizations.translate('reset')),
                     ),
                     ElevatedButton(
                       onPressed: () {
@@ -394,7 +401,7 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
                         backgroundColor: primaryGreen,
                         foregroundColor: Colors.white,
                       ),
-                      child: const Text('Apply Filters'),
+                      child: Text(localizations.translate('apply_filters')),
                     ),
                   ],
                 ),
@@ -408,11 +415,12 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final AppLocalizations localizations = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: backgroundColor,
       appBar: AppBar(
-        title: const Text('Donation History',
-            style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(localizations.translate('donation_history'),
+            style: const TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
         backgroundColor: primaryGreen,
         foregroundColor: Colors.white,
@@ -431,7 +439,7 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
                     )
                   : const Icon(Icons.my_location),
               onPressed: _isGettingLocation ? null : _refreshWithLocation,
-              tooltip: 'Update Location',
+              tooltip: localizations.translate('update_location'),
             ),
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -444,6 +452,7 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
   }
 
   Widget _buildFilterSection() {
+    final AppLocalizations localizations = AppLocalizations.of(context);
     final displayDonations =
         (_selectedTimeFilter == 'All' && _selectedFoodTypeFilter == 'All' && _searchQuery.isEmpty)
             ? _acceptedDonations
@@ -455,7 +464,7 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            'Donation History (${displayDonations.length})',
+            '${localizations.translate('donation_history')} (${displayDonations.length})',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
@@ -465,7 +474,7 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
           ElevatedButton.icon(
             onPressed: _showFilterBottomSheet,
             icon: const Icon(Icons.filter_list, size: 18),
-            label: const Text('Filter'),
+            label: Text(localizations.translate('filter')),
             style: ElevatedButton.styleFrom(
               backgroundColor: primaryGreen,
               foregroundColor: Colors.white,
@@ -479,6 +488,7 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
   }
   
   Widget _buildActiveFilters() {
+    final AppLocalizations localizations = AppLocalizations.of(context);
     if (_selectedTimeFilter == 'All' && _selectedFoodTypeFilter == 'All' && _searchQuery.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -493,7 +503,7 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
               Padding(
                 padding: const EdgeInsets.only(right: 8.0),
                 child: Chip(
-                  label: Text('Time: $_selectedTimeFilter'),
+                  label: Text('${localizations.translate('time')}: ${localizations.translate(_selectedTimeFilter.toLowerCase().replaceAll(' ', '_'))}'),
                   deleteIcon: const Icon(Icons.close, size: 15),
                   onDeleted: () {
                     setState(() {
@@ -507,7 +517,7 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
               ),
             if (_selectedFoodTypeFilter != 'All')
               Chip(
-                label: Text('Type: $_selectedFoodTypeFilter'),
+                label: Text('${localizations.translate('type')}: ${localizations.translate(_selectedFoodTypeFilter.toLowerCase())}'),
                 deleteIcon: const Icon(Icons.close, size: 15),
                 onDeleted: () {
                   setState(() {
@@ -525,6 +535,8 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
   }
 
   Widget _buildBody() {
+    final AppLocalizations localizations = AppLocalizations.of(context);
+    
     if (_isLoading) {
       return Center(
         child: CircularProgressIndicator(
@@ -547,7 +559,7 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Text(
-                'Error: $_errorMessage',
+                '${localizations.translate('error')}: $_errorMessage',
                 style: const TextStyle(color: Colors.red),
                 textAlign: TextAlign.center,
               ),
@@ -556,7 +568,7 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
             ElevatedButton.icon(
               onPressed: _fetchAcceptedDonations,
               icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
+              label: Text(localizations.translate('retry')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: secondaryGreen,
                 foregroundColor: Colors.white,
@@ -583,14 +595,14 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
               color: lightGreen,
             ),
             const SizedBox(height: 16),
-            const Text(
-              'No donation history found',
-              style: TextStyle(fontSize: 18),
+            Text(
+              localizations.translate('no_donation_history_found'),
+              style: const TextStyle(fontSize: 18),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Accept donations to see them here',
-              style: TextStyle(fontSize: 14, color: Colors.grey),
+            Text(
+              localizations.translate('accept_donations_to_see'),
+              style: const TextStyle(fontSize: 14, color: Colors.grey),
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
@@ -599,7 +611,7 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
                 Navigator.pushReplacementNamed(context, '/dashboard');
               },
               icon: const Icon(Icons.search),
-              label: const Text('Browse Donations'),
+              label: Text(localizations.translate('browse_donations')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: primaryGreen,
                 foregroundColor: Colors.white,
@@ -626,7 +638,7 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
               });
             },
             decoration: InputDecoration(
-              hintText: 'Search for food...',
+              hintText: localizations.translate('search_food'),
               prefixIcon: Icon(Icons.search, color: primaryGreen),
               filled: true,
               fillColor: Colors.white,
@@ -688,6 +700,7 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
 
   // New widget to show when filters return no results
   Widget _buildNoResultsState() {
+    final AppLocalizations localizations = AppLocalizations.of(context);
     return Center(
       child: SingleChildScrollView(
         child: Column(
@@ -700,17 +713,17 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              'No donations match your criteria',
-              style: TextStyle(fontSize: 18),
+              localizations.translate('no_donations_match_criteria'),
+              style: const TextStyle(fontSize: 18),
             ),
             const SizedBox(height: 8),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 32),
               child: Text(
                 _searchQuery.isNotEmpty
-                    ? 'No results found for "$_searchQuery"'
-                    : 'Try adjusting your filters to see more donations',
-                style: TextStyle(fontSize: 14, color: Colors.grey),
+                    ? '${localizations.translate('no_results_for')} "$_searchQuery"'
+                    : localizations.translate('try_adjusting_filters'),
+                style: const TextStyle(fontSize: 14, color: Colors.grey),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -728,7 +741,7 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
                     });
                   },
                   icon: const Icon(Icons.clear),
-                  label: const Text('Clear All Filters'),
+                  label: Text(localizations.translate('clear_all_filters')),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: secondaryGreen,
                   ),
@@ -737,7 +750,7 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
                 ElevatedButton.icon(
                   onPressed: _fetchAcceptedDonations,
                   icon: const Icon(Icons.refresh),
-                  label: const Text('Refresh'),
+                  label: Text(localizations.translate('refresh')),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryGreen,
                     foregroundColor: Colors.white,
@@ -752,11 +765,13 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
   }
 
   Widget _buildDonationCard(Map<String, dynamic> donation) {
-    final String foodName = donation['foodName'] ?? 'Unknown';
-    final String description = donation['description'] ?? 'No description';
-    final String foodType = donation['foodType'] ?? 'Unknown';
-    final String donorName = donation['donorName'] ?? 'Anonymous';
-    final String deliveredBy = donation['deliveredby'] ?? 'Self-pickup';
+    final AppLocalizations localizations = AppLocalizations.of(context);
+    
+    final String foodName = donation['foodName'] ?? localizations.translate('unknown');
+    final String description = donation['description'] ?? localizations.translate('no_description');
+    final String foodType = donation['foodType'] ?? localizations.translate('unknown');
+    final String donorName = donation['donorName'] ?? localizations.translate('anonymous');
+    final String deliveredBy = donation['deliveredby'] ?? localizations.translate('self_pickup');
     final String feedback = donation['feedback'] ?? '';
     final double? distance = donation['distance'];
 
@@ -873,7 +888,7 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
                 top: 10,
                 right: 10,
                 child: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.9),
                     borderRadius: BorderRadius.circular(15),
@@ -881,7 +896,7 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
                       BoxShadow(
                         color: Colors.black.withOpacity(0.1),
                         blurRadius: 2,
-                        offset: Offset(0, 1),
+                        offset: const Offset(0, 1),
                       ),
                     ],
                   ),
@@ -893,13 +908,13 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
                         size: 14,
                         color: borderColor,
                       ),
-                      SizedBox(width: 4),
+                      const SizedBox(width: 4),
                       Text(
                         daysSinceAccepted == 0
-                            ? 'Today'
+                            ? localizations.translate('today')
                             : daysSinceAccepted == 1
-                                ? 'Yesterday'
-                                : '$daysSinceAccepted days ago',
+                                ? localizations.translate('yesterday')
+                                : '${daysSinceAccepted} ${localizations.translate('days_ago')}',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
@@ -951,9 +966,9 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
                             size: 16,
                             color: foodTypeColor,
                           ),
-                          SizedBox(width: 4),
+                          const SizedBox(width: 4),
                           Text(
-                            foodType.toUpperCase(),
+                            localizations.translate(foodType.toLowerCase()),
                             style: TextStyle(
                               color: foodTypeColor,
                               fontWeight: FontWeight.bold,
@@ -967,13 +982,13 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
                 ),
                 const SizedBox(height: 12),
                 Container(
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: accentGreen.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    'Quantity: ${donation['quantity'] ?? 'Unknown'} servings',
+                    '${localizations.translate('quantity')}: ${donation['quantity'] ?? localizations.translate('unknown')} ${localizations.translate('servings')}',
                     style: TextStyle(
                       fontSize: 14,
                       color: secondaryGreen,
@@ -1000,7 +1015,7 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Donated by: $donorName',
+                        '${localizations.translate('donated_by')}: $donorName',
                         style: TextStyle(color: Colors.grey[800]),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -1015,7 +1030,7 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Accepted on: $acceptedDate at $acceptedTime',
+                        '${localizations.translate('accepted_on')}: $acceptedDate ${localizations.translate('at')} $acceptedTime',
                         style: TextStyle(color: Colors.grey[800]),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -1030,7 +1045,7 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Delivery method: $deliveredBy',
+                        '${localizations.translate('delivery_method')}: $deliveredBy',
                         style: TextStyle(color: Colors.grey[800]),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -1048,7 +1063,7 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Distance: ${distance.toStringAsFixed(1)} km',
+                          '${localizations.translate('distance')}: ${distance.toStringAsFixed(1)} ${localizations.translate('km')}',
                           style: TextStyle(
                             color: distance > 10
                                 ? Colors.red[700]
@@ -1082,9 +1097,9 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
                           children: [
                             Icon(Icons.rate_review,
                                 color: primaryGreen, size: 16),
-                            SizedBox(width: 4),
+                            const SizedBox(width: 4),
                             Text(
-                              'Your Feedback:',
+                              '${localizations.translate('your_feedback')}:',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 14,
@@ -1110,7 +1125,7 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
                     onPressed: () => _addFeedback(donation['_id'], feedback),
                     icon: Icon(Icons.edit, size: 16, color: secondaryGreen),
                     label: Text(
-                      'Edit Feedback',
+                      localizations.translate('edit_feedback'),
                       style: TextStyle(color: secondaryGreen),
                     ),
                   ),
@@ -1119,7 +1134,7 @@ class _RecipientHistoryScreenState extends State<RecipientHistoryScreen> {
                   ElevatedButton.icon(
                     onPressed: () => _addFeedback(donation['_id'], ''),
                     icon: const Icon(Icons.rate_review, size: 16),
-                    label: const Text('Add Feedback'),
+                    label: Text(localizations.translate('add_feedback')),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: primaryGreen,
                       foregroundColor: Colors.white,

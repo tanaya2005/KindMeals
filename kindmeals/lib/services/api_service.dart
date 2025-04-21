@@ -1234,6 +1234,9 @@ class ApiService {
       // Add authorization header
       request.headers['Authorization'] = 'Bearer $idToken';
 
+      // Add content type header (only for debugging, removed during request sending)
+      request.headers['X-Requested-With'] = 'XMLHttpRequest';
+
       // Add text fields if provided
       if (name != null) request.fields['donorname'] = name;
       if (orgName != null) request.fields['orgName'] = orgName;
@@ -1262,11 +1265,29 @@ class ApiService {
             contentType: MediaType.parse(contentType),
           ),
         );
+
+        if (kDebugMode) {
+          print('Added profile image to request: ${profileImage.path}');
+          print('Image content type: $contentType');
+        }
+      }
+
+      // Log request details before sending
+      if (kDebugMode) {
+        print('REQUEST URL: ${request.url}');
+        print('REQUEST HEADERS: ${request.headers}');
+        print('REQUEST FIELDS: ${request.fields}');
+        print('REQUEST FILES: ${request.files.length}');
       }
 
       // Send the request
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
+
+      if (kDebugMode) {
+        print('RESPONSE STATUS: ${response.statusCode}');
+        print('RESPONSE BODY: ${response.body}');
+      }
 
       if (response.statusCode != 200) {
         throw Exception('Failed to update donor profile: ${response.body}');
@@ -1305,6 +1326,9 @@ class ApiService {
       // Add authorization header
       request.headers['Authorization'] = 'Bearer $idToken';
 
+      // Add content type header (only for debugging, removed during request sending)
+      request.headers['X-Requested-With'] = 'XMLHttpRequest';
+
       // Add text fields if provided
       if (name != null) request.fields['reciname'] = name;
       if (ngoName != null) request.fields['ngoName'] = ngoName;
@@ -1334,11 +1358,29 @@ class ApiService {
             contentType: MediaType.parse(contentType),
           ),
         );
+
+        if (kDebugMode) {
+          print('Added profile image to request: ${profileImage.path}');
+          print('Image content type: $contentType');
+        }
+      }
+
+      // Log request details before sending
+      if (kDebugMode) {
+        print('REQUEST URL: ${request.url}');
+        print('REQUEST HEADERS: ${request.headers}');
+        print('REQUEST FIELDS: ${request.fields}');
+        print('REQUEST FILES: ${request.files.length}');
       }
 
       // Send the request
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
+
+      if (kDebugMode) {
+        print('RESPONSE STATUS: ${response.statusCode}');
+        print('RESPONSE BODY: ${response.body}');
+      }
 
       if (response.statusCode != 200) {
         throw Exception('Failed to update recipient profile: ${response.body}');

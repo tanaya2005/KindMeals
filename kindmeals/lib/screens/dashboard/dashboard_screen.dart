@@ -13,6 +13,7 @@ import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../services/firebase_service.dart';
 import '../../services/api_service.dart';
+import '../../utils/app_localizations.dart';
 import 'view_donations_screen.dart';
 import 'volunteers_screen.dart';
 import '../notifications/notification_screen.dart';
@@ -405,6 +406,8 @@ class _HomeScreenState extends State<_HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+    
     return Scaffold(
       body: SafeArea(
         child: RefreshIndicator(
@@ -445,6 +448,8 @@ class _HomeScreenState extends State<_HomeScreen> {
   }
 
   Widget _buildWelcomeHeader() {
+    final localizations = AppLocalizations.of(context);
+    
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
@@ -478,9 +483,9 @@ class _HomeScreenState extends State<_HomeScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Welcome to',
-                    style: TextStyle(
+                  Text(
+                    localizations.translate('welcome_to'),
+                    style: const TextStyle(
                       fontSize: 20,
                       color: Colors.white70,
                       fontWeight: FontWeight.w500,
@@ -489,9 +494,9 @@ class _HomeScreenState extends State<_HomeScreen> {
                   const SizedBox(height: 5),
                   Row(
                     children: [
-                      const Text(
-                        'KindMeals',
-                        style: TextStyle(
+                      Text(
+                        localizations.translate('app_name'),
+                        style: const TextStyle(
                           fontSize: 32,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
@@ -636,6 +641,8 @@ class _HomeScreenState extends State<_HomeScreen> {
   }
 
   Widget _buildVolunteerLeaderboard() {
+    final localizations = AppLocalizations.of(context);
+    
     return Container(
       padding: const EdgeInsets.all(20),
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -658,7 +665,7 @@ class _HomeScreenState extends State<_HomeScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Top Volunteers',
+                localizations.translate('top_volunteers'),
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -707,7 +714,7 @@ class _HomeScreenState extends State<_HomeScreen> {
                     ],
                   ),
                   child: _volunteerLeaderboard.isEmpty
-                      ? _buildEmptyLeaderboardState('No volunteers found', true)
+                      ? _buildEmptyLeaderboardState(localizations.translate('no_volunteers_found'), true)
                       : Column(
                           children: [
                             // Header row
@@ -727,20 +734,20 @@ class _HomeScreenState extends State<_HomeScreen> {
                                   ),
                                 ),
                               ),
-                              child: const Row(
+                              child: Row(
                                 children: [
-                                  SizedBox(width: 40),
+                                  const SizedBox(width: 40),
                                   Expanded(
                                     child: Text(
-                                      'Name',
-                                      style: TextStyle(
+                                      localizations.translate('name'),
+                                      style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
                                   ),
                                   Text(
-                                    'Deliveries',
-                                    style: TextStyle(
+                                    localizations.translate('deliveries'),
+                                    style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -877,9 +884,9 @@ class _HomeScreenState extends State<_HomeScreen> {
                   side: BorderSide(color: Colors.green.shade300),
                 ),
               ),
-              child: const Text(
-                'View Full Leaderboard',
-                style: TextStyle(fontWeight: FontWeight.bold),
+              child: Text(
+                localizations.translate('view_full_leaderboard'),
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
           ),
@@ -889,6 +896,8 @@ class _HomeScreenState extends State<_HomeScreen> {
   }
 
   Widget _buildEmptyLeaderboardState(String message, bool isVolunteer) {
+    final localizations = AppLocalizations.of(context);
+    
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
       width: double.infinity,
@@ -918,7 +927,7 @@ class _HomeScreenState extends State<_HomeScreen> {
               _fetchLeaderboardData();
             },
             icon: const Icon(Icons.refresh),
-            label: const Text('Refresh Data'),
+            label: Text(localizations.translate('refresh_data')),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green.shade600,
               foregroundColor: Colors.white,
@@ -930,6 +939,8 @@ class _HomeScreenState extends State<_HomeScreen> {
   }
 
   Widget _buildDonorLeaderboard() {
+    final localizations = AppLocalizations.of(context);
+    
     return Container(
       padding: const EdgeInsets.all(20),
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -952,7 +963,7 @@ class _HomeScreenState extends State<_HomeScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Top Donors',
+                localizations.translate('top_donors'),
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -1003,7 +1014,7 @@ class _HomeScreenState extends State<_HomeScreen> {
                     ],
                   ),
                   child: _donorLeaderboard.isEmpty
-                      ? _buildEmptyLeaderboardState('No donors found', false)
+                      ? _buildEmptyLeaderboardState(localizations.translate('no_donors_found'), false)
                       : Column(
                           children: [
                             // Header row
@@ -1023,20 +1034,20 @@ class _HomeScreenState extends State<_HomeScreen> {
                                   ),
                                 ),
                               ),
-                              child: const Row(
+                              child: Row(
                                 children: [
-                                  SizedBox(width: 40),
+                                  const SizedBox(width: 40),
                                   Expanded(
                                     child: Text(
-                                      'Name',
-                                      style: TextStyle(
+                                      localizations.translate('name'),
+                                      style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
                                   ),
                                   Text(
-                                    'Meals',
-                                    style: TextStyle(
+                                    localizations.translate('meals'),
+                                    style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -1177,9 +1188,9 @@ class _HomeScreenState extends State<_HomeScreen> {
                   side: BorderSide(color: Colors.green.shade300),
                 ),
               ),
-              child: const Text(
-                'View Full Leaderboard',
-                style: TextStyle(fontWeight: FontWeight.bold),
+              child: Text(
+                localizations.translate('view_full_leaderboard'),
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
           ),
@@ -1202,6 +1213,8 @@ class _HomeScreenState extends State<_HomeScreen> {
   }
 
   Widget _buildReviews() {
+    final localizations = AppLocalizations.of(context);
+    
     return Container(
       padding: const EdgeInsets.all(20),
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -1224,7 +1237,7 @@ class _HomeScreenState extends State<_HomeScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Reviews & Feedback',
+                localizations.translate('reviews_feedback'),
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -1338,9 +1351,9 @@ class _HomeScreenState extends State<_HomeScreen> {
                   side: BorderSide(color: Colors.green.shade300),
                 ),
               ),
-              child: const Text(
-                'View All Reviews',
-                style: TextStyle(fontWeight: FontWeight.bold),
+              child: Text(
+                localizations.translate('view_all_reviews'),
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
           ),
@@ -1350,6 +1363,8 @@ class _HomeScreenState extends State<_HomeScreen> {
   }
 
   Widget _buildCharitySection() {
+    final localizations = AppLocalizations.of(context);
+    
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 40),
@@ -1372,7 +1387,7 @@ class _HomeScreenState extends State<_HomeScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Support a Cause',
+                localizations.translate('support_a_cause'),
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -1428,9 +1443,9 @@ class _HomeScreenState extends State<_HomeScreen> {
                         ),
                       ),
                       const SizedBox(height: 10),
-                      const Text(
-                        'Donate to KindMeals',
-                        style: TextStyle(
+                      Text(
+                        localizations.translate('donate_to_kindmeals'),
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -1444,9 +1459,9 @@ class _HomeScreenState extends State<_HomeScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      const Text(
-                        'Support our mission to reduce food waste and hunger',
-                        style: TextStyle(
+                      Text(
+                        localizations.translate('donate_subtitle'),
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 12,
                           shadows: [
@@ -1507,9 +1522,9 @@ class _HomeScreenState extends State<_HomeScreen> {
                             ),
                             elevation: 0,
                           ),
-                          child: const Text(
-                            'Donate Now',
-                            style: TextStyle(
+                          child: Text(
+                            localizations.translate('donate_now'),
+                            style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 14,
                             ),
@@ -1538,9 +1553,9 @@ class _HomeScreenState extends State<_HomeScreen> {
                   side: BorderSide(color: Colors.green.shade200),
                 ),
               ),
-              child: const Text(
-                'View All Charities',
-                style: TextStyle(fontWeight: FontWeight.bold),
+              child: Text(
+                localizations.translate('view_all_charities'),
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
           ),
@@ -1567,14 +1582,16 @@ class _HomeScreenState extends State<_HomeScreen> {
   }
 
   Widget _buildFooter() {
+    final localizations = AppLocalizations.of(context);
+    
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
       color: Colors.green.shade800,
       child: Column(
         children: [
-          const Text(
-            'KindMeals',
-            style: TextStyle(
+          Text(
+            localizations.translate('app_name'),
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -1582,7 +1599,7 @@ class _HomeScreenState extends State<_HomeScreen> {
           ),
           const SizedBox(height: 5),
           Text(
-            'Share Food, Share Love',
+            localizations.translate('app_slogan'),
             style: TextStyle(
               // ignore: deprecated_member_use
               color: Colors.white.withOpacity(0.7),
@@ -1604,7 +1621,7 @@ class _HomeScreenState extends State<_HomeScreen> {
           const Divider(color: Colors.white24),
           const SizedBox(height: 15),
           Text(
-            'Privacy Policy | Terms of Service | Contact Us',
+            '${localizations.translate('privacy_policy')} | ${localizations.translate('terms_of_service')} | ${localizations.translate('contact_us')}',
             style: TextStyle(
               // ignore: deprecated_member_use
               color: Colors.white.withOpacity(0.6),
@@ -1613,7 +1630,7 @@ class _HomeScreenState extends State<_HomeScreen> {
           ),
           const SizedBox(height: 10),
           Text(
-            '© 2025 KindMeals. All rights reserved.',
+            localizations.translate('all_rights_reserved'),
             style: TextStyle(
               color: Colors.white.withOpacity(0.6),
               fontSize: 12,
