@@ -369,7 +369,6 @@ class _RegisterVolunteerScreenState extends State<RegisterVolunteerScreen> {
                 TextFormField(
                   controller: _addressController,
                   readOnly: true,
-                  readOnly: true,
                   decoration: InputDecoration(
                     labelText: localizations.translate('address_click_detect'),
                     prefixIcon: const Icon(Icons.home),
@@ -391,7 +390,6 @@ class _RegisterVolunteerScreenState extends State<RegisterVolunteerScreen> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  onTap: _isGettingLocation ? null : _getLocation,
                   onTap: _isGettingLocation ? null : _getLocation,
                   maxLines: 2,
                   validator: (value) {
