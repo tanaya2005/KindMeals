@@ -3,7 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 class ApiConfig {
   // API base URL - use environment variable
   static String get serverBaseUrl =>
-      dotenv.env['API_URL'] ?? 'http://192.168.0.101:5000';
+      dotenv.env['API_URL'] ?? 'http://192.168.1.27:5000';
   static String get apiBaseUrl => '$serverBaseUrl/api';
 
   // Debug information
@@ -24,9 +24,12 @@ class ApiConfig {
       return imagePath;
     }
 
-    // If the path starts with /uploads, add the server base URL
+    // For image paths starting with /uploads, add the server base URL
     if (imagePath.startsWith('/uploads/')) {
-      return serverBaseUrl + imagePath;
+      // Use direct URL to handle server configuration with static files
+      final url = serverBaseUrl + imagePath;
+      print('Constructed image URL: $url');
+      return url;
     }
 
     // For any other case, assume it's a relative path and append to server base URL

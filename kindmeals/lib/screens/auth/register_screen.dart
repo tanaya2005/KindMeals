@@ -464,8 +464,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _addressController,
+                  readOnly: true,
                   decoration: InputDecoration(
-                    labelText: 'Address / Location',
+                    labelText: 'Address / Location (Click to detect)',
                     prefixIcon: const Icon(Icons.location_on),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -485,9 +486,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       tooltip: 'Get Current Location',
                     ),
                   ),
+                  onTap: _isGettingLocation ? null : _getLocation,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter your address';
+                      return 'Please get your address by clicking the location button';
                     }
                     return null;
                   },
