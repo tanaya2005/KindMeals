@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:io' show Platform;
 import '../../services/api_service.dart';
 import '../../config/api_config.dart';
 import '../../utils/date_time_helper.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:url_launcher/url_launcher_string.dart';
 
 class DonationDetailScreen extends StatefulWidget {
   final Map<String, dynamic> donation;
@@ -52,6 +55,150 @@ class _DonationDetailScreenState extends State<DonationDetailScreen> {
 
     if (kDebugMode) {
       print('Initializing with donor volunteer preference: $_needsVolunteer');
+    }
+  }
+
+  // Launch phone call intent for calling the donor
+  void _launchPhoneCall(String phoneNumber) async {
+    try {
+      // Clean up phone number to ensure it's just digits, plus sign, and dashes
+      final cleanedNumber = phoneNumber.replaceAll(RegExp(r'[^\d\+\-]'), '');
+
+      // Create the tel: URI
+      final Uri uri = Uri.parse('tel:$cleanedNumber');
+
+      if (kDebugMode) {
+        print('Attempting to launch phone app with: $uri');
+      }
+
+      // Use launchUrl instead of canLaunch/launch for more reliable behavior
+      final bool launched = await launchUrl(uri);
+
+      if (!launched) {
+        if (kDebugMode) {
+          print('Could not launch phone app with URI: $uri');
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Could not open phone app. Please dial $phoneNumber manually.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error launching phone call: $e');
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not make call: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+  
+  // Launch Google Maps with directions to donor's location
+  Future<void> _launchMapsDirections(String destinationAddress) async {
+    try {
+      // Try multiple approaches for launching maps based on platform
+      bool launched = false;
+
+      if (Platform.isAndroid) {
+        // Try Android-specific intent
+        try {
+          final String encodedDestination = Uri.encodeComponent(destinationAddress);
+          final Uri uri = Uri.parse(
+              'https://www.google.com/maps/dir/?api=1&destination=$encodedDestination&travelmode=driving');
+
+          if (kDebugMode) {
+            print('Trying Google Maps URI for Android: $uri');
+          }
+
+          if (await canLaunchUrl(uri)) {
+            launched = await launchUrl(
+              uri,
+              mode: LaunchMode.externalApplication,
+            );
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            print('Error with Google Maps URI: $e');
+          }
+        }
+      } else if (Platform.isIOS) {
+        // iOS approach - try Apple Maps first
+        try {
+          final String encodedDestination = Uri.encodeComponent(destinationAddress);
+          final Uri uri = Uri.parse(
+              'https://maps.apple.com/?daddr=$encodedDestination&dirflg=d');
+
+          if (kDebugMode) {
+            print('Trying Apple Maps URI: $uri');
+          }
+
+          if (await canLaunchUrl(uri)) {
+            launched = await launchUrl(
+              uri,
+              mode: LaunchMode.externalApplication,
+            );
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            print('Error with Apple Maps URI: $e');
+          }
+        }
+      }
+
+      // Last resort - try web URL if all else failed
+      if (!launched) {
+        final String encodedDestination = Uri.encodeComponent(destinationAddress);
+        final Uri uri = Uri.parse(
+            'https://www.google.com/maps/search/?api=1&query=$encodedDestination');
+
+        if (kDebugMode) {
+          print('Trying web fallback: $uri');
+        }
+
+        if (await canLaunchUrl(uri)) {
+          launched = await launchUrl(
+            uri,
+            mode: LaunchMode.externalApplication,
+          );
+        } else {
+          throw Exception('Could not launch maps on this device');
+        }
+      }
+      
+      if (!launched) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not open maps. Please try again.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error launching Maps: $e');
+      }
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -137,23 +284,29 @@ class _DonationDetailScreenState extends State<DonationDetailScreen> {
   Widget build(BuildContext context) {
     final String? imageUrl = _getImageUrl();
     final String foodName = widget.donation['foodName'] ?? 'Unknown Food';
-    final String description = widget.donation['description'] ?? 'No description available';
+    final String description =
+        widget.donation['description'] ?? 'No description available';
     final String foodType = widget.donation['foodType'] ?? 'Unknown';
     final String quantity = '${widget.donation['quantity'] ?? 0} servings';
-    final String address = widget.donation['location']?['address'] ?? 'Unknown location';
+    final String address =
+        widget.donation['location']?['address'] ?? 'Unknown location';
     final String donorName = widget.donation['donorName'] ?? 'Anonymous Donor';
-    final bool needsVolunteerOriginal = widget.donation['needsVolunteer'] == true;
-    
+    final bool needsVolunteerOriginal =
+        widget.donation['needsVolunteer'] == true;
+
     // Format expiry date
-    final String expiryDateTime = _formatDateTime(widget.donation['expiryDateTime'] ?? '');
-    final DateTime expiryDate = DateTime.parse(widget.donation['expiryDateTime'] ?? DateTime.now().toIso8601String());
+    final String expiryDateTime =
+        _formatDateTime(widget.donation['expiryDateTime'] ?? '');
+    final DateTime expiryDate = DateTime.parse(
+        widget.donation['expiryDateTime'] ?? DateTime.now().toIso8601String());
     final Duration timeRemaining = expiryDate.difference(DateTime.now());
     final bool isExpiringSoon = timeRemaining.inHours < 6;
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        title: const Text('Donation Details',
+        title: const Text(
+          'Donation Details',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
@@ -184,13 +337,14 @@ class _DonationDetailScreenState extends State<DonationDetailScreen> {
                         )
                       else
                         _buildPlaceholderImage(foodType),
-                        
+
                       // Food type badge
                       Positioned(
                         top: 16,
                         right: 16,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
                             color: _getFoodTypeColor(foodType),
                             borderRadius: BorderRadius.circular(20),
@@ -212,14 +366,15 @@ class _DonationDetailScreenState extends State<DonationDetailScreen> {
                           ),
                         ),
                       ),
-                      
+
                       // Expiring soon badge
                       if (isExpiringSoon)
                         Positioned(
                           top: 16,
                           left: 16,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
                               color: Colors.red.shade700,
                               borderRadius: BorderRadius.circular(20),
@@ -254,7 +409,7 @@ class _DonationDetailScreenState extends State<DonationDetailScreen> {
                         ),
                     ],
                   ),
-                  
+
                   // Content area
                   Padding(
                     padding: const EdgeInsets.only(bottom: 24),
@@ -279,11 +434,14 @@ class _DonationDetailScreenState extends State<DonationDetailScreen> {
                               Row(
                                 children: [
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 4),
                                     decoration: BoxDecoration(
                                       color: _primaryColor.withOpacity(0.1),
                                       borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(color: _primaryColor.withOpacity(0.3)),
+                                      border: Border.all(
+                                          color:
+                                              _primaryColor.withOpacity(0.3)),
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
@@ -307,7 +465,8 @@ class _DonationDetailScreenState extends State<DonationDetailScreen> {
                                   ),
                                   const SizedBox(width: 8),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 4),
                                     decoration: BoxDecoration(
                                       color: isExpiringSoon
                                           ? Colors.red.withOpacity(0.1)
@@ -325,7 +484,9 @@ class _DonationDetailScreenState extends State<DonationDetailScreen> {
                                         Icon(
                                           Icons.access_time,
                                           size: 14,
-                                          color: isExpiringSoon ? Colors.red : Colors.orange,
+                                          color: isExpiringSoon
+                                              ? Colors.red
+                                              : Colors.orange,
                                         ),
                                         const SizedBox(width: 4),
                                         Text(
@@ -333,7 +494,9 @@ class _DonationDetailScreenState extends State<DonationDetailScreen> {
                                           style: TextStyle(
                                             fontSize: 13,
                                             fontWeight: FontWeight.w500,
-                                            color: isExpiringSoon ? Colors.red : Colors.orange,
+                                            color: isExpiringSoon
+                                                ? Colors.red
+                                                : Colors.orange,
                                           ),
                                         ),
                                       ],
@@ -344,9 +507,9 @@ class _DonationDetailScreenState extends State<DonationDetailScreen> {
                             ],
                           ),
                         ),
-                        
+
                         const SizedBox(height: 24),
-                        
+
                         // Donor Information
                         _buildSectionContainer(
                           title: 'Donor Information',
@@ -368,9 +531,9 @@ class _DonationDetailScreenState extends State<DonationDetailScreen> {
                             ],
                           ),
                         ),
-                        
+
                         const SizedBox(height: 16),
-                        
+
                         // Food Description
                         _buildSectionContainer(
                           title: 'Food Description',
@@ -386,14 +549,15 @@ class _DonationDetailScreenState extends State<DonationDetailScreen> {
                                   height: 1.4,
                                 ),
                               ),
-                              
                               const SizedBox(height: 16),
                               Row(
                                 children: [
                                   Icon(
                                     Icons.access_time,
                                     size: 18,
-                                    color: isExpiringSoon ? Colors.red : Colors.orange,
+                                    color: isExpiringSoon
+                                        ? Colors.red
+                                        : Colors.orange,
                                   ),
                                   const SizedBox(width: 8),
                                   Expanded(
@@ -402,7 +566,9 @@ class _DonationDetailScreenState extends State<DonationDetailScreen> {
                                       style: TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w500,
-                                        color: isExpiringSoon ? Colors.red : Colors.orange,
+                                        color: isExpiringSoon
+                                            ? Colors.red
+                                            : Colors.orange,
                                       ),
                                     ),
                                   ),
@@ -411,15 +577,19 @@ class _DonationDetailScreenState extends State<DonationDetailScreen> {
                             ],
                           ),
                         ),
-                        
+
                         const SizedBox(height: 16),
-                        
+
                         // Volunteer assistance section
                         _buildSectionContainer(
                           title: 'Delivery Options',
                           icon: Icons.delivery_dining,
-                          backgroundColor: _needsVolunteer ? _accentColor.withOpacity(0.08) : null,
-                          borderColor: _needsVolunteer ? _accentColor.withOpacity(0.3) : null,
+                          backgroundColor: _needsVolunteer
+                              ? _accentColor.withOpacity(0.08)
+                              : null,
+                          borderColor: _needsVolunteer
+                              ? _accentColor.withOpacity(0.3)
+                              : null,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -427,14 +597,17 @@ class _DonationDetailScreenState extends State<DonationDetailScreen> {
                                 children: [
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           'Need volunteer assistance?',
                                           style: TextStyle(
                                             fontSize: 16,
                                             fontWeight: FontWeight.w600,
-                                            color: _needsVolunteer ? _accentColor : Colors.grey.shade800,
+                                            color: _needsVolunteer
+                                                ? _accentColor
+                                                : Colors.grey.shade800,
                                           ),
                                         ),
                                         const SizedBox(height: 4),
@@ -458,18 +631,21 @@ class _DonationDetailScreenState extends State<DonationDetailScreen> {
                                       });
                                     },
                                     activeColor: _accentColor,
-                                    activeTrackColor: _accentColor.withOpacity(0.3),
+                                    activeTrackColor:
+                                        _accentColor.withOpacity(0.3),
                                   ),
                                 ],
                               ),
-                              if (needsVolunteerOriginal != _needsVolunteer) ...[
+                              if (needsVolunteerOriginal !=
+                                  _needsVolunteer) ...[
                                 const SizedBox(height: 8),
                                 Container(
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
                                     color: Colors.blue.shade50,
                                     borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: Colors.blue.shade200),
+                                    border:
+                                        Border.all(color: Colors.blue.shade200),
                                   ),
                                   child: Row(
                                     children: [
@@ -526,7 +702,8 @@ class _DonationDetailScreenState extends State<DonationDetailScreen> {
                             child: ElevatedButton(
                               onPressed: _acceptDonation,
                               style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
                                 backgroundColor: _primaryColor,
                                 foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(
@@ -545,11 +722,12 @@ class _DonationDetailScreenState extends State<DonationDetailScreen> {
                             ),
                           ),
                         ),
-                        
+
                         // Error message if any
                         if (_error != null)
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
                             child: Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
