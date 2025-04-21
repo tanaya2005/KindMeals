@@ -730,6 +730,7 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
                       TextFormField(
                         controller: _addressController,
                         readOnly: true,
+                        readOnly: true,
                         decoration: InputDecoration(
                           labelText: localizations.translate('pickup_address_click_detect'),
                           prefixIcon: const Icon(Icons.location_on),
@@ -751,6 +752,7 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
                             tooltip: localizations.translate('get_current_location'),
                           ),
                         ),
+                        onTap: _isGettingLocation ? null : _getLocation,
                         onTap: _isGettingLocation ? null : _getLocation,
                         validator: (value) {
                           if (value == null || value.isEmpty) {
