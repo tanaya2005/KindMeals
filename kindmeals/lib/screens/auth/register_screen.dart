@@ -4,6 +4,7 @@ import 'dart:io';
 import '../../services/firebase_service.dart';
 import '../../services/api_service.dart';
 import '../../services/location_service.dart';
+import '../../utils/app_localizations.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter/foundation.dart';
 
@@ -365,8 +366,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+    
     return Scaffold(
-      appBar: AppBar(title: const Text('Register'), centerTitle: true),
+      appBar: AppBar(
+        title: Text(localizations.translate('register')), 
+        centerTitle: true
+      ),
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -421,8 +427,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     onPressed: _pickImage,
                     child: Text(
                       _profileImage == null
-                          ? "Add Profile Picture"
-                          : "Change Profile Picture",
+                          ? localizations.translate('profile_pic')
+                          : localizations.translate('change_profile_pic'),
                       style: TextStyle(color: Colors.green),
                     ),
                   ),
@@ -431,7 +437,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 TextFormField(
                   controller: _nameController,
                   decoration: InputDecoration(
-                    labelText: 'Name',
+                    labelText: localizations.translate('name'),
                     prefixIcon: const Icon(Icons.person),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -439,7 +445,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter your name';
+                      return localizations.translate('enter_name');
                     }
                     return null;
                   },
@@ -448,7 +454,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 TextFormField(
                   controller: _idController,
                   decoration: InputDecoration(
-                    labelText: 'Aadhar ID / Restaurant ID',
+                    labelText: localizations.translate('aadhar_id'),
                     prefixIcon: const Icon(Icons.badge),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -456,7 +462,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter your ID';
+                      return localizations.translate('enter_id');
                     }
                     return null;
                   },
@@ -466,7 +472,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   controller: _addressController,
                   readOnly: true,
                   decoration: InputDecoration(
-                    labelText: 'Address / Location (Click to detect)',
+                    labelText: localizations.translate('address'),
                     prefixIcon: const Icon(Icons.location_on),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -489,7 +495,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   onTap: _isGettingLocation ? null : _getLocation,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please get your address by clicking the location button';
+                      return localizations.translate('enter_address');
                     }
                     return null;
                   },
@@ -510,7 +516,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 TextFormField(
                   controller: _emailController,
                   decoration: InputDecoration(
-                    labelText: 'Email',
+                    labelText: localizations.translate('email'),
                     prefixIcon: const Icon(Icons.email),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -519,10 +525,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   keyboardType: TextInputType.emailAddress,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter your email';
+                      return localizations.translate('enter_email');
                     }
                     if (!value.contains('@')) {
-                      return 'Please enter a valid email';
+                      return localizations.translate('valid_email');
                     }
                     return null;
                   },
@@ -531,7 +537,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 TextFormField(
                   controller: _contactController,
                   decoration: InputDecoration(
-                    labelText: 'Contact Number',
+                    labelText: localizations.translate('contact_number'),
                     prefixIcon: const Icon(Icons.phone),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -540,10 +546,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   keyboardType: TextInputType.phone,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter your contact number';
+                      return localizations.translate('enter_contact');
                     }
                     if (value.length < 10) {
-                      return 'Please enter a valid contact number';
+                      return localizations.translate('valid_contact');
                     }
                     return null;
                   },
@@ -552,7 +558,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 TextFormField(
                   controller: _passwordController,
                   decoration: InputDecoration(
-                    labelText: 'Password',
+                    labelText: localizations.translate('password'),
                     prefixIcon: const Icon(Icons.lock),
                     suffixIcon: IconButton(
                       icon: Icon(
@@ -573,10 +579,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   obscureText: _obscurePassword,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter your password';
+                      return localizations.translate('enter_password');
                     }
                     if (value.length < 6) {
-                      return 'Password must be at least 6 characters';
+                      return localizations.translate('password_length');
                     }
                     return null;
                   },
@@ -585,7 +591,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 DropdownButtonFormField<String>(
                   value: _selectedType,
                   decoration: InputDecoration(
-                    labelText: 'Type',
+                    labelText: localizations.translate('type'),
                     prefixIcon: const Icon(Icons.category),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -604,7 +610,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   },
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please select a type';
+                      return localizations.translate('select_type');
                     }
                     return null;
                   },
@@ -613,7 +619,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 TextFormField(
                   controller: _aboutController,
                   decoration: InputDecoration(
-                    labelText: 'About',
+                    labelText: localizations.translate('about'),
                     prefixIcon: const Icon(Icons.info),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -622,7 +628,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   maxLines: 3,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter about yourself';
+                      return localizations.translate('enter_about');
                     }
                     return null;
                   },
@@ -631,7 +637,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 TextFormField(
                   controller: _orgNameController,
                   decoration: InputDecoration(
-                    labelText: 'Organization Name / Individual',
+                    labelText: localizations.translate('org_name'),
                     prefixIcon: const Icon(Icons.business),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -639,7 +645,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter organization name or individual';
+                      return localizations.translate('enter_org_name');
                     }
                     return null;
                   },
@@ -656,9 +662,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   child: _isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                          'Register',
-                          style: TextStyle(fontSize: 18, color: Colors.white),
+                      : Text(
+                          localizations.translate('register'),
+                          style: const TextStyle(fontSize: 18, color: Colors.white),
                         ),
                 ),
                 const SizedBox(height: 20),
@@ -679,7 +685,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     'assets/images/google_logo.png',
                     height: 24,
                   ),
-                  label: const Text('Continue with Google'),
+                  label: Text(localizations.translate('google_signup')),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 15),
                     shape: RoundedRectangleBorder(

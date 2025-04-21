@@ -1,41 +1,46 @@
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import '../../services/api_service.dart';
+import '../../utils/app_localizations.dart';
 import 'package:flutter/foundation.dart';
 
-// Motivational content for food donation carousel
-final List<Map<String, dynamic>> motivationalContent = [
-  {
-    'image': 'assets/images/food1.jpg',
-    'title': 'Feed a Smile Today',
-    'subtitle': 'One meal can brighten someone\'s whole day',
-    'color': Colors.green,
-  },
-  {
-    'image': 'assets/images/food2.jpg',
-    'title': 'Share Your Table',
-    'subtitle': 'No one should go hungry in our community',
-    'color': Colors.blue,
-  },
-  {
-    'image': 'assets/images/food3.jpg',
-    'title': 'Food Waste to Food Taste',
-    'subtitle': 'Rescue surplus food and feed those in need',
-    'color': Colors.orange,
-  },
-  {
-    'image': 'assets/images/food4.jpg',
-    'title': 'Donate What You Can',
-    'subtitle': 'Every contribution makes a difference',
-    'color': Colors.purple,
-  },
-  {
-    'image': 'assets/images/food1.jpg',
-    'title': '1 in 9 People Go Hungry',
-    'subtitle': 'Your donation can change this statistic',
-    'color': Colors.teal,
-  },
-];
+// Motivational content function that builds localized content
+List<Map<String, dynamic>> getMotivationalContent(BuildContext context) {
+  final localizations = AppLocalizations.of(context);
+  
+  return [
+    {
+      'image': 'assets/images/food1.jpg',
+      'title': localizations.translate('feed_smile'),
+      'subtitle': localizations.translate('meal_brighten'),
+      'color': Colors.green,
+    },
+    {
+      'image': 'assets/images/food2.jpg',
+      'title': localizations.translate('share_table'),
+      'subtitle': localizations.translate('no_hunger'),
+      'color': Colors.blue,
+    },
+    {
+      'image': 'assets/images/food3.jpg',
+      'title': localizations.translate('food_waste'),
+      'subtitle': localizations.translate('rescue_food'),
+      'color': Colors.orange,
+    },
+    {
+      'image': 'assets/images/food4.jpg',
+      'title': localizations.translate('donate_what'),
+      'subtitle': localizations.translate('every_contribution'),
+      'color': Colors.purple,
+    },
+    {
+      'image': 'assets/images/food1.jpg',
+      'title': localizations.translate('hunger_stat'),
+      'subtitle': localizations.translate('change_stat'),
+      'color': Colors.teal,
+    },
+  ];
+}
 
 class VolunteersScreen extends StatefulWidget {
   const VolunteersScreen({super.key});
@@ -151,6 +156,10 @@ class _VolunteersScreenState extends State<VolunteersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Get translated motivational content
+    final motivationalContent = getMotivationalContent(context);
+    final localizations = AppLocalizations.of(context);
+    
     // Debug print to diagnose data structure
     if (_volunteers.isNotEmpty && kDebugMode) {
       print('Volunteer data sample: ${_volunteers[0]}');
@@ -167,7 +176,7 @@ class _VolunteersScreenState extends State<VolunteersScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Volunteers'),
+        title: Text(localizations.translate('volunteers')),
         centerTitle: true,
         actions: [
           IconButton(
@@ -279,11 +288,11 @@ class _VolunteersScreenState extends State<VolunteersScreen> {
                   ),
 
                   // Leaderboard Section
-                  const Padding(
-                    padding: EdgeInsets.only(left: 16.0, right: 16.0, top: 8.0),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 8.0),
                     child: Text(
-                      'Volunteer Leaderboard',
-                      style: TextStyle(
+                      localizations.translate('volunteer_leaderboard'),
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
@@ -309,13 +318,13 @@ class _VolunteersScreenState extends State<VolunteersScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
                         _buildStatColumn(
-                            'Total Volunteers', '${sortedVolunteers.length}'),
+                            localizations.translate('total_volunteers'), '${sortedVolunteers.length}'),
                         _buildStatColumn(
-                          'Total Deliveries',
+                          localizations.translate('total_deliveries'),
                           '${sortedVolunteers.fold<int>(0, (sum, item) => sum + (item['donations'] as int))}',
                         ),
                         _buildStatColumn(
-                          'Avg Deliveries',
+                          localizations.translate('avg_deliveries'),
                           sortedVolunteers.isEmpty
                               ? '0'
                               : (sortedVolunteers.fold<int>(
@@ -337,26 +346,26 @@ class _VolunteersScreenState extends State<VolunteersScreen> {
                     decoration: BoxDecoration(
                       color: Colors.green.shade100,
                     ),
-                    child: const Row(
+                    child: Row(
                       children: [
                         SizedBox(
                           width: 50,
                           child: Text(
-                            'Rank',
-                            style: TextStyle(fontWeight: FontWeight.bold),
+                            localizations.translate('rank'),
+                            style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
                         Expanded(
                           child: Text(
-                            'Volunteer',
-                            style: TextStyle(fontWeight: FontWeight.bold),
+                            localizations.translate('volunteer'),
+                            style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
                         SizedBox(
                           width: 80,
                           child: Text(
-                            'Deliveries',
-                            style: TextStyle(fontWeight: FontWeight.bold),
+                            localizations.translate('deliveries'),
+                            style: const TextStyle(fontWeight: FontWeight.bold),
                             textAlign: TextAlign.center,
                           ),
                         ),
@@ -370,7 +379,7 @@ class _VolunteersScreenState extends State<VolunteersScreen> {
                           child: Padding(
                             padding: const EdgeInsets.all(20.0),
                             child: Text(
-                              'No volunteers found',
+                              localizations.translate('no_volunteers_found'),
                               style: TextStyle(color: Colors.grey.shade600),
                             ),
                           ),
@@ -420,7 +429,7 @@ class _VolunteersScreenState extends State<VolunteersScreen> {
                                                           FontWeight.bold),
                                                 ),
                                                 Text(
-                                                  '${volunteer['donations']} deliveries made',
+                                                  '${volunteer['donations']} ${localizations.translate('deliveries_made')}',
                                                   style: TextStyle(
                                                     color: Colors.grey.shade600,
                                                     fontSize: 12,
@@ -459,7 +468,7 @@ class _VolunteersScreenState extends State<VolunteersScreen> {
           Navigator.pushNamed(context, '/register/volunteer');
         },
         icon: const Icon(Icons.volunteer_activism),
-        label: const Text('Become a Volunteer'),
+        label: Text(localizations.translate('become_volunteer')),
         backgroundColor: Colors.green,
       ),
     );

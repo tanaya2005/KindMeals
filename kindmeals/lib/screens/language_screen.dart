@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../utils/app_localizations.dart';
 import 'auth/login_screen.dart';
 
 class LanguageScreen extends StatefulWidget {
@@ -27,17 +29,65 @@ class _LanguageScreenState extends State<LanguageScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    
+    // Initialize with the current language
+    final appLocalizationsService = AppLocalizations.localizationsService;
+    final currentLangCode = languageCodes[appLocalizationsService.currentLanguage];
+    selectedLanguage = currentLangCode;
+  }
+
+  Future<void> _changeLanguage(String languageCode) async {
+    if (languageCode == selectedLanguage) return;
+    
+    setState(() {
+      selectedLanguage = languageCode;
+    });
+    
+    // Create a mapping from language code to AppLanguage enum
+    final appLanguageMap = {
+      'en': AppLanguage.english,
+      'hi': AppLanguage.hindi,
+      'mr': AppLanguage.marathi,
+      'gu': AppLanguage.english, // Currently defaulting to English for unsupported languages
+      'ta': AppLanguage.english,
+      'te': AppLanguage.english,
+      'kn': AppLanguage.english,
+      'ml': AppLanguage.english,
+      'bn': AppLanguage.english,
+      'pa': AppLanguage.english,
+      'or': AppLanguage.english,
+      'as': AppLanguage.english,
+    };
+    
+    // Only change language if it's in our map
+    if (appLanguageMap.containsKey(languageCode)) {
+      final appLocalizationsService = AppLocalizations.localizationsService;
+      await appLocalizationsService.changeLanguage(appLanguageMap[languageCode]!);
+      
+      // Force a rebuild to update UI text
+      if (mounted) setState(() {});
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+    
     return Scaffold(
-      appBar: AppBar(title: const Text('Select Language'), centerTitle: true),
+      appBar: AppBar(
+        title: Text(localizations.translate('select_language')), 
+        centerTitle: true
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Choose your preferred language',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            Text(
+              localizations.translate('choose_language'),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 20),
             Expanded(
@@ -55,9 +105,7 @@ class _LanguageScreenState extends State<LanguageScreen> {
                     language: language,
                     isSelected: selectedLanguage == language['code'],
                     onTap: () {
-                      setState(() {
-                        selectedLanguage = language['code'];
-                      });
+                      _changeLanguage(language['code']!);
                     },
                   );
                 },
@@ -67,17 +115,16 @@ class _LanguageScreenState extends State<LanguageScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed:
-                    selectedLanguage == null
-                        ? null
-                        : () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const LoginScreen(),
-                            ),
-                          );
-                        },
+                onPressed: selectedLanguage == null
+                    ? null
+                    : () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const LoginScreen(),
+                          ),
+                        );
+                      },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
                   padding: const EdgeInsets.symmetric(vertical: 15),
@@ -85,9 +132,9 @@ class _LanguageScreenState extends State<LanguageScreen> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                child: const Text(
-                  'Continue',
-                  style: TextStyle(fontSize: 18, color: Colors.white),
+                child: Text(
+                  localizations.translate('continue'),
+                  style: const TextStyle(fontSize: 18, color: Colors.white),
                 ),
               ),
             ),
@@ -97,7 +144,6 @@ class _LanguageScreenState extends State<LanguageScreen> {
     );
   }
 }
-
 class LanguageCard extends StatelessWidget {
   final Map<String, String> language;
   final bool isSelected;
@@ -146,3 +192,4 @@ class LanguageCard extends StatelessWidget {
     );
   }
 }
+

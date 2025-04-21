@@ -9,6 +9,7 @@ import '../../config/api_config.dart';
 import 'package:flutter/foundation.dart';
 import '../../utils/date_time_helper.dart';
 import '../../services/location_service.dart';
+import '../../utils/app_localizations.dart';
 
 class PostDonationScreen extends StatefulWidget {
   const PostDonationScreen({super.key});
@@ -24,6 +25,7 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
   final _descriptionController = TextEditingController();
   final _addressController = TextEditingController();
   final _apiService = ApiService();
+  late AppLocalizations localizations;
 
   String? _selectedFoodType;
   File? _foodImage;
@@ -282,8 +284,8 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
       // Validate required fields that might not be caught by form validation
       if (_expiryDateTime == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please select a valid expiry date and time'),
+          SnackBar(
+            content: Text(localizations.translate('please_select_expiry_date_time')),
             backgroundColor: Colors.red,
           ),
         );
@@ -292,8 +294,8 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
 
       if (_selectedFoodType == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please select a food type'),
+          SnackBar(
+            content: Text(localizations.translate('please_select_food_type')),
             backgroundColor: Colors.red,
           ),
         );
@@ -336,10 +338,9 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
         // Add note to explain volunteer option to users
         if (_needsVolunteer) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                  'Note: When your donation is accepted by a recipient, they will be able to request a volunteer for delivery.'),
-              duration: Duration(seconds: 5),
+            SnackBar(
+              content: Text(localizations.translate('volunteer_note')),
+              duration: const Duration(seconds: 5),
             ),
           );
         }
@@ -366,8 +367,8 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
         _formKey.currentState!.reset();
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Donation posted successfully!'),
+          SnackBar(
+            content: Text(localizations.translate('donation_posted_successfully')),
             backgroundColor: Colors.green,
           ),
         );
@@ -376,31 +377,26 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
           _isLoading = false;
         });
 
-        String errorMessage = 'Failed to post donation. Please try again.';
+        String errorMessage = localizations.translate('failed_to_post_donation');
 
         // Handle specific authentication errors
         if (e.toString().contains('User not found in database') ||
             e.toString().contains('Authentication error') ||
             e.toString().contains('authentication token')) {
-          errorMessage =
-              'Authentication error: Please sign out and sign in again to refresh your credentials.';
+          errorMessage = localizations.translate('authentication_error_refresh');
 
           // Show a dialog with more detailed instructions
           showDialog(
             context: context,
             builder: (context) => AlertDialog(
-              title: const Text('Authentication Error'),
-              content: const Text(
-                  'Your donor profile could not be verified. This could happen if:\n\n'
-                  '1. You recently registered and your profile is not fully synced\n'
-                  '2. Your authentication token has expired\n\n'
-                  'Please sign out and sign back in to refresh your credentials.'),
+              title: Text(localizations.translate('authentication_error')),
+              content: Text(localizations.translate('auth_error_details')),
               actions: [
                 TextButton(
                   onPressed: () {
                     Navigator.pop(context);
                   },
-                  child: const Text('OK'),
+                  child: Text(localizations.translate('ok')),
                 ),
                 TextButton(
                   onPressed: () async {
@@ -409,7 +405,7 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
                     Navigator.pop(context);
                     Navigator.pushReplacementNamed(context, '/login');
                   },
-                  child: const Text('Sign Out Now'),
+                  child: Text(localizations.translate('sign_out_now')),
                 ),
               ],
             ),
@@ -513,10 +509,12 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    localizations = AppLocalizations.of(context);
+    
     if (_isCheckingUserType) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('Post Donation'),
+          title: Text(localizations.translate('post_donation')),
           centerTitle: true,
         ),
         body: const Center(
@@ -527,7 +525,7 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Post Donation'),
+        title: Text(localizations.translate('post_donation')),
         centerTitle: true,
       ),
       body: _errorMessage.isNotEmpty && !_isUserDonor
@@ -552,7 +550,7 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
                     ElevatedButton.icon(
                       onPressed: _refreshAuthState,
                       icon: const Icon(Icons.refresh),
-                      label: const Text('Refresh Authentication'),
+                      label: Text(localizations.translate('refresh_authentication')),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue,
                         foregroundColor: Colors.white,
@@ -564,7 +562,7 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
                     ElevatedButton.icon(
                       onPressed: _signOut,
                       icon: const Icon(Icons.logout),
-                      label: const Text('Sign Out & Sign In Again'),
+                      label: Text(localizations.translate('sign_out_sign_in_again')),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.orange,
                         foregroundColor: Colors.white,
@@ -578,7 +576,7 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
                         Navigator.pushNamed(context, '/profile');
                       },
                       icon: const Icon(Icons.person_add),
-                      label: const Text('Go to Profile'),
+                      label: Text(localizations.translate('go_to_profile')),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                         foregroundColor: Colors.white,
@@ -591,12 +589,12 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
                       onPressed: () {
                         Navigator.pop(context);
                       },
-                      child: const Text('Go Back'),
+                      child: Text(localizations.translate('go_back')),
                     ),
                     const SizedBox(height: 24),
-                    const Text(
-                      "Note: If you just registered, please log out and log back in to refresh your profile status.",
-                      style: TextStyle(
+                    Text(
+                      localizations.translate('refresh_profile_note'),
+                      style: const TextStyle(
                         fontSize: 14,
                         fontStyle: FontStyle.italic,
                         color: Colors.grey,
@@ -607,7 +605,7 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
                     TextButton.icon(
                       onPressed: _checkUserType,
                       icon: const Icon(Icons.refresh),
-                      label: const Text('Refresh Status'),
+                      label: Text(localizations.translate('refresh_status')),
                     ),
                   ],
                 ),
@@ -648,7 +646,7 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
                       TextFormField(
                         controller: _foodNameController,
                         decoration: InputDecoration(
-                          labelText: 'Food Name',
+                          labelText: localizations.translate('food_name'),
                           prefixIcon: const Icon(Icons.fastfood),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
@@ -656,7 +654,7 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
                         ),
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return 'Please enter food name';
+                            return localizations.translate('please_enter_food_name');
                           }
                           return null;
                         },
@@ -665,7 +663,7 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
                       TextFormField(
                         controller: _quantityController,
                         decoration: InputDecoration(
-                          labelText: 'Quantity',
+                          labelText: localizations.translate('quantity'),
                           prefixIcon: const Icon(Icons.numbers),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
@@ -674,10 +672,10 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
                         keyboardType: TextInputType.number,
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return 'Please enter quantity';
+                            return localizations.translate('please_enter_quantity');
                           }
                           if (int.tryParse(value) == null) {
-                            return 'Please enter a valid number';
+                            return localizations.translate('please_enter_valid_number');
                           }
                           return null;
                         },
@@ -686,7 +684,7 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
                       TextFormField(
                         controller: _descriptionController,
                         decoration: InputDecoration(
-                          labelText: 'Description',
+                          labelText: localizations.translate('description'),
                           prefixIcon: const Icon(Icons.description),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
@@ -695,7 +693,7 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
                         maxLines: 3,
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return 'Please enter description';
+                            return localizations.translate('please_enter_description');
                           }
                           return null;
                         },
@@ -704,7 +702,7 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
                       DropdownButtonFormField<String>(
                         value: _selectedFoodType,
                         decoration: InputDecoration(
-                          labelText: 'Food Type',
+                          labelText: localizations.translate('food_type'),
                           prefixIcon: const Icon(Icons.category),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
@@ -713,7 +711,7 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
                         items: _foodTypes.map((String type) {
                           return DropdownMenuItem<String>(
                             value: type,
-                            child: Text(type),
+                            child: Text(localizations.translate(type)),
                           );
                         }).toList(),
                         onChanged: (String? newValue) {
@@ -723,7 +721,7 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
                         },
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return 'Please select food type';
+                            return localizations.translate('please_select_food_type');
                           }
                           return null;
                         },
@@ -733,7 +731,7 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
                         controller: _addressController,
                         readOnly: true,
                         decoration: InputDecoration(
-                          labelText: 'Pickup Address (Click to detect)',
+                          labelText: localizations.translate('pickup_address_click_detect'),
                           prefixIcon: const Icon(Icons.location_on),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
@@ -750,13 +748,13 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
                                   )
                                 : Icon(Icons.my_location, color: Colors.green),
                             onPressed: _isGettingLocation ? null : _getLocation,
-                            tooltip: 'Get Current Location',
+                            tooltip: localizations.translate('get_current_location'),
                           ),
                         ),
                         onTap: _isGettingLocation ? null : _getLocation,
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return 'Please get pickup address by clicking the location button';
+                            return localizations.translate('please_get_pickup_address');
                           }
                           return null;
                         },
@@ -765,7 +763,7 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
                         Padding(
                           padding: const EdgeInsets.only(top: 4.0, left: 8.0),
                           child: Text(
-                            'Location: ${_latitude!.toStringAsFixed(6)}, ${_longitude!.toStringAsFixed(6)}',
+                            '${localizations.translate('location')}: ${_latitude!.toStringAsFixed(6)}, ${_longitude!.toStringAsFixed(6)}',
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey[600],
@@ -777,7 +775,7 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
                       _buildDateTimeField(),
                       const SizedBox(height: 16),
                       SwitchListTile(
-                        title: const Text('Need Volunteer for Delivery'),
+                        title: Text(localizations.translate('need_volunteer_for_delivery')),
                         value: _needsVolunteer,
                         onChanged: (bool value) {
                           setState(() {
@@ -798,9 +796,9 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
                         child: _isLoading
                             ? const CircularProgressIndicator(
                                 color: Colors.white)
-                            : const Text(
-                                'Post Donation',
-                                style: TextStyle(
+                            : Text(
+                                localizations.translate('post_donation'),
+                                style: const TextStyle(
                                     fontSize: 18, color: Colors.white),
                               ),
                       ),
@@ -819,7 +817,7 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Expiry Date & Time *',
+            '${localizations.translate('expiry_date_time')} *',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
@@ -847,7 +845,7 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
                     child: Text(
                       _expiryDateTime != null
                           ? DateTimeHelper.formatDateTime(_expiryDateTime!)
-                          : 'Select expiry date and time',
+                          : localizations.translate('select_expiry_date_time'),
                       style: TextStyle(
                         color: _expiryDateTime != null
                             ? Colors.black87
@@ -874,7 +872,7 @@ class _PostDonationScreenState extends State<PostDonationScreen> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'Local time: ${_expiryDateTime!.hour}:${_expiryDateTime!.minute.toString().padLeft(2, '0')}',
+                  '${localizations.translate('local_time')}: ${_expiryDateTime!.hour}:${_expiryDateTime!.minute.toString().padLeft(2, '0')}',
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey[600],

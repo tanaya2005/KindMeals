@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../services/firebase_service.dart';
+import '../../utils/app_localizations.dart';
 import 'register_screen.dart';
 import 'register_volunteer_screen.dart';
 import 'forgot_password_screen.dart';
@@ -79,13 +80,15 @@ class _LoginScreenState extends State<LoginScreen> {
           }
 
           if (mounted) {
+            final localizations = AppLocalizations.of(context);
+            
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Login successful!'),
+              SnackBar(
+                content: Text(localizations.translate('login_successful')),
                 backgroundColor: Colors.green,
-                duration: Duration(seconds: 2),
+                duration: const Duration(seconds: 2),
                 behavior: SnackBarBehavior.floating,
-                margin: EdgeInsets.all(16),
+                margin: const EdgeInsets.all(16),
               ),
             );
 
@@ -113,13 +116,15 @@ class _LoginScreenState extends State<LoginScreen> {
           }
           // Fallback to default dashboard if profile check fails
           if (mounted) {
+            final localizations = AppLocalizations.of(context);
+            
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Login successful!'),
+              SnackBar(
+                content: Text(localizations.translate('login_successful')),
                 backgroundColor: Colors.green,
-                duration: Duration(seconds: 2),
+                duration: const Duration(seconds: 2),
                 behavior: SnackBarBehavior.floating,
-                margin: EdgeInsets.all(16),
+                margin: const EdgeInsets.all(16),
               ),
             );
 
@@ -174,13 +179,15 @@ class _LoginScreenState extends State<LoginScreen> {
       await _firebaseService.signInWithGoogle();
 
       if (mounted) {
+        final localizations = AppLocalizations.of(context);
+        
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Google sign in successful!'),
+          SnackBar(
+            content: Text(localizations.translate('login_successful')),
             backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
+            duration: const Duration(seconds: 2),
             behavior: SnackBarBehavior.floating,
-            margin: EdgeInsets.all(16),
+            margin: const EdgeInsets.all(16),
           ),
         );
 
@@ -213,8 +220,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+    
     return Scaffold(
-      appBar: AppBar(title: const Text('Login'), centerTitle: true),
+      appBar: AppBar(
+        title: Text(localizations.translate('login')), 
+        centerTitle: true
+      ),
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -227,7 +239,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextFormField(
                   controller: _emailController,
                   decoration: InputDecoration(
-                    labelText: 'Email',
+                    labelText: localizations.translate('email'),
                     prefixIcon: const Icon(Icons.email),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -236,10 +248,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   keyboardType: TextInputType.emailAddress,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter your email';
+                      return localizations.translate('enter_email');
                     }
                     if (!value.contains('@')) {
-                      return 'Please enter a valid email';
+                      return localizations.translate('valid_email');
                     }
                     return null;
                   },
@@ -248,7 +260,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextFormField(
                   controller: _passwordController,
                   decoration: InputDecoration(
-                    labelText: 'Password',
+                    labelText: localizations.translate('password'),
                     prefixIcon: const Icon(Icons.lock),
                     suffixIcon: IconButton(
                       icon: Icon(
@@ -269,10 +281,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   obscureText: _obscurePassword,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter your password';
+                      return localizations.translate('enter_password');
                     }
                     if (value.length < 6) {
-                      return 'Password must be at least 6 characters';
+                      return localizations.translate('password_length');
                     }
                     return null;
                   },
@@ -289,7 +301,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       );
                     },
-                    child: const Text('Forgot Password?'),
+                    child: Text(localizations.translate('forgot_password')),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -304,20 +316,20 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   child: _isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                          'Login',
-                          style: TextStyle(fontSize: 18, color: Colors.white),
+                      : Text(
+                          localizations.translate('login'),
+                          style: const TextStyle(fontSize: 18, color: Colors.white),
                         ),
                 ),
                 const SizedBox(height: 20),
                 Row(
-                  children: const [
-                    Expanded(child: Divider()),
+                  children: [
+                    const Expanded(child: Divider()),
                     Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16),
-                      child: Text('OR'),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(localizations.translate('or')),
                     ),
-                    Expanded(child: Divider()),
+                    const Expanded(child: Divider()),
                   ],
                 ),
                 const SizedBox(height: 20),
@@ -327,7 +339,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     'assets/images/google_logo.png',
                     height: 24,
                   ),
-                  label: const Text('Continue with Google'),
+                  label: Text(localizations.translate('continue_with_google')),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 15),
                     shape: RoundedRectangleBorder(
@@ -339,7 +351,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text("Don't have an account?"),
+                    Text(localizations.translate('dont_have_account')),
                     TextButton(
                       onPressed: () {
                         Navigator.push(
@@ -349,7 +361,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         );
                       },
-                      child: const Text('Register'),
+                      child: Text(localizations.translate('register')),
                     ),
                   ],
                 ),
@@ -357,7 +369,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text("Want to help people?"),
+                    Text(localizations.translate('want_to_help')),
                     TextButton(
                       onPressed: () {
                         Navigator.push(
@@ -368,7 +380,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         );
                       },
-                      child: const Text('Register as Volunteer'),
+                      child: Text(localizations.translate('register_as_volunteer')),
                     ),
                   ],
                 ),

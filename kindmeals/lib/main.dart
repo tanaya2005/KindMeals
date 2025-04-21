@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:provider/provider.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
@@ -12,6 +14,7 @@ import 'dart:developer' as developer;
 import 'services/firebase_service.dart';
 import 'services/api_service.dart';
 import 'utils/env_config.dart';
+import 'utils/app_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,12 +38,21 @@ void main() async {
     } else {
       developer.log('Firebase already initialized');
     }
+    
+    // Load saved language preference
+    await AppLocalizations.localizationsService.loadSavedLanguage();
+    
   } catch (e) {
     developer.log('Error during initialization: $e', error: e);
     rethrow;
   }
 
-  runApp(const KindMealsApp());
+  runApp(
+    ChangeNotifierProvider.value(
+      value: AppLocalizations.localizationsService,
+      child: const KindMealsApp(),
+    ),
+  );
 }
 
 class KindMealsApp extends StatefulWidget {
@@ -95,9 +107,27 @@ class _KindMealsAppState extends State<KindMealsApp> {
 
   @override
   Widget build(BuildContext context) {
+    // Get current locale from the localization service
+    final currentLocale = Provider.of<AppLocalizationsService>(context).currentLocale;
+
     return MaterialApp(
       title: 'KindMeals',
       debugShowCheckedModeBanner: false,
+      
+      // Localization setup
+      locale: currentLocale,
+      supportedLocales: const [
+        Locale('en', ''), // English
+        Locale('hi', ''), // Hindi
+        Locale('mr', ''), // Marathi
+      ],
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      
       theme: ThemeData(
         primarySwatch: Colors.green,
         scaffoldBackgroundColor: Colors.white,

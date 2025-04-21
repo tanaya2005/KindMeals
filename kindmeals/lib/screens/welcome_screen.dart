@@ -124,6 +124,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
+import '../utils/app_localizations.dart';
 import 'language_screen.dart';
 
 class WelcomeScreen extends StatefulWidget {
@@ -182,6 +183,9 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Get access to localized strings
+    final AppLocalizations localizations = AppLocalizations.of(context);
+    
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -213,10 +217,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   const SizedBox(height: 40),
                   SlideTransition(
                     position: _slideAnimation,
-                    child: const Text(
-                      'KindMeals',
+                    child: Text(
+                      localizations.translate('app_name'),
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 36,
                         fontWeight: FontWeight.bold,
                         color: Colors.green,
@@ -227,10 +231,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   const SizedBox(height: 12),
                   SlideTransition(
                     position: _slideAnimation,
-                    child: const Text(
-                      'Share Food, Share Love',
+                    child: Text(
+                      localizations.translate('app_slogan'),
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 20, 
                         color: Colors.grey,
                         letterSpacing: 0.5,
@@ -253,10 +257,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                           ),
                         ],
                       ),
-                      child: const Text(
-                        '"When we give cheerfully and accept gratefully, everyone is blessed."',
+                      child: Text(
+                        localizations.translate('inspirational_quote'),
                         textAlign: TextAlign.center,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 16,
                           fontStyle: FontStyle.italic,
                           color: Colors.black54,
@@ -299,9 +303,9 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                           borderRadius: BorderRadius.circular(30),
                         ),
                       ),
-                      child: const Text(
-                        'Get Started',
-                        style: TextStyle(
+                      child: Text(
+                        localizations.translate('get_started'),
+                        style: const TextStyle(
                           fontSize: 18, 
                           fontWeight: FontWeight.w500,
                           letterSpacing: 0.5,
