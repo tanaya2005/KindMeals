@@ -471,7 +471,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 TextFormField(
                   controller: _addressController,
                   readOnly: true,
-                  readOnly: true,
                   decoration: InputDecoration(
                     labelText: localizations.translate('address'),
                     prefixIcon: const Icon(Icons.location_on),
@@ -493,7 +492,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       tooltip: 'Get Current Location',
                     ),
                   ),
-                  onTap: _isGettingLocation ? null : _getLocation,
                   onTap: _isGettingLocation ? null : _getLocation,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
