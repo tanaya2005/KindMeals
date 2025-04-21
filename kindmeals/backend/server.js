@@ -233,15 +233,15 @@ app.post('/api/donor/register', firebaseAuthMiddleware, upload, async (req, res)
       const donor = new DirectDonor({
         firebaseUid: req.firebaseUid,
         email: req.body.email || req.firebaseEmail,
-        donorname: req.body.donorname,
-        orgName: req.body.orgName,
-        identificationId: req.body.identificationId,
-        donoraddress: req.body.donoraddress,
-        donorcontact: req.body.donorcontact,
-        type: req.body.type,
-        donorabout: req.body.donorabout || '',
+      donorname: req.body.donorname,
+      orgName: req.body.orgName,
+      identificationId: req.body.identificationId,
+      donoraddress: req.body.donoraddress,
+      donorcontact: req.body.donorcontact,
+      type: req.body.type,
+      donorabout: req.body.donorabout || '',
         profileImage,
-        donorlocation: {
+      donorlocation: {
           latitude: parseFloat(req.body.latitude) || 0,
           longitude: parseFloat(req.body.longitude) || 0
         }
@@ -253,10 +253,10 @@ app.post('/api/donor/register', firebaseAuthMiddleware, upload, async (req, res)
         identificationId: donor.identificationId
       });
 
-      const savedDonor = await donor.save();
+    const savedDonor = await donor.save();
       console.log('Donor saved successfully with ID:', savedDonor._id);
       
-      res.status(201).json(savedDonor);
+    res.status(201).json(savedDonor);
     } catch (validationError) {
       console.error('Validation error:', validationError);
       return res.status(400).json({ 
@@ -303,15 +303,15 @@ app.post('/api/recipient/register', firebaseAuthMiddleware, upload, async (req, 
       const recipient = new DirectRecipient({
         firebaseUid: req.firebaseUid,
         email: req.body.email || req.firebaseEmail,
-        reciname: req.body.reciname,
-        ngoName: req.body.ngoName,
-        ngoId: req.body.ngoId,
-        reciaddress: req.body.reciaddress,
-        recicontact: req.body.recicontact,
-        type: req.body.type,
-        reciabout: req.body.reciabout || '',
+      reciname: req.body.reciname,
+      ngoName: req.body.ngoName,
+      ngoId: req.body.ngoId,
+      reciaddress: req.body.reciaddress,
+      recicontact: req.body.recicontact,
+      type: req.body.type,
+      reciabout: req.body.reciabout || '',
         profileImage,
-        recilocation: {
+      recilocation: {
           latitude: parseFloat(req.body.latitude) || 0,
           longitude: parseFloat(req.body.longitude) || 0
         }
@@ -323,10 +323,10 @@ app.post('/api/recipient/register', firebaseAuthMiddleware, upload, async (req, 
         ngoId: recipient.ngoId
       });
 
-      const savedRecipient = await recipient.save();
+    const savedRecipient = await recipient.save();
       console.log('Recipient saved successfully with ID:', savedRecipient._id);
       
-      res.status(201).json(savedRecipient);
+    res.status(201).json(savedRecipient);
     } catch (validationError) {
       console.error('Validation error:', validationError);
       return res.status(400).json({ 
@@ -366,7 +366,7 @@ app.post('/api/volunteer/register', firebaseAuthMiddleware, upload, async (req, 
     // Handle profile image upload
     const profileImage = req.files && req.files['profileImage'] ? 
       `/uploads/${req.files['profileImage'][0].filename}` : '';
-    
+
     // Handle driving license image upload
     const drivingLicenseImage = req.files && req.files['drivingLicenseImage'] ? 
       `/uploads/${req.files['drivingLicenseImage'][0].filename}` : '';
@@ -383,11 +383,11 @@ app.post('/api/volunteer/register', firebaseAuthMiddleware, upload, async (req, 
       const volunteer = new DirectVolunteer({
         firebaseUid: req.firebaseUid,
         email: req.body.email || req.firebaseEmail,
-        volunteerName: req.body.volunteerName,
-        aadharID: req.body.aadharID,
-        volunteeraddress: req.body.volunteeraddress,
-        volunteercontact: req.body.volunteercontact,
-        volunteerabout: req.body.volunteerabout || '',
+      volunteerName: req.body.volunteerName,
+      aadharID: req.body.aadharID,
+      volunteeraddress: req.body.volunteeraddress,
+      volunteercontact: req.body.volunteercontact,
+      volunteerabout: req.body.volunteerabout || '',
         profileImage,
         hasVehicle,
         vehicleDetails: hasVehicle ? {
@@ -395,7 +395,7 @@ app.post('/api/volunteer/register', firebaseAuthMiddleware, upload, async (req, 
           vehicleNumber: req.body.vehicleNumber || '',
           drivingLicenseImage
         } : undefined,
-        volunteerlocation: {
+      volunteerlocation: {
           latitude: parseFloat(req.body.latitude) || 0,
           longitude: parseFloat(req.body.longitude) || 0
         }
@@ -407,10 +407,10 @@ app.post('/api/volunteer/register', firebaseAuthMiddleware, upload, async (req, 
         hasVehicle: volunteer.hasVehicle
       });
 
-      const savedVolunteer = await volunteer.save();
+    const savedVolunteer = await volunteer.save();
       console.log('Volunteer saved successfully with ID:', savedVolunteer._id);
       
-      res.status(201).json(savedVolunteer);
+    res.status(201).json(savedVolunteer);
     } catch (validationError) {
       console.error('Validation error:', validationError);
       return res.status(400).json({ 
@@ -856,7 +856,7 @@ app.get('/api/volunteer/accepted-donations', firebaseAuthMiddleware, async (req,
     console.log(`Found ${acceptedDonations.length} accepted donations that need volunteer delivery`);
     
     res.status(200).json(acceptedDonations);
-  } catch (err) {
+      } catch (err) {
     console.error('Error getting accepted donations for volunteer:', err);
     res.status(400).json({ error: err.message });
   }
@@ -1201,7 +1201,7 @@ app.get('/api/volunteer/donations/pending', firebaseAuthMiddleware, async (req, 
           
           console.log(`Enhanced donor info for donation: ${donationObj._id}`);
         }
-      } catch (err) {
+  } catch (err) {
         console.log(`Error enhancing donor info for donation ${donationObj._id}:`, err);
       }
       
@@ -1352,7 +1352,7 @@ app.get('/api/pending-volunteer-deliveries', firebaseAuthMiddleware, async (req,
           
           console.log(`Enhanced recipient info for donation: ${donationObj._id}`);
         }
-      } catch (err) {
+  } catch (err) {
         console.log(`Error enhancing recipient info for donation ${donationObj._id}:`, err);
       }
       
@@ -1590,7 +1590,7 @@ app.get('/api/donors/leaderboard', async (req, res) => {
             profileImage: null
           };
         }
-      } catch (err) {
+  } catch (err) {
         console.error(`Error fetching details for donor ${donor.donorId}:`, err);
         return {
           _id: donor.donorId,
@@ -1764,6 +1764,516 @@ app.put('/api/recipient/profile', firebaseAuthMiddleware, upload, async (req, re
   } catch (err) {
     console.error('Error updating recipient profile:', err);
     res.status(400).json({ error: err.message });
+  }
+});
+
+// ======= ADMIN PANEL API ENDPOINTS =======
+
+// Admin authentication middleware
+const adminAuthMiddleware = async (req, res, next) => {
+  try {
+    const idToken = req.header('Authorization')?.replace('Bearer ', '');
+    if (!idToken) {
+      return res.status(401).json({ error: 'No authentication token provided' });
+    }
+
+    try {
+      // Verify the ID token
+      const decodedToken = await verifyToken(idToken);
+      const firebaseUid = decodedToken.uid;
+      const email = decodedToken.email;
+      
+      // For development, use environment variable to specify admin email
+      // In production, you should have a more secure approach
+      const adminEmails = [process.env.ADMIN_EMAIL || 'admin@kindmeals.in'];
+      
+      if (!adminEmails.includes(email)) {
+        console.log('User not authorized as admin:', email);
+        return res.status(403).json({ error: 'Not authorized as admin' });
+      }
+
+      req.admin = { uid: firebaseUid, email };
+      console.log('Admin authenticated:', email);
+      next();
+    } catch (error) {
+      console.error('Error verifying admin token:', error);
+      return res.status(401).json({ error: 'Authentication failed' });
+    }
+  } catch (error) {
+    console.error('Error in admin auth middleware:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+// Admin login endpoint
+app.post('/admin/login', async (req, res) => {
+  try {
+    const { idToken } = req.body;
+    if (!idToken) {
+      return res.status(400).json({ error: 'No ID token provided' });
+    }
+    
+    // Verify Firebase token
+    const decodedToken = await verifyToken(idToken);
+    const email = decodedToken.email;
+    
+    // Check if user is an admin
+    const adminEmails = [process.env.ADMIN_EMAIL || 'admin@kindmeals.in'];
+    if (!adminEmails.includes(email)) {
+      console.log('Non-admin tried to login:', email);
+      return res.status(403).json({ error: 'Not authorized as admin' });
+    }
+    
+    console.log('Admin login successful:', email);
+    
+    // Return user info and token
+    res.json({ 
+      token: idToken,
+      user: { 
+        uid: decodedToken.uid, 
+        email,
+        role: 'admin'
+      }
+    });
+  } catch (error) {
+    console.error('Admin login error:', error);
+    res.status(401).json({ error: 'Authentication failed' });
+  }
+});
+
+// Get admin dashboard stats - UPDATED to match frontend expectations
+app.get('/admin/dashboard/stats', adminAuthMiddleware, async (req, res) => {
+  try {
+    // Get counts
+    const donorCount = await DirectDonor.countDocuments();
+    const recipientCount = await DirectRecipient.countDocuments();
+    const volunteerCount = await DirectVolunteer.countDocuments();
+    const liveDonationCount = await LiveDonation.countDocuments();
+    const acceptedDonationCount = await AcceptedDonation.countDocuments();
+    const expiredDonationCount = await ExpiredDonation.countDocuments();
+    const finalDonationCount = await FinalDonation.countDocuments();
+    const totalDonations = liveDonationCount + acceptedDonationCount + expiredDonationCount + finalDonationCount;
+    
+    // Get current month's donations
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    
+    const liveDonationsThisMonth = await LiveDonation.countDocuments({
+      timeOfUpload: { $gte: startOfMonth }
+    });
+    
+    const acceptedDonationsThisMonth = await AcceptedDonation.countDocuments({
+      acceptedAt: { $gte: startOfMonth }
+    });
+    
+    const finalDonationsThisMonth = await FinalDonation.countDocuments({
+      completedAt: { $gte: startOfMonth }
+    });
+    
+    const mealsThisMonth = liveDonationsThisMonth + acceptedDonationsThisMonth + finalDonationsThisMonth;
+    
+    // Get pending deliveries (accepted donations that need to be delivered)
+    const pendingDeliveries = await AcceptedDonation.countDocuments({
+      deliveryAssigned: false
+    });
+    
+    // Calculate growth rate (compare this month to previous month)
+    const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+    
+    const donorsLastMonth = await DirectDonor.countDocuments({
+      createdAt: { $gte: previousMonth, $lt: startOfMonth }
+    });
+    
+    const donorsThisMonth = await DirectDonor.countDocuments({
+      createdAt: { $gte: startOfMonth }
+    });
+    
+    // Calculate growth rate as a percentage
+    const growthRate = donorsLastMonth > 0 
+      ? Math.round(((donorsThisMonth - donorsLastMonth) / donorsLastMonth) * 100) 
+      : donorsThisMonth > 0 ? 100 : 0;
+    
+    // Get monthly donation data for charts
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+    sixMonthsAgo.setDate(1);
+    sixMonthsAgo.setHours(0, 0, 0, 0);
+    
+    // Get donations by month for the chart
+    const months = [];
+    const donationsByMonth = [];
+    
+    for (let i = 0; i < 6; i++) {
+      const month = new Date(sixMonthsAgo);
+      month.setMonth(month.getMonth() + i);
+      
+      const monthName = month.toLocaleString('default', { month: 'short' });
+      months.push(monthName);
+      
+      const startOfMonth = new Date(month.getFullYear(), month.getMonth(), 1);
+      const endOfMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0, 23, 59, 59, 999);
+      
+      // Count donations for this month
+      const liveDonationsCount = await LiveDonation.countDocuments({
+        timeOfUpload: { $gte: startOfMonth, $lte: endOfMonth }
+      });
+      
+      const acceptedDonationsCount = await AcceptedDonation.countDocuments({
+        acceptedAt: { $gte: startOfMonth, $lte: endOfMonth }
+      });
+      
+      const finalDonationsCount = await FinalDonation.countDocuments({
+        completedAt: { $gte: startOfMonth, $lte: endOfMonth }
+      });
+      
+      const totalForMonth = liveDonationsCount + acceptedDonationsCount + finalDonationsCount;
+      
+      donationsByMonth.push({
+        month: monthName,
+        amount: totalForMonth * 100, // Assuming each donation is worth about $100
+        donations: totalForMonth
+      });
+    }
+    
+    // Get donor growth by month for chart
+    const donorGrowth = [];
+    
+    for (let i = 0; i < 6; i++) {
+      const month = new Date(sixMonthsAgo);
+      month.setMonth(month.getMonth() + i);
+      
+      const monthName = month.toLocaleString('default', { month: 'short' });
+      
+      const endOfMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0, 23, 59, 59, 999);
+      
+      // Count total donors up to this month
+      const totalDonorsUpToMonth = await DirectDonor.countDocuments({
+        createdAt: { $lte: endOfMonth }
+      });
+      
+      donorGrowth.push({
+        month: monthName,
+        donors: totalDonorsUpToMonth
+      });
+    }
+    
+    // Get recent donations
+    const recentDonations = await LiveDonation.find()
+      .sort({ timeOfUpload: -1 })
+      .limit(5)
+      .populate('donorId', 'name')
+      .lean();
+      
+    const formattedRecentDonations = await Promise.all(recentDonations.map(async (donation) => {
+      let recipientName = 'Not yet assigned';
+      let status = 'Pending';
+      
+      // Check if this donation has been accepted
+      const acceptedVersion = await AcceptedDonation.findOne({
+        originalDonationId: donation._id
+      }).populate('recipientId', 'name');
+      
+      if (acceptedVersion) {
+        recipientName = acceptedVersion.recipientId?.name || 'Unknown Recipient';
+        status = 'Accepted';
+        
+        // Check if it's already completed
+        const finalVersion = await FinalDonation.findOne({
+          originalDonationId: donation._id
+        });
+        
+        if (finalVersion) {
+          status = 'Completed';
+        }
+      }
+      
+      return {
+        donor: donation.donorId?.name || 'Anonymous Donor',
+        recipient: recipientName,
+        date: donation.timeOfUpload,
+        amount: Math.floor(Math.random() * 200) + 50, // Random donation amount between $50 and $250
+        status: status
+      };
+    }));
+    
+    // Return all the dashboard stats
+    res.json({
+      totalDonors: donorCount,
+      totalRecipients: recipientCount,
+      totalVolunteers: volunteerCount,
+      mealsThisMonth: mealsThisMonth,
+      totalMeals: totalDonations,
+      pendingDeliveries: pendingDeliveries,
+      growthRate: growthRate,
+      totalDonations: totalDonations,
+      totalAmount: totalDonations * 100, // Assuming each donation is worth about $100
+      donationsByMonth: donationsByMonth,
+      donorGrowth: donorGrowth,
+      recentDonations: formattedRecentDonations
+    });
+  } catch (error) {
+    console.error('Error fetching admin dashboard stats:', error);
+    res.status(500).json({ error: 'Failed to fetch dashboard statistics' });
+  }
+});
+
+// Combined endpoint for all donations
+app.get('/admin/donations', adminAuthMiddleware, async (req, res) => {
+  try {
+    // Get all types of donations
+    const liveDonations = await LiveDonation.find()
+      .populate('donorId', 'name email phone')
+      .sort({ timeOfUpload: -1 })
+      .lean();
+      
+    const acceptedDonations = await AcceptedDonation.find()
+      .populate('donorId', 'name email phone')
+      .populate('recipientId', 'name email phone')
+      .sort({ acceptedAt: -1 })
+      .lean();
+      
+    const expiredDonations = await ExpiredDonation.find()
+      .populate('donorId', 'name email phone')
+      .sort({ expiredAt: -1 })
+      .lean();
+      
+    const finalDonations = await FinalDonation.find()
+      .populate('donorId', 'name email phone')
+      .populate('recipientId', 'name email phone')
+      .sort({ completedAt: -1 })
+      .lean();
+    
+    // Transform and mark each donation with its status
+    const transformedLiveDonations = liveDonations.map(donation => ({
+      ...donation,
+      status: 'pending',
+      statusText: 'Pending',
+      donorName: donation.donorId?.name || 'Anonymous',
+      recipientName: 'Not yet assigned'
+    }));
+    
+    const transformedAcceptedDonations = acceptedDonations.map(donation => ({
+      ...donation,
+      status: 'accepted',
+      statusText: 'Accepted',
+      donorName: donation.donorId?.name || 'Anonymous',
+      recipientName: donation.recipientId?.name || 'Unknown Recipient'
+    }));
+    
+    const transformedExpiredDonations = expiredDonations.map(donation => ({
+      ...donation,
+      status: 'expired',
+      statusText: 'Expired',
+      donorName: donation.donorId?.name || 'Anonymous',
+      recipientName: 'Not Assigned'
+    }));
+    
+    const transformedFinalDonations = finalDonations.map(donation => ({
+      ...donation,
+      status: 'completed',
+      statusText: 'Completed',
+      donorName: donation.donorId?.name || 'Anonymous',
+      recipientName: donation.recipientId?.name || 'Unknown Recipient'
+    }));
+    
+    // Combine all donations
+    const allDonations = [
+      ...transformedLiveDonations,
+      ...transformedAcceptedDonations,
+      ...transformedExpiredDonations,
+      ...transformedFinalDonations
+    ];
+    
+    // Sort by most recent first
+    allDonations.sort((a, b) => {
+      const dateA = a.timeOfUpload || a.acceptedAt || a.expiredAt || a.completedAt;
+      const dateB = b.timeOfUpload || b.acceptedAt || b.expiredAt || b.completedAt;
+      return new Date(dateB) - new Date(dateA);
+    });
+    
+    res.json(allDonations);
+  } catch (error) {
+    console.error('Error fetching all donations:', error);
+    res.status(500).json({ error: 'Failed to fetch donations' });
+  }
+});
+
+// Get all donors
+app.get('/admin/donors', adminAuthMiddleware, async (req, res) => {
+  try {
+    const donors = await DirectDonor.find().sort({ createdAt: -1 }).lean();
+    res.json(donors);
+  } catch (error) {
+    console.error('Error fetching donors:', error);
+    res.status(500).json({ error: 'Failed to fetch donors' });
+  }
+});
+
+// Get all recipients
+app.get('/admin/recipients', adminAuthMiddleware, async (req, res) => {
+  try {
+    const recipients = await DirectRecipient.find().sort({ createdAt: -1 }).lean();
+    res.json(recipients);
+  } catch (error) {
+    console.error('Error fetching recipients:', error);
+    res.status(500).json({ error: 'Failed to fetch recipients' });
+  }
+});
+
+// Get all users (combined)
+app.get('/admin/users', adminAuthMiddleware, async (req, res) => {
+  try {
+    const donors = await DirectDonor.find().lean();
+    const recipients = await DirectRecipient.find().lean();
+    
+    // Add role field to distinguish user types
+    const usersWithRoles = [
+      ...donors.map(donor => ({ ...donor, role: 'donor' })),
+      ...recipients.map(recipient => ({ ...recipient, role: 'recipient' }))
+    ];
+    
+    res.json(usersWithRoles);
+  } catch (error) {
+    console.error('Error fetching all users:', error);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// Get volunteers
+app.get('/admin/volunteers', adminAuthMiddleware, async (req, res) => {
+  try {
+    const volunteers = await DirectVolunteer.find().sort({ createdAt: -1 }).lean();
+    res.json(volunteers);
+  } catch (error) {
+    console.error('Error fetching volunteers:', error);
+    res.status(500).json({ error: 'Failed to fetch volunteers' });
+  }
+});
+
+// Get live donations
+app.get('/admin/donations/live', adminAuthMiddleware, async (req, res) => {
+  try {
+    const donations = await LiveDonation.find().sort({ timeOfUpload: -1 }).lean();
+    res.json(donations);
+  } catch (error) {
+    console.error('Error fetching live donations:', error);
+    res.status(500).json({ error: 'Failed to fetch live donations' });
+  }
+});
+
+// Get accepted donations
+app.get('/admin/donations/accepted', adminAuthMiddleware, async (req, res) => {
+  try {
+    const donations = await AcceptedDonation.find().sort({ acceptedAt: -1 }).lean();
+    res.json(donations);
+  } catch (error) {
+    console.error('Error fetching accepted donations:', error);
+    res.status(500).json({ error: 'Failed to fetch accepted donations' });
+  }
+});
+
+// Get expired donations
+app.get('/admin/donations/expired', adminAuthMiddleware, async (req, res) => {
+  try {
+    const donations = await ExpiredDonation.find().sort({ expiredAt: -1 }).lean();
+    res.json(donations);
+  } catch (error) {
+    console.error('Error fetching expired donations:', error);
+    res.status(500).json({ error: 'Failed to fetch expired donations' });
+  }
+});
+
+// Get recent activity for admin dashboard
+app.get('/admin/dashboard/activity', adminAuthMiddleware, async (req, res) => {
+  try {
+    // Get recent user registrations
+    const recentDonors = await DirectDonor.find()
+      .sort({ createdAt: -1 })
+      .limit(3)
+      .lean();
+      
+    const recentRecipients = await DirectRecipient.find()
+      .sort({ createdAt: -1 })
+      .limit(3)
+      .lean();
+      
+    const recentVolunteers = await DirectVolunteer.find()
+      .sort({ createdAt: -1 })
+      .limit(3)
+      .lean();
+    
+    // Get recent donations
+    const recentLiveDonations = await LiveDonation.find()
+      .sort({ timeOfUpload: -1 })
+      .limit(5)
+      .populate('donorId', 'name email')
+      .lean();
+      
+    const recentAcceptedDonations = await AcceptedDonation.find()
+      .sort({ acceptedAt: -1 })
+      .limit(5)
+      .populate('donorId', 'name email')
+      .populate('recipientId', 'name email')
+      .lean();
+    
+    // Format activities
+    const donorSignups = recentDonors.map(donor => ({
+      id: donor._id,
+      type: 'signup',
+      description: `${donor.name} registered as a donor`,
+      timestamp: donor.createdAt,
+      user: donor.name
+    }));
+    
+    const recipientSignups = recentRecipients.map(recipient => ({
+      id: recipient._id,
+      type: 'signup',
+      description: `${recipient.name} registered as a recipient organization`,
+      timestamp: recipient.createdAt,
+      user: recipient.name
+    }));
+    
+    const volunteerSignups = recentVolunteers.map(volunteer => ({
+      id: volunteer._id,
+      type: 'signup',
+      description: `${volunteer.name} registered as a volunteer`,
+      timestamp: volunteer.createdAt,
+      user: volunteer.name
+    }));
+    
+    const donations = recentLiveDonations.map(donation => ({
+      id: donation._id,
+      type: 'donation',
+      description: `${donation.donorId?.name || 'Anonymous'} donated ${donation.numberOfMeals} meals`,
+      timestamp: donation.timeOfUpload,
+      user: donation.donorId?.name || 'Anonymous'
+    }));
+    
+    const acceptances = recentAcceptedDonations.map(donation => ({
+      id: donation._id,
+      type: 'delivery',
+      description: `${donation.recipientId?.name || 'Unknown recipient'} accepted a donation`,
+      timestamp: donation.acceptedAt,
+      user: donation.recipientId?.name || 'Unknown recipient'
+    }));
+    
+    // Combine all activities
+    const allActivities = [
+      ...donorSignups,
+      ...recipientSignups,
+      ...volunteerSignups,
+      ...donations,
+      ...acceptances
+    ];
+    
+    // Sort by most recent first and limit to 10
+    allActivities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    
+    res.json(allActivities.slice(0, 10));
+  } catch (error) {
+    console.error('Error fetching admin activity:', error);
+    res.status(500).json({ error: 'Failed to fetch recent activity' });
   }
 });
 
