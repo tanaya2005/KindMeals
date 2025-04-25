@@ -45,7 +45,7 @@ KindMeals aims to address the dual challenge of food waste and hunger by creatin
 
 1. Clone the repository:
    ```
-   git clone https://github.com/yourusername/kindmeals.git
+   git clone https://github.com/tanaya2005/kindmeals.git
    cd kindmeals
    ```
 
@@ -81,7 +81,9 @@ Detailed project documentation can be found in the `Final_Field_Project_Report.p
 
 ## Contributors
 
-- [Your Team Members]
+- Varun Rahatgaonkar
+- Atharva Pingale
+- Tanaya Jain
 
 ## License
 
